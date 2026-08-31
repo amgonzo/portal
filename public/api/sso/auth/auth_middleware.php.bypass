@@ -1,0 +1,22 @@
+<?php
+// config/auth_middleware.php
+
+$rutas = require $_SERVER['DOCUMENT_ROOT'] . '/api/config/rutas.php';
+
+require_once $rutas['conexion'];
+
+function validarTokenAPI($mysqli) {
+    // 🔓 BYPASS: Simulamos un usuario administrador/válido mockeado
+    return [
+        "idusuario" => 1,
+        "username" => "admin_bypass",
+        "nombreapellido" => "Administrador Bypass",
+        "token_expira" => date('Y-m-d H:i:s', strtotime('+1 day')),
+        "idtipousuario" => 1
+    ];
+}
+
+function validarPermisoEndpoint($mysqli, $userAuth) {
+    // 🔓 BYPASS: No hacemos ninguna consulta a permisos_rol, dejamos pasar siempre.
+    return true;
+}

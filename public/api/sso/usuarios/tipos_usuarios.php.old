@@ -1,0 +1,82 @@
+<?php
+require_once __DIR__ . '/../../../cors.php';
+require_once __DIR__ . '/../../../config/conexion.php';
+require_once __DIR__ . '/../auth/auth_middleware.php';
+header('Content-Type: application/json');
+
+// 1. Validar token y sesión activa
+$userAuth = validarTokenAPI($mysqli);
+
+// 2. 🛡️ AGREGAR ESTO: Validar si el rol tiene permiso para este endpoint y método
+validarPermisoEndpoint($mysqli, $userAuth);
+
+if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+    http_response_code(405);
+    echo json_encode(["status" => "error", "msg" => "metodo_no_permitido"]);
+    exit();
+}
+
+$userAuth = validarTokenAPI($mysqli);
+
+// 1. Obtener Token del Header Authorization
+$authHeader = '';
+if (isset($_SERVER['HTTP_AUTHORIZATION'])) {
+    $authHeader = trim($_SERVER['HTTP_AUTHORIZATION']);
+} elseif (function_exists('getallheaders')) {
+    $headers = getallheaders();
+    $authHeader = $headers['Authorization'] ?? $headers['authorization'] ?? '';
+}
+
+$token = trim(str_replace('Bearer ', '', $authHeader));
+
+if (empty($token)) {
+    http_response_code(401);
+    echo json_encode(["status" => "error", "msg" => "No autorizado - Token ausente"]);
+    exit;
+}
+
+// 2. Validar Token y obtener datos del usuario
+$stmtAuth = $mysqli->prepare("SELECT idusuario FROM usuarios WHERE token = ? AND baja = 0");
+$stmtAuth->bind_param("s", $token);
+$stmtAuth->execute();
+$resAuth = $stmtAuth->get_result();
+
+if ($resAuth->num_rows === 0) {
+    http_response_code(401);
+    echo json_encode(["status" => "error", "msg" => "Token inválido o expirado"]);
+    exit;
+}
+$userAuth = $resAuth->fetch_assoc();
+
+// 3. Validar si el usuario actual tiene el rol de auditor (id_auditor = 99)[cite: 21]
+$id_auditor = 99; 
+$sqlRoleCheck = "SELECT idtipousuario FROM usuarios_roles_apps WHERE idusuario = ?";
+$stmtRole = $mysqli->prepare($sqlRoleCheck);
+$stmtRole->bind_param("i", $userAuth['idusuario']);
+$stmtRole->execute();
+$resRole = $stmtRole->get_result();
+
+$esAuditor = false;
+while($r = $resRole->fetch_assoc()) {
+    if ($r['idtipousuario'] == $id_auditor) {
+        $esAuditor = true;
+        break;
+    }
+}
+
+// 4. Filtrar roles si no es auditor[cite: 21]
+$where = "";
+if (!$esAuditor) {
+    $where = " WHERE idtipousuario != $id_auditor ";
+}
+
+$sql = "SELECT idtipousuario, descripcion FROM tiposusuario $where ORDER BY idtipousuario ASC";
+$res = $mysqli->query($sql);
+
+$tipos = [];
+while ($f = $res->fetch_assoc()) {
+    $tipos[] = $f;
+}
+
+echo json_encode(["status" => "ok", "data" => $tipos]);
+$mysqli->close();

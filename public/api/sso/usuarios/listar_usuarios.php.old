@@ -1,0 +1,108 @@
+<?php
+require_once __DIR__ . '/../../../cors.php';
+require_once __DIR__ . '/../../../config/conexion.php';
+require_once __DIR__ . '/../auth/auth_middleware.php';
+header('Content-Type: application/json');
+
+// 1. Validar token y sesión activa
+$userAuth = validarTokenAPI($mysqli);
+
+// 2. 🛡️ AGREGAR ESTO: Validar si el rol tiene permiso para este endpoint y método
+validarPermisoEndpoint($mysqli, $userAuth);
+
+if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+    http_response_code(405);
+    echo json_encode(["status" => "error", "msg" => "metodo_no_permitido"]);
+    exit();
+}
+
+$userAuth = validarTokenAPI($mysqli);
+
+// 1. Obtener Token del Header Authorization
+$authHeader = '';
+if (function_exists('getallheaders')) {
+    $headers = getallheaders();
+    $authHeader = $headers['Authorization'] ?? $headers['authorization'] ?? '';
+}
+if (empty($authHeader) && isset($_SERVER['HTTP_AUTHORIZATION'])) {
+    $authHeader = $_SERVER['HTTP_AUTHORIZATION'];
+}
+
+$token = trim(str_replace('Bearer ', '', $authHeader));
+
+if (empty($token)) {
+    http_response_code(401);
+    echo json_encode(["status" => "error", "msg" => "No autorizado - Token ausente"]);
+    exit;
+}
+
+// 2. Validar Token en la base de datos
+$stmtAuth = $mysqli->prepare("SELECT idusuario FROM usuarios WHERE token = ? AND baja = 0");
+$stmtAuth->bind_param("s", $token);
+$stmtAuth->execute();
+if ($stmtAuth->get_result()->num_rows === 0) {
+    http_response_code(401);
+    echo json_encode(["status" => "error", "msg" => "Token inválido o expirado"]);
+    exit;
+}
+
+// 3. Lógica principal del listado
+$id_auditor = 99; 
+$whereClauses = [];
+// (Podés mantener tu lógica de roles si la usas)
+
+$sql = "SELECT 
+            u.idusuario,
+            u.nombreapellido,
+            u.username,
+            u.email,
+            u.baja,
+            ura.idtipousuario,
+            ura.idaplicacion,
+            tu.descripcion AS rolnombre,
+            a.nombre AS nombre_app
+        FROM usuarios u
+        LEFT JOIN usuarios_roles_apps ura ON u.idusuario = ura.idusuario
+        LEFT JOIN tiposusuario tu ON ura.idtipousuario = tu.idtipousuario
+        LEFT JOIN aplicaciones a ON ura.idaplicacion = a.idaplicacion
+        ORDER BY u.nombreapellido ASC";
+
+$res = $mysqli->query($sql);
+
+if ($res) {
+    $usuariosMap = [];
+
+    while ($fila = $res->fetch_assoc()) {
+        $idUser = intval($fila['idusuario']);
+
+        if (!isset($usuariosMap[$idUser])) {
+            $usuariosMap[$idUser] = [
+                'idusuario' => $idUser,
+                'nombreapellido' => $fila['nombreapellido'],
+                'username' => $fila['username'],
+                'email' => $fila['email'],
+                'baja' => intval($fila['baja']),
+                'accesos' => []
+            ];
+        }
+
+        if ($fila['idaplicacion'] !== null) {
+            $usuariosMap[$idUser]['accesos'][] = [
+                'idaplicacion' => intval($fila['idaplicacion']),
+                'idtipousuario' => intval($fila['idtipousuario']),
+                'nombre_app' => $fila['nombre_app'],
+                'rolnombre' => $fila['rolnombre']
+            ];
+        }
+    }
+
+    echo json_encode([
+        "status" => "ok",
+        "data" => array_values($usuariosMap)
+    ]);
+} else {
+    http_response_code(500);
+    echo json_encode(["status" => "error", "msg" => "error_db: " . $mysqli->error]);
+}
+
+$mysqli->close();

@@ -1,0 +1,423 @@
+/* =================================================== */
+/* 🔤 FUENTES Y TIPOGRAFÍA GLOBAL                       */
+/* =================================================== */
+
+:root, [data-bs-theme] {
+    --bs-body-font-family: 'Lato', 'Roboto', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+    --bs-font-sans-serif: 'Lato', 'Roboto', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+}
+
+body, h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6, 
+table, th, td, input, button, select, textarea, p, a,
+span:not(.fa):not(.fas):not(.far):not(.fal):not(.fab):not(.bi) {
+    font-family: 'Lato', 'Roboto', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+}
+
+.fa, .fas, .far, .fal, .fab, .bi,
+.fa::before, .fas::before, .far::before, .fal::before, .fab::before, .bi::before {
+    font-family: "Font Awesome 5 Free", "Font Awesome 5 Brands", "bootstrap-icons" !important;
+}
+
+body {
+    -webkit-font-smoothing: antialiased !important;
+    -moz-osx-font-smoothing: grayscale !important;
+}
+
+h1, h3, h4, .h1, .h3, .h4 { font-weight: 300 !important; letter-spacing: -0.5px; }
+h2, .h2 { font-weight: 700 !important; }
+
+/* =================================================== */
+/* ☀️ MODO CLARO                                      */
+/* =================================================== */
+[data-bs-theme="light"], body:not([data-bs-theme="dark"]) {
+    color: #373a3c !important;
+}
+
+[data-bs-theme="light"] h1, [data-bs-theme="light"] h3, [data-bs-theme="light"] h4 { color: #2b2e31 !important; }
+[data-bs-theme="light"] h2, [data-bs-theme="light"] .h2 { color: #212529 !important; }
+[data-bs-theme="light"] .table, [data-bs-theme="light"] .table td { color: #373a3c !important; }
+[data-bs-theme="light"] .table th { color: #212529 !important; }
+[data-bs-theme="light"] .text-muted { color: #8c9b9d !important; }
+
+/* =================================================== */
+/* 🌙 MODO OSCURO SUAVE (SLATE / GRAFITO DE TONO MEDIO)*/
+/* =================================================== */
+[data-bs-theme="dark"] body {
+    background-color: #22272e !important; /* Fondo suave y descansado */
+    color: #adbac7 !important;
+}
+
+/* 1. TARJETAS, MODALES Y CONTENEDORES PRINCIPALES */
+[data-bs-theme="dark"] .card,
+[data-bs-theme="dark"] .bg-white,
+[data-bs-theme="dark"] .card.bg-white,
+[data-bs-theme="dark"] .modal-content {
+    background-color: #2d333b !important;
+    color: #adbac7 !important;
+    border-color: #444c56 !important;
+}
+
+/* 2. SUB-BLOQUES INTERNOS (Headers de modales, filtros, alertas, bg-light) */
+[data-bs-theme="dark"] .modal-header,
+[data-bs-theme="dark"] .modal-footer,
+[data-bs-theme="dark"] .bg-light,
+[data-bs-theme="dark"] .bg-body-tertiary,
+[data-bs-theme="dark"] div[class*="bg-light"],
+[data-bs-theme="dark"] .modal-footer.bg-light {
+    background-color: #373e47 !important;
+    border-color: #444c56 !important;
+}
+
+/* 3. TÍTULOS Y TEXTOS EN MODO OSCURO */
+[data-bs-theme="dark"] h1, 
+[data-bs-theme="dark"] h2, 
+[data-bs-theme="dark"] h3, 
+[data-bs-theme="dark"] h4,
+[data-bs-theme="dark"] h5,
+[data-bs-theme="dark"] h6,
+[data-bs-theme="dark"] .text-dark,
+[data-bs-theme="dark"] .modal-title,
+[data-bs-theme="dark"] strong {
+    color: #f0f6fc !important; /* Blanco suave, no encandila */
+}
+
+[data-bs-theme="dark"] .text-muted {
+    color: #768390 !important;
+}
+
+/* 4. TABLAS Y FILAS DESTACADAS */
+[data-bs-theme="dark"] .table,
+[data-bs-theme="dark"] .table td {
+    color: #adbac7 !important;
+    border-color: #444c56 !important;
+}
+
+[data-bs-theme="dark"] .table th,
+[data-bs-theme="dark"] .table-light,
+[data-bs-theme="dark"] .table-light > td,
+[data-bs-theme="dark"] .table-light > th {
+    background-color: #373e47 !important;
+    color: #f0f6fc !important;
+    border-color: #444c56 !important;
+}
+
+/* 5. INPUTS, SELECTS Y CONTROLES DE FORMULARIO */
+[data-bs-theme="dark"] .form-control,
+[data-bs-theme="dark"] .form-select,
+[data-bs-theme="dark"] select {
+    background-color: #22272e !important;
+    color: #f0f6fc !important;
+    border-color: #444c56 !important;
+}
+
+[data-bs-theme="dark"] .form-control:focus,
+[data-bs-theme="dark"] .form-select:focus {
+    background-color: #22272e !important;
+    color: #ffffff !important;
+    border-color: #3182ce !important;
+}
+
+/* =================================================== */
+/* 🎨 FIX PARA CAJAS E ÍCONOS SUTILES (bg-*-subtle)   */
+/* =================================================== */
+
+[data-bs-theme="dark"] .bg-primary-subtle {
+    background-color: rgba(52, 152, 219, 0.18) !important; /* Fondo azul translúcido */
+}
+[data-bs-theme="dark"] .bg-primary-subtle .text-primary,
+[data-bs-theme="dark"] .text-primary {
+    color: #5dade2 !important; /* Azul celeste brillante e hiper legible */
+}
+
+[data-bs-theme="dark"] .bg-success-subtle {
+    background-color: rgba(24, 188, 156, 0.18) !important; /* Fondo verde translúcido */
+}
+[data-bs-theme="dark"] .bg-success-subtle .text-success,
+[data-bs-theme="dark"] .text-success {
+    color: #2ecc71 !important; /* Verde Neón suave */
+}
+
+[data-bs-theme="dark"] .bg-danger-subtle {
+    background-color: rgba(231, 76, 60, 0.18) !important; /* Fondo rojo translúcido */
+}
+[data-bs-theme="dark"] .bg-danger-subtle .text-danger,
+[data-bs-theme="dark"] .text-danger {
+    color: #ff6b6b !important; /* Rojo vívido */
+}
+
+[data-bs-theme="dark"] .bg-warning-subtle {
+    background-color: rgba(243, 156, 18, 0.18) !important; /* Fondo amarillo translúcido */
+}
+[data-bs-theme="dark"] .bg-warning-subtle .text-warning,
+[data-bs-theme="dark"] .text-warning {
+    color: #f1c40f !important; /* Amarillo brillante */
+}
+
+/* =================================================== */
+/* 🍞 FIX PARA SWEETALERT2 TOASTS EN MODO OSCURO       */
+/* =================================================== */
+
+[data-bs-theme="dark"] .swal2-toast {
+    background-color: #2d333b !important; /* Mismo fondo suave de las tarjetas */
+    color: #f0f6fc !important;            /* Texto claro legible */
+    border: 1px solid #444c56 !important; /* Borde sutil para despegarlo del fondo */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
+}
+
+/* Color del título y mensaje del toast */
+[data-bs-theme="dark"] .swal2-toast .swal2-title,
+[data-bs-theme="dark"] .swal2-toast .swal2-html-container {
+    color: #f0f6fc !important;
+}
+
+/* Botón de cierre en el toast (si existiera) */
+[data-bs-theme="dark"] .swal2-toast .swal2-close {
+    color: #adbac7 !important;
+}
+
+/* 📊 Fix para las barras de gráficos bg-primary en Modo Oscuro */
+[data-bs-theme="dark"] .bg-primary {
+    background-color: #3498db !important; /* Azul cobalto brillante/legible */
+}
+
+/* =================================================== */
+/* 🏷️ BADGES / INSIGNIAS (FLATLY)                      */
+/* =================================================== */
+.badge.bg-success, .badge-success { background-color: #18bc9c !important; color: #ffffff !important; }
+.badge.bg-danger, .badge-danger    { background-color: #e74c3c !important; color: #ffffff !important; }
+.badge.bg-warning, .badge-warning  { background-color: #f39c12 !important; color: #ffffff !important; }
+.badge.bg-info, .badge-info        { background-color: #3498db !important; color: #ffffff !important; }
+.badge.bg-primary, .badge-primary  { background-color: #2c3e50 !important; color: #ffffff !important; }
+
+/* =================================================== */
+/* 🔢 FIX PAGINACIÓN DATATABLES EN MODO OSCURO         */
+/* =================================================== */
+
+/* 1. Texto de información, selector de cantidad y buscador */
+[data-bs-theme="dark"] .dataTables_wrapper .dataTables_info,
+[data-bs-theme="dark"] .dataTables_wrapper .dataTables_length,
+[data-bs-theme="dark"] .dataTables_wrapper .dataTables_filter {
+    color: #adbac7 !important;
+}
+
+/* 2. Botones de Paginación Estándar de DataTables */
+[data-bs-theme="dark"] .dataTables_wrapper .dataTables_paginate .paginate_button {
+    color: #adbac7 !important;
+    background: #2a2f36 !important;
+    border: 1px solid #444c56 !important;
+    border-radius: 4px;
+}
+
+[data-bs-theme="dark"] .dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+    color: #ffffff !important;
+    background: #373e47 !important;
+    border-color: #5d6775 !important;
+}
+
+/* Página Activa / Seleccionada */
+[data-bs-theme="dark"] .dataTables_wrapper .dataTables_paginate .paginate_button.current,
+[data-bs-theme="dark"] .dataTables_wrapper .dataTables_paginate .paginate_button.current:hover {
+    color: #ffffff !important;
+    background: #18bc9c !important; /* Verde Flatly */
+    border-color: #18bc9c !important;
+}
+
+/* Botones Deshabilitados (Anterior / Siguiente si no hay más páginas) */
+[data-bs-theme="dark"] .dataTables_wrapper .dataTables_paginate .paginate_button.disabled,
+[data-bs-theme="dark"] .dataTables_wrapper .dataTables_paginate .paginate_button.disabled:hover {
+    color: #5d6775 !important;
+    background: #22272e !important;
+    border-color: #353c46 !important;
+}
+
+/* 3. Compatibilidad si usás Paginación con Render de Bootstrap 5 (.pagination) */
+[data-bs-theme="dark"] .pagination .page-link {
+    background-color: #2a2f36 !important;
+    border-color: #444c56 !important;
+    color: #adbac7 !important;
+}
+
+[data-bs-theme="dark"] .pagination .page-link:hover {
+    background-color: #373e47 !important;
+    color: #ffffff !important;
+}
+
+[data-bs-theme="dark"] .pagination .page-item.active .page-link {
+    background-color: #18bc9c !important;
+    border-color: #18bc9c !important;
+    color: #ffffff !important;
+}
+
+[data-bs-theme="dark"] .pagination .page-item.disabled .page-link {
+    background-color: #22272e !important;
+    border-color: #353c46 !important;
+    color: #5d6775 !important;
+}
+
+/* =================================================== */
+/* 🔘 FIX PARA BOTONES OUTLINE PRIMARY EN MODO OSCURO  */
+/* =================================================== */
+
+[data-bs-theme="dark"] .btn-outline-primary {
+    color: #5dade2 !important;        /* Texto e ícono en celeste claro vibrante */
+    border-color: #5dade2 !important; /* Borde bien visible */
+    background-color: transparent !important;
+}
+
+/* Estado Hover / Clic */
+[data-bs-theme="dark"] .btn-outline-primary:hover,
+[data-bs-theme="dark"] .btn-outline-primary:focus,
+[data-bs-theme="dark"] .btn-outline-primary:active,
+[data-bs-theme="dark"] .btn-outline-primary.active {
+    color: #ffffff !important;            /* Texto blanco al pasar el mouse */
+    background-color: #3498db !important; /* Relleno azul brillante */
+    border-color: #3498db !important;
+    box-shadow: 0 0 8px rgba(52, 152, 219, 0.3) !important; /* Resplandor suave */
+}
+
+/* =================================================== */
+/* 🎨 BOTONES PRINCIPALES Y COLOR PRIMARIO GLOBAL      */
+/* =================================================== */
+
+:root {
+    /* Color primario en Modo Claro (Ejemplo: Azul Noche / Slate #2c3e50) */
+    --bs-primary: #2c3e50 !important;
+    --bs-primary-rgb: 44, 62, 80 !important;
+    --bs-link-color: #2c3e50 !important;
+    --bs-link-hover-color: #1a252f !important;
+}
+
+/* Botón Primario - Modo Claro */
+.btn-primary {
+    background-color: #2c3e50 !important;
+    border-color: #2c3e50 !important;
+    color: #ffffff !important;
+}
+
+.btn-primary:hover, 
+.btn-primary:focus, 
+.btn-primary:active, 
+.btn-primary.active {
+    background-color: #1a252f !important;
+    border-color: #1a252f !important;
+    color: #ffffff !important;
+    box-shadow: 0 0 0 0.25rem rgba(44, 62, 80, 0.25) !important;
+}
+
+/* Botón Primario - Modo Oscuro (Tono más vibrante sobre fondo oscuro) */
+[data-bs-theme="dark"] {
+    --bs-primary: #3b82f6 !important;
+    --bs-primary-rgb: 59, 130, 246 !important;
+    --bs-link-color: #60a5fa !important;
+    --bs-link-hover-color: #93c5fd !important;
+}
+
+[data-bs-theme="dark"] .btn-primary {
+    background-color: #3b82f6 !important;
+    border-color: #3b82f6 !important;
+    color: #ffffff !important;
+}
+
+[data-bs-theme="dark"] .btn-primary:hover, 
+[data-bs-theme="dark"] .btn-primary:focus, 
+[data-bs-theme="dark"] .btn-primary:active {
+    background-color: #2563eb !important;
+    border-color: #2563eb !important;
+    box-shadow: 0 0 0 0.25rem rgba(59, 130, 246, 0.3) !important;
+}
+
+/* =================================================== */
+/* 🔑 AJUSTES ESPECÍFICOS PARA INDEX Y LOGIN           */
+/* =================================================== */
+
+/* 1. Contorno al hacer foco en Inputs */
+.form-control:focus, 
+.form-select:focus {
+    border-color: var(--bs-primary) !important;
+    box-shadow: 0 0 0 0.25rem rgba(var(--bs-primary-rgb), 0.2) !important;
+}
+
+/* 2. Íconos dentro de los Inputs (Input Group Text) en Modo Oscuro */
+[data-bs-theme="dark"] .input-group-text {
+    background-color: #373e47 !important;
+    border-color: #444c56 !important;
+    color: #adbac7 !important;
+}
+
+/* 3. Links ("Olvidó su contraseña", etc.) */
+[data-bs-theme="dark"] a {
+    color: #60a5fa !important;
+}
+
+[data-bs-theme="dark"] a:hover {
+    color: #93c5fd !important;
+    text-decoration: underline !important;
+}
+
+/* 4. Fix para títulos azules explícitos (.text-primary) */
+.text-primary {
+    color: var(--bs-primary) !important;
+}
+
+/* =================================================== */
+/* ☑️ CHECKBOXES Y RADIOS (ESTILO BOOTSTRAP 4 / FLATLY) */
+/* =================================================== */
+
+.form-check-input {
+    width: 1.1em;
+    height: 1.1em;
+    margin-top: 0.15em;
+    vertical-align: top;
+    background-color: #ffffff;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: contain;
+    border: 1px solid #ced4da;
+    border-radius: 0.25em;
+    appearance: none;
+    -webkit-appearance: none;
+    cursor: pointer;
+    transition: background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+/* Radio buttons redondeados */
+.form-check-input[type="radio"] {
+    border-radius: 50%;
+}
+
+/* Estado Marcado (Checked) - Tono Primario Bootstrap 4 (#2c3e50 / Flatly) */
+.form-check-input:checked {
+    background-color: #2c3e50;
+    border-color: #2c3e50;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3e%3cpath fill='none' stroke='%23fff' stroke-linecap='round' stroke-linejoin='round' stroke-width='3' d='M6 10l3 3l6-6'/%3e%3c/svg%3e");
+}
+
+.form-check-input[type="radio"]:checked {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='2' fill='%23fff'/%3e%3c/svg%3e");
+}
+
+/* Estado Focus (Foco) */
+.form-check-input:focus {
+    border-color: #2c3e50;
+    outline: 0;
+    box-shadow: 0 0 0 0.2rem rgba(44, 62, 80, 0.25);
+}
+
+/* =================================================== */
+/* 🌙 CHECKBOXES Y RADIOS EN MODO OSCURO               */
+/* =================================================== */
+
+[data-bs-theme="dark"] .form-check-input {
+    background-color: #22272e;
+    border-color: #444c56;
+}
+
+[data-bs-theme="dark"] .form-check-input:checked {
+    background-color: #3b82f6;
+    border-color: #3b82f6;
+}
+
+[data-bs-theme="dark"] .form-check-input:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.3);
+}
