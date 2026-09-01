@@ -73,7 +73,7 @@ function validarPermisoEndpoint($mysqli, $userAuth) {
         echo json_encode(["status" => "error", "msg" => "Acceso denegado - Rol no definido"]);
         exit;
     }
-
+/*
     $sql = "SELECT 1 
             FROM permisos_rol pr 
             INNER JOIN permisos p ON pr.idpermiso = p.idpermiso 
@@ -84,7 +84,18 @@ function validarPermisoEndpoint($mysqli, $userAuth) {
                 OR (p.endpoint LIKE '%*%' AND ? LIKE CONCAT('%', REPLACE(p.endpoint, '*', ''), '%'))
             )
             LIMIT 1";
-
+*/
+    $sql = "SELECT 1 
+            FROM permisos_rol pr 
+            INNER JOIN permisos p ON pr.idpermiso = p.idpermiso 
+            WHERE pr.idtipousuario = ? 
+            AND (p.metodo = 'ALL' || p.metodo = ?)
+            AND (
+                p.endpoint = ? 
+                OR (p.endpoint LIKE '%*%' AND ? LIKE CONCAT('%', REPLACE(p.endpoint, '*', ''), '%'))
+            )
+            LIMIT 1";
+            
     $stmt = $mysqli->prepare($sql);
     $stmt->bind_param("isss", $idtipousuario, $metodoActual, $requestUri, $requestUri);
     $stmt->execute();

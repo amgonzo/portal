@@ -1,19 +1,14 @@
 <?php
- 
 // 1. Cargamos nuestro archivo central de rutas
 $rutas = require $_SERVER['DOCUMENT_ROOT'] . '/api/config/rutas.php';
 
 // 2. Cargamos Composer usando la clave del array
 require_once $rutas['autoload'];
 
-
 try {
-    // 3. Cargamos el .env usando la ruta definida en rutas.php
     $dotenv = Dotenv\Dotenv::createImmutable($rutas['env_api']);
     $dotenv->load();
-} catch (Exception $e) {
-    // Manejo silencioso si no hay .env
-}
+} catch (Exception $e) {}
 
 require_once $rutas['conexion'];
 require_once $rutas['middleware'];
@@ -35,7 +30,7 @@ $stmtRU->execute();
 $resRU = $stmtRU->get_result();
 
 $esAuditorSesion = false;
-$id_auditor = 99; // ID de rol superadmin/auditor con visibilidad total
+$id_auditor = 99;
 
 while($rowR = $resRU->fetch_assoc()) {
     if ($rowR['idtipousuario'] == $id_auditor) {
@@ -49,14 +44,18 @@ if (!$idApp || !$idTipo) {
     exit;
 }
 
-// 1. Obtener todos los permisos pertenecientes a la APLICACIÓN seleccionada
-$wherePermisos = " WHERE idaplicacion = ? ";
+// 1. Obtener todos los permisos pertenecientes a la APLICACIÓN seleccionada mediante la tabla intermedia `aplicaciones_permisos`
+$wherePermisos = " WHERE ap.idaplicacion = ? ";
 if (!$esAuditorSesion) {
-    $wherePermisos .= " AND clavepermiso NOT LIKE '%auditoria%' AND clavepermiso NOT LIKE '%audit%' ";
+    $wherePermisos .= " AND p.clavepermiso NOT LIKE '%auditoria%' AND p.clavepermiso NOT LIKE '%audit%' ";
 }
 
-// 👈 NUEVO: Agregamos endpoint y metodo al SELECT
-$sqlTodos = "SELECT idpermiso, clavepermiso, endpoint, metodo, descripcion FROM permisos $wherePermisos ORDER BY clavepermiso ASC";
+$sqlTodos = "SELECT p.idpermiso, p.clavepermiso, p.endpoint, p.metodo, p.descripcion 
+             FROM permisos p 
+             INNER JOIN aplicaciones_permisos ap ON p.idpermiso = ap.idpermiso 
+             $wherePermisos 
+             ORDER BY p.clavepermiso ASC";
+
 $stmtTodos = $mysqli->prepare($sqlTodos);
 $stmtTodos->bind_param("i", $idApp);
 $stmtTodos->execute();
@@ -70,8 +69,8 @@ while ($row = $resTodos->fetch_assoc()) {
 // 2. Obtener los permisos ASIGNADOS a este rol exclusivamente para esta APLICACIÓN
 $sqlAsignados = "SELECT pr.idpermiso 
                  FROM permisos_rol pr 
-                 INNER JOIN permisos p ON pr.idpermiso = p.idpermiso 
-                 WHERE pr.idtipousuario = ? AND p.idaplicacion = ?";
+                 INNER JOIN aplicaciones_permisos ap ON pr.idpermiso = ap.idpermiso 
+                 WHERE pr.idtipousuario = ? AND ap.idaplicacion = ?";
 $stmtAsig = $mysqli->prepare($sqlAsignados);
 $stmtAsig->bind_param("ii", $idTipo, $idApp);
 $stmtAsig->execute();

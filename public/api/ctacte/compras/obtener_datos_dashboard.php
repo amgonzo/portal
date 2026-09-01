@@ -31,12 +31,17 @@ validarPermisoEndpoint($mysqli, $userAuth);
 
 $mysqli = conectarDB('CTACTE_');
 
+/**
+ * Función Helper: Obtiene las fechas exactas (desde/hasta) y el periodo_codigo
+ * correspondiente a la fecha de hoy según la tabla 'config_periodos_reglas'.
+ */
 function obtenerPeriodoActualDashboard($mysqli, $fechaHoyStr) {
     $fecha = new DateTime($fechaHoyStr);
     $dia   = (int)$fecha->format('d');
     $mes   = (int)$fecha->format('m');
     $anio  = (int)$fecha->format('Y');
 
+    // Evaluamos si cae entre el 26 y 31 de Diciembre (Periodo Enero año siguiente)
     if ($mes === 12 && $dia >= 26) {
         $mesPeriodo  = 1;
         $anioPeriodo = $anio + 1;
@@ -82,15 +87,18 @@ function obtenerPeriodoActualDashboard($mysqli, $fechaHoyStr) {
 }
 
 try {
+    // 1. Obtenemos el Período Operativo de HOY
     $hoy = date('Y-m-d');
     $pAct = obtenerPeriodoActualDashboard($mysqli, $hoy);
 
+    // 2. Obtener fecha de última sincronización
     $stmt_sync = $mysqli->query("SELECT valor FROM configuracion WHERE clave = 'ultima_sincronizacion_cajas'");
     $row_sync = $stmt_sync ? $stmt_sync->fetch_assoc() : null;
     $ultima_sincro = !empty($row_sync['valor']) 
         ? date('d/m/Y H:i', strtotime($row_sync['valor'])) . ' hs' 
         : 'Nunca sincronizado';
 
+    // 3. Consolidado Mensual: Suma compras entre 'periodo_desde' y 'periodo_hasta'
     $stmt_cons = $mysqli->prepare("
         SELECT SUM(importe_total) AS total 
         FROM compras_cabecera 
@@ -102,6 +110,7 @@ try {
     $consumo_total_mes = (float)($res_cons['total'] ?? 0.00);
     $stmt_cons->close();
 
+    // 4. Contadores de empleados (Total vs con uso en el período actual)
     $res_total = $mysqli->query("SELECT COUNT(*) AS total FROM fichajes.empleados WHERE baja IS NULL OR baja = 0");
     $total_empleados = (int)($res_total->fetch_assoc()['total'] ?? 0);
 
@@ -117,6 +126,7 @@ try {
     $empleados_activos = (int)($stmt_emp_act->get_result()->fetch_assoc()['activos'] ?? 0);
     $stmt_emp_act->close();
 
+    // 5. Empleados excediendo límites (> 85% del cupo en el 'periodo_codigo' actual)
     $stmt_alertas_count = $mysqli->prepare("
         SELECT COUNT(*) AS alertas 
         FROM empleados_limites el
@@ -132,11 +142,13 @@ try {
     $alertas_limite_count = (int)($stmt_alertas_count->get_result()->fetch_assoc()['alertas'] ?? 0);
     $stmt_alertas_count->close();
 
+    // 6. Últimos 10 Consumos Recibidos (Tabla principal)
     $ultimos_consumos = [];
     $query_consumos = "
         SELECT 
             cc.punto_venta_id,
             cc.venta_id,
+            cc.nro_comprobante,
             CONCAT(e.apellido, ' ', e.nombre) AS empleado,
             cc.dni_empleado AS dni,
             cc.fecha_compra AS fecha,
@@ -150,8 +162,9 @@ try {
     if ($res_consumos) {
         while ($c = $res_consumos->fetch_assoc()) {
             $ultimos_consumos[] = [
-                'id_compra' => $c['punto_venta_id'] . '-' . $c['venta_id'],
+                'id_compra' => $c['punto_venta_id'] . '-' . $c['nro_comprobante'],
                 'id_url' => $c['punto_venta_id'] . '_' . $c['venta_id'],
+                'nro_comprobante' => $c['nro_comprobante'],
                 'empleado' => !empty(trim($c['empleado'])) ? trim($c['empleado']) : 'Empleado Desconocido',
                 'dni' => $c['dni'],
                 'fecha' => date('d/m/Y H:i', strtotime($c['fecha'])),
@@ -160,6 +173,7 @@ try {
         }
     }
 
+    // 7. Lista de Empleados en Riesgo Límite + HISTORIAL POR 'periodo_codigo'
     $alertas_lista = [];
     $stmt_lista_alertas = $mysqli->prepare("
         SELECT 
@@ -190,6 +204,7 @@ try {
     ];
 
     if ($res_lista_alertas) {
+        // Subquery para buscar el historial de períodos anteriores
         $stmt_hist = $mysqli->prepare("
             SELECT mes, anio, periodo_codigo, consumido_mes_actual AS consumido, limite_mensual AS limite,
                    ROUND((consumido_mes_actual / limite_mensual) * 100, 1) AS porc

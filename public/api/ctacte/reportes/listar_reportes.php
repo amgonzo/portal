@@ -29,6 +29,18 @@ $reportes = [
         "categoria" => "Ctacte",
         "nombre" => "Resumen Mensual",
         "descripcion" => "Listado todos los gastos con limite."
+    ],
+    [
+        "id" => "consumo_quincenal_articulos",
+        "categoria" => "Ctacte",
+        "nombre" => "Consumo de Artículos por Quincena",
+        "descripcion" => "Detalle y cantidades de artículos comprados por una persona, divididos en quincenas."
+    ],
+    [
+        "id" => "consumo_por_rango_dni",
+        "categoria" => "Ctacte",
+        "nombre" => "Consumo por Rango de DNI / Edad",
+        "descripcion" => "Agrupación de consumos totales segmentados por rangos numéricos de documento."
     ]
 ];
 

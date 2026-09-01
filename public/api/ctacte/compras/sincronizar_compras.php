@@ -89,8 +89,8 @@ function obtenerPeriodoOperativo($fechaCompraStr, $mapaReglas) {
         'periodo_codigo' => sprintf('%04d-%02d', $anioPeriodo, $mesPeriodo), 
         'periodo_desde'  => sprintf('%04d-%02d-%02d 00:00:00', $anioInicio, $regla['mes_inicio'], $regla['dia_inicio']),   
         'periodo_hasta'  => sprintf('%04d-%02d-%02d 23:59:59', $anioPeriodo, $mesFin, $diaFin),   
-        'mes'            => $mesPeriodo,     
-        'anio'           => $anioPeriodo     
+        'mes'            => $mesPeriodo,    
+        'anio'           => $anioPeriodo    
     ];
 }
 
@@ -103,11 +103,10 @@ try {
         }
     }
 
-// =========================================================================
+    // =========================================================================
     // PARTE 1: LECTURA Y PROCESAMIENTO PASO A PASO DE PERSONAS DESDE FICHAJES
     // =========================================================================
     
-    // Obtenemos todos los registros de fichajes agrupados por documento en PHP
     $res_fichajes = $mysqli->query("SELECT documento, apellido, nombre, baja FROM fichajes.empleados");
     $empleados_fichajes = [];
 
@@ -123,14 +122,11 @@ try {
         }
     }
 
-    // Preparamos las sentencias usando SELECT 1 para evitar errores de columnas
     $stmt_check_persona = $mysqli->prepare("SELECT 1 FROM personas WHERE dni = ?");
     $stmt_insert_persona = $mysqli->prepare("INSERT INTO personas (dni, apellido, nombre, idcategoria, origen, activo) VALUES (?, ?, ?, 1, 'fichajes', ?)");
     $stmt_update_persona = $mysqli->prepare("UPDATE personas SET apellido = ?, nombre = ?, activo = ? WHERE dni = ? AND origen = 'fichajes'");
 
     foreach ($empleados_fichajes as $dni => $registros) {
-        
-        // Si hay más de un registro, buscamos si hay al menos uno ACTIVO (baja = 0 o NULL)
         $seleccionado = null;
         foreach ($registros as $reg) {
             $es_activo = ($reg['baja'] === null || (int)$reg['baja'] === 0);
@@ -140,7 +136,6 @@ try {
             }
         }
 
-        // Si ninguno está activo, nos quedamos con el primero
         if ($seleccionado === null) {
             $seleccionado = $registros[0];
         }
@@ -149,17 +144,14 @@ try {
         $nombre = $seleccionado['nombre'] ?? '';
         $estado_activo = ($seleccionado['baja'] === null || (int)$seleccionado['baja'] === 0) ? 1 : 0;
 
-        // Verificar si existe la persona
         $stmt_check_persona->bind_param("s", $dni);
         $stmt_check_persona->execute();
         $res_exists = $stmt_check_persona->get_result();
 
         if ($res_exists->num_rows > 0) {
-            // SI YA EXISTE: Actualizamos su estado y datos
             $stmt_update_persona->bind_param("ssis", $apellido, $nombre, $estado_activo, $dni);
             $stmt_update_persona->execute();
         } else {
-            // SI NO EXISTE Y ESTÁ ACTIVA: Se inserta. Si está dada de baja, se ignora.
             if ($estado_activo === 1) {
                 $stmt_insert_persona->bind_param("sssi", $dni, $apellido, $nombre, $estado_activo);
                 $stmt_insert_persona->execute();
@@ -184,7 +176,7 @@ try {
     $mapa_personas_validas['0'] = true;
 
     // =========================================================================
-    // PARTE 3: CONEXIÓN Y CONSULTA A MSSQL
+    // PARTE 3: CONEXIÓN Y CONSULTA A MSSQL (Incluyendo NRO_COMPROBANTE)
     // =========================================================================
     $dbname_ms3 = $_ENV['DB_NAME_MS3'];
     $user_ms3   = $_ENV['DB_USER_MS3'];
@@ -215,6 +207,7 @@ try {
             v.TIPO_COMPROBANTE_AFIP_ID,
             v.CONTACTO_DOCUMENTO,
             v.FECHA,
+            v.NRO_COMPROBANTE,
             vd.ARTICULO_ID,
             a.DESCRIPCION,
             vd.CANTIDAD,
@@ -241,6 +234,7 @@ try {
             v.TIPO_COMPROBANTE_AFIP_ID,
             v.CONTACTO_DOCUMENTO,
             v.FECHA,
+            v.NRO_COMPROBANTE,
             vd.ARTICULO_ID,
             a.DESCRIPCION,
             vd.CANTIDAD,
@@ -287,7 +281,6 @@ try {
             $dni_raw = trim($row['CONTACTO_DOCUMENTO'] ?? '');
             $dni_limpio = ($dni_raw === '' || $dni_raw === null || intval($dni_raw) === 0) ? '0' : $dni_raw;
 
-            // Si el DNI no está registrado localmente, se descarta la compra
             if (!isset($mapa_personas_validas[$dni_limpio])) {
                 continue; 
             }
@@ -297,6 +290,7 @@ try {
                 'venta_id'         => $v_id,
                 'dni_empleado'     => $dni_limpio,
                 'tipo_comprobante' => trim($row['TIPO_COMPROBANTE_AFIP_ID'] ?? 'FACTURA'),
+                'nro_comprobante'  => trim($row['NRO_COMPROBANTE'] ?? ''),
                 'fecha_compra'     => date('Y-m-d H:i:s', strtotime($row['FECHA'])),
                 'importe_total'    => limpiarNumeroParaMySQL($row['TOTAL_TICKET']), 
                 'detalles'         => []
@@ -346,7 +340,8 @@ try {
         ON DUPLICATE KEY UPDATE dni=dni
     ");
 
-    $stmt_ins_cab = $mysqli->prepare("INSERT INTO compras_cabecera (punto_venta_id, venta_id, dni_empleado, tipo_comprobante, fecha_compra, importe_total) VALUES (?, ?, ?, ?, ?, ?)");
+    // Incluimos nro_comprobante en la sentencia de inserción de la cabecera
+    $stmt_ins_cab = $mysqli->prepare("INSERT INTO compras_cabecera (punto_venta_id, venta_id, dni_empleado, tipo_comprobante, nro_comprobante, fecha_compra, importe_total) VALUES (?, ?, ?, ?, ?, ?, ?)");
     $stmt_ins_det = $mysqli->prepare("INSERT INTO compras_detalles (punto_venta_id, venta_id, articulo_id, descripcion, cantidad, importe_renglon) VALUES (?, ?, ?, ?, ?, ?)");
     
     $stmt_upd = $mysqli->prepare("
@@ -379,6 +374,7 @@ try {
         $pv_id       = $ticket['punto_venta_id'];
         $v_id        = $ticket['venta_id'];
         $tipo_comp   = $ticket['tipo_comprobante'];
+        $nro_comp    = $ticket['nro_comprobante'];
         $monto_total = $ticket['importe_total'];
         $fecha       = $ticket['fecha_compra'];
         
@@ -389,7 +385,8 @@ try {
             $stmt_init->execute();
         }
 
-        $stmt_ins_cab->bind_param("iisssd", $pv_id, $v_id, $dni, $tipo_comp, $fecha, $monto_total);
+        // Parámetros: i = int, s = string, d = double -> "iissssd"
+        $stmt_ins_cab->bind_param("iissssd", $pv_id, $v_id, $dni, $tipo_comp, $nro_comp, $fecha, $monto_total);
         $stmt_ins_cab->execute();
 
         foreach ($ticket['detalles'] as $det) {
@@ -430,29 +427,15 @@ try {
     $mysqli->commit();
     $pdo_mssql = null;
 
-    // Registro de auditoría exitosa de sincronización
-    if (function_exists('registrarLog')) {
-        $idUsuarioLog = $userAuth['idusuario'] ?? null;
-        $datosSincro = ["fecha_ejecucion" => $ahora_sincronizacion, "registros_importados" => $registros_nuevos];
-        registrarLog($mysqli, 'sincronizacion_compras', 'configuracion', null, $idUsuarioLog, null, $datosSincro);
-    }
-
     echo json_encode([
         "status" => "ok",
         "msg" => $registros_nuevos > 0 
-            ? "Sincronización completada. Se importaron $registros_nuevos comprobantes." 
+            ? "Sincronización completada. Se importaron $registros_nuevos comprobantes con sus respectivos números." 
             : "El sistema ya está al día. No se encontraron nuevos consumos."
     ]);
 
 } catch (Exception $e) {
     if (isset($mysqli)) $mysqli->rollback();
-    
-    // Registro de auditoría de error
-    if (function_exists('registrarLog') && isset($mysqli)) {
-        $idUsuarioLog = $userAuth['idusuario'] ?? null;
-        registrarLog($mysqli, 'sincronizacion_compras', 'configuracion', null, $idUsuarioLog, null, ["error" => $e->getMessage()]);
-    }
-
     echo json_encode(["status" => "error", "msg" => "Error de sincronización: " . $e->getMessage()]);
 }
 

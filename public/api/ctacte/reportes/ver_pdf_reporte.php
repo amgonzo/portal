@@ -58,6 +58,9 @@ $titulo = "";
 $subtituloPersona = "";
 $categoria = $_GET['cat'] ?? 'TODAS';
 
+$esReporteQuincenal = false;
+$esReporteRangoArticulos = false;
+
 switch ($tipo) {
 
     case 'estado_cuenta':
@@ -70,7 +73,6 @@ switch ($tipo) {
         $meses = [1=>'Enero', 2=>'Febrero', 3=>'Marzo', 4=>'Abril', 5=>'Mayo', 6=>'Junio', 7=>'Julio', 8=>'Agosto', 9=>'Septiembre', 10=>'Octubre', 11=>'Noviembre', 12=>'Diciembre'];
         $nombreMes = $meses[$mes] ?? $mes;
 
-        // Datos del titular para la cabecera
         $stmtPer = $mysqli->prepare("SELECT apellido, nombre FROM personas WHERE CONVERT(dni USING utf8mb4) = CONVERT(? USING utf8mb4)");
         $stmtPer->bind_param("s", $dni);
         $stmtPer->execute();
@@ -82,10 +84,9 @@ switch ($tipo) {
         $titulo = "ESTADO DE CUENTA - PERÍODO $nombreMes $anio";
         $subtituloPersona = "Asociado: $nombreCompleto | DNI: $dni";
 
-        // Query incluyendo campos de anulación
         $sql = "SELECT 
                     DATE_FORMAT(fecha_compra, '%d/%m/%Y %H:%i') AS 'Fecha', 
-                    CONCAT(LPAD(punto_venta_id, 4, '0'), '-', LPAD(venta_id, 8, '0')) AS 'N° Comprobante', 
+                    CONCAT(LPAD(punto_venta_id, 4, '0'), '-', LPAD(nro_comprobante, 8, '0')) AS 'N° Comprobante', 
                     COALESCE(tipo_comprobante, 'FACTURA') AS tipo_comprobante,
                     importe_total AS 'Monto',
                     COALESCE(anulado, 0) AS anulado,
@@ -95,7 +96,6 @@ switch ($tipo) {
                   AND fecha_compra BETWEEN '$periodoDesde' AND '$periodoHasta'
                 ORDER BY fecha_compra ASC";
 
-        // Traemos datos de límites y porcentaje del período operativo
         $resConf = $mysqli->query("SELECT valor FROM configuracion WHERE clave = 'porcentaje_descuento_default' LIMIT 1");
         $pctDefault = ($resConf && $rowConf = $resConf->fetch_assoc()) ? floatval($rowConf['valor']) : 30.00;
 
@@ -129,7 +129,6 @@ switch ($tipo) {
         $resConf = $mysqli->query("SELECT valor FROM configuracion WHERE clave = 'porcentaje_descuento_default' LIMIT 1");
         $pctDefault = ($resConf && $row = $resConf->fetch_assoc()) ? floatval($row['valor']) : 30.00;
 
-        // Calculamos el Consumido descartando los comprobantes anulados en tiempo real
         $sql = "SELECT 
                     CONCAT(p.apellido, ', ', p.nombre) AS 'Nombre Completo',
                     p.dni AS 'DNI',
@@ -179,22 +178,136 @@ switch ($tipo) {
                 ORDER BY p.apellido ASC, p.nombre ASC";
         break;
 
+    case 'consumo_quincenal_articulos':
+        $dni  = trim($_GET['dni'] ?? '');
+        $mes  = intval($_GET['mes'] ?? date('n'));
+        $anio = intval($_GET['anio'] ?? date('Y'));
+
+        list($periodoCodigo, $periodoDesde, $periodoHasta) = obtenerFechasPeriodoPDF($mysqli, $mes, $anio);
+
+        $meses = [1=>'Enero', 2=>'Febrero', 3=>'Marzo', 4=>'Abril', 5=>'Mayo', 6=>'Junio', 7=>'Julio', 8=>'Agosto', 9=>'Septiembre', 10=>'Octubre', 11=>'Noviembre', 12=>'Diciembre'];
+        $nombreMes = $meses[$mes] ?? $mes;
+
+        $stmtPer = $mysqli->prepare("SELECT apellido, nombre FROM personas WHERE CONVERT(dni USING utf8mb4) = CONVERT(? USING utf8mb4)");
+        $stmtPer->bind_param("s", $dni);
+        $stmtPer->execute();
+        $persona = $stmtPer->get_result()->fetch_assoc();
+        $stmtPer->close();
+
+        $nombreCompleto = $persona ? mb_strtoupper($persona['apellido'] . ', ' . $persona['nombre']) : "DNI: $dni";
+
+        $titulo = "CONSUMO DE ARTÍCULOS POR QUINCENA (Mínimo 3 unidades)";
+        $subtituloPersona = "Asociado: $nombreCompleto | Período: $nombreMes $anio";
+
+        $sql = "SELECT 
+                    CASE 
+                        WHEN DAY(cc.fecha_compra) <= 15 THEN 1 
+                        ELSE 2 
+                    END AS num_quincena,
+                    cd.descripcion AS articulo,
+                    SUM(cd.cantidad) AS cantidad_total
+                FROM compras_cabecera cc
+                INNER JOIN compras_detalles cd 
+                    ON cc.punto_venta_id = cd.punto_venta_id AND cc.venta_id = cd.venta_id
+                WHERE CONVERT(cc.dni_empleado USING utf8mb4) = CONVERT('$dni' USING utf8mb4)
+                  AND cc.fecha_compra BETWEEN '$periodoDesde' AND '$periodoHasta'
+                  AND COALESCE(cc.anulado, 0) = 0
+                GROUP BY num_quincena, cd.descripcion
+                HAVING cantidad_total >= 3
+                ORDER BY num_quincena ASC, cantidad_total DESC";
+        
+        $resQuincenas = $mysqli->query($sql);
+        
+        $q1 = [];
+        $q2 = [];
+        if ($resQuincenas) {
+            while ($row = $resQuincenas->fetch_assoc()) {
+                if (intval($row['num_quincena']) === 1) {
+                    $q1[] = $row;
+                } else {
+                    $q2[] = $row;
+                }
+            }
+        }
+        
+        $esReporteQuincenal = true;
+        break;
+
+    case 'consumo_por_rango_dni':
+        $mes  = intval($_GET['mes'] ?? date('n'));
+        $anio = intval($_GET['anio'] ?? date('Y'));
+
+        list($periodoCodigo, $periodoDesde, $periodoHasta) = obtenerFechasPeriodoPDF($mysqli, $mes, $anio);
+
+        $meses = [1=>'Enero', 2=>'Febrero', 3=>'Marzo', 4=>'Abril', 5=>'Mayo', 6=>'Junio', 7=>'Julio', 8=>'Agosto', 9=>'Septiembre', 10=>'Octubre', 11=>'Noviembre', 12=>'Diciembre'];
+        $nombreMes = $meses[$mes] ?? $mes;
+
+        $titulo = "CONSUMO POR RANGO DE DNI (Mínimo 5 unidades)";
+        $subtituloPersona = "Período: $nombreMes $anio";
+
+        $sql = "SELECT 
+                    CASE 
+                        WHEN CAST(p.dni AS UNSIGNED) >= 84000000 AND CAST(p.dni AS UNSIGNED) < 90000000 THEN 'Extranjeros (DNI 84M)'
+                        WHEN CAST(p.dni AS UNSIGNED) >= 90000000 THEN 'Temporarios / Otros (90M+)'
+                        WHEN CAST(p.dni AS UNSIGNED) < 10000000 THEN 'Adultos Mayores (DNI < 10M)'
+                        WHEN CAST(p.dni AS UNSIGNED) BETWEEN 10000000 AND 20000000 THEN 'Mayores / Jubilados (10M - 20M)'
+                        WHEN CAST(p.dni AS UNSIGNED) BETWEEN 20000000 AND 35000000 THEN 'Adultos Medios (20M - 35M)'
+                        ELSE 'Jóvenes / Nuevos DNI (35M+)'
+                    END AS rango_dni,
+                    CASE 
+                        WHEN DAY(cc.fecha_compra) <= 15 THEN 1 
+                        ELSE 2 
+                    END AS num_quincena,
+                    cd.descripcion AS articulo,
+                    SUM(cd.cantidad) AS cantidad_total
+                FROM personas p
+                INNER JOIN compras_cabecera cc ON CONVERT(p.dni USING utf8mb4) = CONVERT(cc.dni_empleado USING utf8mb4)
+                INNER JOIN compras_detalles cd ON cc.punto_venta_id = cd.punto_venta_id AND cc.venta_id = cd.venta_id
+                WHERE cc.fecha_compra BETWEEN '$periodoDesde' AND '$periodoHasta'
+                  AND COALESCE(cc.anulado, 0) = 0
+                GROUP BY rango_dni, num_quincena, cd.descripcion
+                HAVING cantidad_total >= 5
+                ORDER BY rango_dni ASC, num_quincena ASC, cantidad_total DESC";
+        
+        $resRango = $mysqli->query($sql);
+        
+        $datosRangos = [];
+        if ($resRango) {
+            while ($row = $resRango->fetch_assoc()) {
+                $rango = $row['rango_dni'];
+                $q = intval($row['num_quincena']);
+                
+                if (!isset($datosRangos[$rango])) {
+                    $datosRangos[$rango] = [1 => [], 2 => []];
+                }
+                $datosRangos[$rango][$q][] = [
+                    'articulo' => $row['articulo'],
+                    'cantidad_total' => $row['cantidad_total']
+                ];
+            }
+        }
+        
+        $esReporteRangoArticulos = true;
+        break;
+
     default:
         die("Tipo de reporte no configurado.");
 }
 
-$res = $mysqli->query($sql);
+if (!$esReporteQuincenal && !$esReporteRangoArticulos) {
+    $res = $mysqli->query($sql);
 
-if (!$res || $res->num_rows === 0) {
-    ob_end_clean();
-    echo "
-    <div style='font-family:sans-serif; text-align:center; padding:50px; border:2px solid #ccc; border-radius:10px; margin:50px;'>
-        <h2 style='color:#e74c3c;'>Sin registros encontrados</h2>
-        <p style='font-size:18px;'>No se encontraron movimientos para el reporte: <b>".str_replace('_',' ',$tipo)."</b></p>
-        <hr>
-        <button onclick='window.close()' style='padding:10px 20px; cursor:pointer;'>Cerrar Ventana</button>
-    </div>";
-    exit;
+    if (!$res || $res->num_rows === 0) {
+        ob_end_clean();
+        echo "
+        <div style='font-family:sans-serif; text-align:center; padding:50px; border:2px solid #ccc; border-radius:10px; margin:50px;'>
+            <h2 style='color:#e74c3c;'>Sin registros encontrados</h2>
+            <p style='font-size:18px;'>No se encontraron movimientos para el reporte: <b>".str_replace('_',' ',$tipo)."</b></p>
+            <hr>
+            <button onclick='window.close()' style='padding:10px 20px; cursor:pointer;'>Cerrar Ventana</button>
+        </div>";
+        exit;
+    }
 }
 
 try {
@@ -252,7 +365,6 @@ try {
             $esNotaCredito = (strpos($tipoComp, 'NOTA_CREDITO') !== false || strpos($tipoComp, 'CREDITO') !== false || strpos($tipoComp, 'NC') !== false);
 
             if ($esAnulado) {
-                // SI ESTÁ ANULADO: NO suma ni resta al saldo acumulado
                 $motivo = !empty($row['motivo_anulacion']) ? ' (' . $row['motivo_anulacion'] . ')' : '';
                 $etiquetaTipo = '<span style="color: #d9534f; font-weight: bold;">ANULADO</span>';
                 $montoFormateado = '<span style="text-decoration: line-through; color: #777;">$ ' . number_format($monto, 2, ',', '.') . '</span>';
@@ -325,16 +437,18 @@ try {
         </tbody>
         </table>';
 
-    } else {
+    } else if ($tipo === 'resumen_mensual') {
 
         $columnas = [];
         $primer_fila = $res->fetch_assoc();
-        foreach ($primer_fila as $key => $value) {
-            $columnas[] = $key;
+        if ($primer_fila) {
+            foreach ($primer_fila as $key => $value) {
+                $columnas[] = $key;
+            }
         }
 
         $ancho_nro = 4; 
-        $ancho_resto = (100 - $ancho_nro) / count($columnas);
+        $ancho_resto = count($columnas) > 0 ? (100 - $ancho_nro) / count($columnas) : 100;
 
         $html = '<table border="0.5" cellpadding="3" style="font-size: 7.5pt;">';
         
@@ -379,6 +493,153 @@ try {
         }
 
         $html .= '</table>';
+
+    } else if ($tipo === 'consumo_quincenal_articulos') {
+        
+        $html = '<h4 style="margin-bottom: 5px; font-size: 11pt; border-bottom: 1px solid #000; padding-bottom: 3px;">1° QUINCENA (1 al 15)</h4>';
+        $html .= '<table border="0.5" cellpadding="4" style="font-size: 9pt; margin-bottom: 15px;">
+            <thead>
+                <tr style="font-weight: bold; text-align: center;">
+                    <th width="10%">#</th>
+                    <th width="75%">ARTÍCULO / DESCRIPCIÓN</th>
+                    <th width="15%">CANTIDAD TOTAL</th>
+                </tr>
+            </thead>
+            <tbody>';
+
+        if (count($q1) > 0) {
+            $i = 1;
+            foreach ($q1 as $row) {
+                $cant = floatval($row['cantidad_total']);
+                if (fmod($cant, 1) === 0.0) {
+                    $cantFormateada = number_format($cant, 0, ',', '.') . ' u';
+                } else {
+                    $cantFormateada = number_format($cant, 2, ',', '.') . ' kg';
+                }
+
+                $html .= '<tr>
+                    <td width="10%" style="text-align: center;">' . $i . '</td>
+                    <td width="75%">' . mb_strtoupper($row['articulo']) . '</td>
+                    <td width="15%" style="text-align: center; font-weight: bold;">' . $cantFormateada . '</td>
+                </tr>';
+                $i++;
+            }
+        } else {
+            $html .= '<tr><td colspan="3" style="text-align: center; font-style: italic;">Sin consumos registrados en esta quincena con 3 o más unidades.</td></tr>';
+        }
+        $html .= '</tbody></table>';
+
+        $html .= '<h4 style="margin-bottom: 5px; margin-top: 15px; font-size: 11pt; border-bottom: 1px solid #000; padding-bottom: 3px;">2° QUINCENA (16 al fin de mes)</h4>';
+        $html .= '<table border="0.5" cellpadding="4" style="font-size: 9pt;">
+            <thead>
+                <tr style="font-weight: bold; text-align: center;">
+                    <th width="10%">#</th>
+                    <th width="75%">ARTÍCULO / DESCRIPCIÓN</th>
+                    <th width="15%">CANTIDAD TOTAL</th>
+                </tr>
+            </thead>
+            <tbody>';
+
+        if (count($q2) > 0) {
+            $i = 1;
+            foreach ($q2 as $row) {
+                $cant = floatval($row['cantidad_total']);
+                if (fmod($cant, 1) === 0.0) {
+                    $cantFormateada = number_format($cant, 0, ',', '.') . ' u';
+                } else {
+                    $cantFormateada = number_format($cant, 2, ',', '.') . ' kg';
+                }
+
+                $html .= '<tr>
+                    <td width="10%" style="text-align: center;">' . $i . '</td>
+                    <td width="75%">' . mb_strtoupper($row['articulo']) . '</td>
+                    <td width="15%" style="text-align: center; font-weight: bold;">' . $cantFormateada . '</td>
+                </tr>';
+                $i++;
+            }
+        } else {
+            $html .= '<tr><td colspan="3" style="text-align: center; font-style: italic;">Sin consumos registrados en esta quincena con 3 o más unidades.</td></tr>';
+        }
+        $html .= '</tbody></table>';
+        
+    } else if ($tipo === 'consumo_por_rango_dni') {
+        
+        $html = '';
+        if (empty($datosRangos)) {
+            $html .= '<p style="text-align: center; font-style: italic;">No se encontraron consumos con 3 o más unidades para este período.</p>';
+        } else {
+            foreach ($datosRangos as $rangoNombre => $quincenas) {
+                $html .= '<h3 style="border-bottom: 1px solid #000; margin-top: 20px; font-size: 11pt; font-weight: bold;">SEGMENTO: ' . mb_strtoupper($rangoNombre) . '</h3>';
+
+                // --- 1° QUINCENA ---
+                $html .= '<h4 style="margin-bottom: 3px; font-size: 10pt;">1° Quincena (1 al 15)</h4>';
+                $html .= '<table border="0.5" cellpadding="4" style="font-size: 8.5pt; margin-bottom: 10px;">
+                    <thead>
+                        <tr style="font-weight: bold; text-align: center;">
+                            <th width="10%">#</th>
+                            <th width="75%">ARTÍCULO / DESCRIPCIÓN</th>
+                            <th width="15%">CANTIDAD</th>
+                        </tr>
+                    </thead>
+                    <tbody>';
+
+                if (!empty($quincenas[1])) {
+                    $i = 1;
+                    foreach ($quincenas[1] as $row) {
+                        $cant = floatval($row['cantidad_total']);
+                        if (fmod($cant, 1) === 0.0) {
+                            $cantFormateada = number_format($cant, 0, ',', '.') . ' u';
+                        } else {
+                            $cantFormateada = number_format($cant, 2, ',', '.') . ' kg';
+                        }
+
+                        $html .= '<tr>
+                            <td width="10%" style="text-align: center;">' . $i . '</td>
+                            <td width="75%">' . mb_strtoupper($row['articulo']) . '</td>
+                            <td width="15%" style="text-align: center; font-weight: bold;">' . $cantFormateada . '</td>
+                        </tr>';
+                        $i++;
+                    }
+                } else {
+                    $html .= '<tr><td colspan="3" style="text-align: center; font-style: italic;">Sin consumos con 3+ unidades en esta quincena.</td></tr>';
+                }
+                $html .= '</tbody></table>';
+
+                // --- 2° QUINCENA ---
+                $html .= '<h4 style="margin-bottom: 3px; font-size: 10pt; margin-top: 10px;">2° Quincena (16 al fin de mes)</h4>';
+                $html .= '<table border="0.5" cellpadding="4" style="font-size: 8.5pt;">
+                    <thead>
+                        <tr style="font-weight: bold; text-align: center;">
+                            <th width="10%">#</th>
+                            <th width="75%">ARTÍCULO / DESCRIPCIÓN</th>
+                            <th width="15%">CANTIDAD</th>
+                        </tr>
+                    </thead>
+                    <tbody>';
+
+                if (!empty($quincenas[2])) {
+                    $i = 1;
+                    foreach ($quincenas[2] as $row) {
+                        $cant = floatval($row['cantidad_total']);
+                        if (fmod($cant, 1) === 0.0) {
+                            $cantFormateada = number_format($cant, 0, ',', '.') . ' u';
+                        } else {
+                            $cantFormateada = number_format($cant, 2, ',', '.') . ' kg';
+                        }
+
+                        $html .= '<tr>
+                            <td width="10%" style="text-align: center;">' . $i . '</td>
+                            <td width="75%">' . mb_strtoupper($row['articulo']) . '</td>
+                            <td width="15%" style="text-align: center; font-weight: bold;">' . $cantFormateada . '</td>
+                        </tr>';
+                        $i++;
+                    }
+                } else {
+                    $html .= '<tr><td colspan="3" style="text-align: center; font-style: italic;">Sin consumos con 3+ unidades en esta quincena.</td></tr>';
+                }
+                $html .= '</tbody></table>';
+            }
+        }
     }
 
     $pdf->writeHTML($html, true, false, true, false, '');

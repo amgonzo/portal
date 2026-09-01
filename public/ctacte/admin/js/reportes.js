@@ -80,12 +80,11 @@ function abrirModalReporte(tipo, nombre) {
     $("#div_switch_inactivos").hide();
     $("#chk_inactivos_rep").prop('checked', false);
 
-    // 1. Caso Resumen Mensual (Tercer reporte): Muestra Mes y Año
+    // 1. Caso Resumen Mensual: Muestra Mes y Año
     if (tipo === 'resumen_mensual') {
         $("#div_fechas").hide();
         $("#div_mes_anio").show();
 
-        // Selecciona por defecto el mes y año actuales
         const hoy = new Date();
         $("#rep_mes").val(hoy.getMonth() + 1);
         $("#rep_anio").val(hoy.getFullYear());
@@ -98,18 +97,43 @@ function abrirModalReporte(tipo, nombre) {
         $("#lbl_categoria").text('Seleccionar Persona');
         $("#div_switch_inactivos").show();
 
-        // Cargar selector de personas (inicia en false)
         cargarPersonasReporte(false);
 
         const hoy = new Date();
         $("#rep_mes").val(hoy.getMonth() + 1);
         $("#rep_anio").val(hoy.getFullYear());
 
+    // 3. Padrón por Categorías
     } else if (tipo === 'padron_categorias') {
         $("#div_fechas").hide();
         $("#div_categoria").show();
         $("#lbl_categoria").text('Filtrar por Categoría');
         cargarCategoriasFiltro(); 
+
+    // 4. Consumo Quincenal de Artículos (Requiere persona y mes/año)
+    } else if (tipo === 'consumo_quincenal_articulos') {
+        $("#div_fechas").hide();
+        $("#div_mes_anio").show();
+        $("#div_categoria").show();
+        $("#lbl_categoria").text('Seleccionar Persona');
+        $("#div_switch_inactivos").show();
+
+        cargarPersonasReporte(false);
+
+        const hoy = new Date();
+        $("#rep_mes").val(hoy.getMonth() + 1);
+        $("#rep_anio").val(hoy.getFullYear());
+    
+    // 5. Consumo por Rango DNI (Solo mes y año)
+    } else if (tipo === 'consumo_por_rango_dni') {
+        $("#div_fechas").hide();
+        $("#div_mes_anio").show();
+        $("#div_categoria").hide(); 
+        $("#div_switch_inactivos").hide();
+
+        const hoy = new Date();
+        $("#rep_mes").val(hoy.getMonth() + 1);
+        $("#rep_anio").val(hoy.getFullYear());
     }
 
     $("#ModalReporte").modal("show");
@@ -138,11 +162,12 @@ function generarPDF() {
     const urlParams = new URLSearchParams();
     urlParams.append('tipo', tipo);
 
-    if (tipo === 'resumen_mensual') {
+    // Mapeo ordenado y limpio de parámetros según el tipo de reporte
+    if (tipo === 'resumen_mensual' || tipo === 'consumo_por_rango_dni') {
         urlParams.append('mes', $("#rep_mes").val());
         urlParams.append('anio', $("#rep_anio").val());
 
-    } else if (tipo === 'estado_cuenta') {
+    } else if (tipo === 'estado_cuenta' || tipo === 'consumo_quincenal_articulos') {
         const dni = $("#rep_categoria").val();
         if (!dni) {
             Swal.fire('Atención', 'Debe seleccionar una persona', 'warning');
@@ -156,6 +181,7 @@ function generarPDF() {
         urlParams.append('cat', $("#rep_categoria").val());
 
     } else {
+        // Por defecto para reportes basados en rangos de fechas (Desde / Hasta)
         urlParams.append('desde', $("#rep_desde").val());
         urlParams.append('hasta', $("#rep_hasta").val());
     }
@@ -178,7 +204,7 @@ function generarPDF() {
         type: "GET",
         url: API_BASE + `/ctacte/reportes/generar_reporte.php?${queryParams}`,
         headers: getAuthHeaders(),
-        dataType: "json", // Forzamos a jQuery a esperar JSON
+        dataType: "json",
         success: function(res) {
             loadingToast.close(); 
 
@@ -186,7 +212,7 @@ function generarPDF() {
                 Swal.fire({
                     icon: 'info',
                     title: 'Sin resultados',
-                    text: 'No se encontraron consumos para esta persona en el período seleccionado.',
+                    text: 'No se encontraron registros para el período seleccionado.',
                     confirmButtonColor: '#3085d6',
                     confirmButtonText: 'Entendido'
                 });
@@ -197,7 +223,7 @@ function generarPDF() {
         },
         error: function(xhr, status, error) {
             loadingToast.close();
-            console.error("Respuesta cruda del servidor:", xhr.responseText); // <-- ESTO TE MUESTRA EL ERROR REAL EN LA CONSOLA (F12)
+            console.error("Respuesta cruda del servidor:", xhr.responseText);
 
             if (xhr.status === 401 || xhr.status === 403) {
                 Swal.fire('Sesión expirada', 'Por favor, volvé a iniciar sesión.', 'error').then(() => {

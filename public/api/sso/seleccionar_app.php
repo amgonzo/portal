@@ -78,7 +78,8 @@ $permisos = [];
 $sqlP = "SELECT p.clavepermiso 
          FROM permisos p 
          INNER JOIN permisos_rol pr ON p.idpermiso = pr.idpermiso 
-         WHERE pr.idtipousuario = ? AND p.idaplicacion = ?";
+         INNER JOIN aplicaciones_permisos ap ON p.idpermiso = ap.idpermiso 
+         WHERE pr.idtipousuario = ? AND ap.idaplicacion = ?";
 
 $stmtP = $mysqli->prepare($sqlP);
 $stmtP->bind_param("ii", $rolInfo['idtipousuario'], $idaplicacion);

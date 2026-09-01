@@ -239,7 +239,7 @@ function guardarPermisos() {
 }
 
 function crearPermisoBase() {
-    const idApp = $("#nueva_app").val();
+    const idApp = $("#nueva_app").val(); // Asegúrate de capturar la aplicación del modal
     const clave = $("#nueva_clave").val();
     const endpoint = $("#nuevo_endpoint").val();
     const metodo = $("#nuevo_metodo").val();
@@ -254,7 +254,7 @@ function crearPermisoBase() {
         type: "POST",
         url: API_BASE + "/sso/permisos/crear_permiso.php",
         data: {
-            idaplicacion: idApp,
+            idaplicacion: idApp, // 👈 Obligatorio por el nuevo esquema
             clave: clave,
             endpoint: endpoint,
             metodo: metodo,

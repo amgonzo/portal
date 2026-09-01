@@ -45,10 +45,12 @@ $punto_venta_id = (int)$partes[0];
 $venta_id = (int)$partes[1];
 
 try {
+    // 1. Obtener cabecera de la compra
     $stmt_cab = $mysqli->prepare("
         SELECT 
             cc.punto_venta_id,
             cc.venta_id,
+            cc.nro_comprobante,
             cc.dni_empleado,
             cc.fecha_compra,
             cc.importe_total,
@@ -67,6 +69,7 @@ try {
         exit;
     }
 
+    // 2. Obtener los renglones/detalles
     $stmt_det = $mysqli->prepare("
         SELECT articulo_id, descripcion, cantidad, importe_renglon 
         FROM compras_detalles 
@@ -90,7 +93,7 @@ try {
     echo json_encode([
         "status" => "ok",
         "data" => [
-            "ticket" => $cabecera['punto_venta_id'] . '-' . $cabecera['venta_id'],
+            "ticket" => $cabecera['punto_venta_id'] . '-' . $cabecera['nro_comprobante'],
             "empleado" => trim($cabecera['empleado']),
             "dni" => $cabecera['dni_empleado'],
             "fecha" => date('d/m/Y H:i', strtotime($cabecera['fecha_compra'])),

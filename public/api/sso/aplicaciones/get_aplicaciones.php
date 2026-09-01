@@ -1,11 +1,9 @@
 <?php
- 
 // 1. Cargamos nuestro archivo central de rutas
 $rutas = require $_SERVER['DOCUMENT_ROOT'] . '/api/config/rutas.php';
 
 // 2. Cargamos Composer usando la clave del array
 require_once $rutas['autoload'];
-
 
 try {
     // 3. Cargamos el .env usando la ruta definida en rutas.php
@@ -18,7 +16,8 @@ try {
 require_once $rutas['conexion'];
 require_once $rutas['middleware'];
 
-header('Content-Type: json'); // o application/json
+// ⚠️ CORREGIDO: El Content-Type correcto para JSON
+header('Content-Type: application/json; charset=utf-8');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     http_response_code(405);
@@ -26,14 +25,14 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     exit();
 }
 
-// 1. Validar token y sesión activa
-$userAuth = validarTokenAPI($mysqli);
-
-// 2. Validar si el rol tiene permiso para este endpoint y método
-validarPermisoEndpoint($mysqli, $userAuth);
-
 try {
-    // 👈 Agregamos 'icono' en la consulta SQL
+    // 1. Validar token y sesión activa
+    $userAuth = validarTokenAPI($mysqli);
+
+    // 2. Validar si el rol tiene permiso para este endpoint y método
+    validarPermisoEndpoint($mysqli, $userAuth);
+
+    // 3. Traer aplicaciones con su icono
     $sql = "SELECT idaplicacion, nombre, slug, url_base, activo, icono 
             FROM aplicaciones 
             ORDER BY nombre ASC";
@@ -50,7 +49,7 @@ try {
             "slug"         => $row['slug'],
             "url_base"     => $row['url_base'],
             "activo"       => (int)$row['activo'],
-            "icono"        => $row['icono'] ?? 'fa-solid fa-cubes' // 👈 Devolvemos el icono
+            "icono"        => $row['icono'] ?? 'fa-solid fa-cubes'
         ];
     }
 
@@ -60,10 +59,13 @@ try {
     ]);
 
 } catch (Exception $e) {
+    http_response_code(401);
     echo json_encode([
         "status" => "error",
         "msg"    => $e->getMessage()
     ]);
+} finally {
+    if (isset($mysqli) && $mysqli instanceof mysqli) {
+        $mysqli->close();
+    }
 }
-
-$mysqli->close();

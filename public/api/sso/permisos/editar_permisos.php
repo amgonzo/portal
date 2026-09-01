@@ -5,14 +5,10 @@ $rutas = require $_SERVER['DOCUMENT_ROOT'] . '/api/config/rutas.php';
 // 2. Cargamos Composer usando la clave del array
 require_once $rutas['autoload'];
 
-
 try {
-    // 3. Cargamos el .env usando la ruta definida en rutas.php
     $dotenv = Dotenv\Dotenv::createImmutable($rutas['env_api']);
     $dotenv->load();
-} catch (Exception $e) {
-    // Manejo silencioso si no hay .env
-}
+} catch (Exception $e) {}
 
 require_once $rutas['conexion'];
 require_once $rutas['middleware'];
@@ -20,7 +16,6 @@ require_once $rutas['auditoria'];
 
 header('Content-Type: application/json');
 
-// Validar token y sesión activa
 $userAuth = validarTokenAPI($mysqli);
 
 $idpermiso = $_POST['idpermiso'] ?? null;

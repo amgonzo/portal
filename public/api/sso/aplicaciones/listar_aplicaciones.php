@@ -6,7 +6,6 @@ $rutas = require $_SERVER['DOCUMENT_ROOT'] . '/api/config/rutas.php';
 // 2. Cargamos Composer usando la clave del array
 require_once $rutas['autoload'];
 
-
 try {
     // 3. Cargamos el .env usando la ruta definida en rutas.php
     $dotenv = Dotenv\Dotenv::createImmutable($rutas['env_api']);
@@ -18,7 +17,7 @@ try {
 require_once $rutas['conexion'];
 require_once $rutas['middleware'];
 
-header('Content-Type: application/json');
+header('Content-Type: application/json; charset=utf-8');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     http_response_code(405);
@@ -26,17 +25,16 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     exit();
 }
 
-// 1. Validar token y sesión activa
-$userAuth = validarTokenAPI($mysqli);
-
-// 2. 🛡️ AGREGAR ESTO: Validar si el rol tiene permiso para este endpoint y método
-validarPermisoEndpoint($mysqli, $userAuth);
-
 try {
-    // 3. Traer aplicaciones activas
-    $sql = "SELECT idaplicacion, nombre, slug, url_base, activo 
+    // 1. Validar token y sesión activa
+    $userAuth = validarTokenAPI($mysqli);
+
+    // 2. Validar si el rol tiene permiso para este endpoint y método
+    validarPermisoEndpoint($mysqli, $userAuth);
+
+    // 3. Traer todas las aplicaciones (con icono incluido) ordenadas alfabéticamente
+    $sql = "SELECT idaplicacion, nombre, slug, url_base, activo, icono 
             FROM aplicaciones 
-            WHERE activo = 1 
             ORDER BY nombre ASC";
 
     $stmt = $mysqli->prepare($sql);
@@ -50,7 +48,8 @@ try {
             "nombre"       => $row['nombre'],
             "slug"         => $row['slug'],
             "url_base"     => $row['url_base'],
-            "activo"       => (int)$row['activo']
+            "activo"       => (int)$row['activo'],
+            "icono"        => $row['icono'] ?? 'fa-solid fa-cubes'
         ];
     }
 
@@ -64,6 +63,8 @@ try {
         "status" => "error",
         "msg"    => $e->getMessage()
     ]);
+} finally {
+    if (isset($mysqli) && $mysqli instanceof mysqli) {
+        $mysqli->close();
+    }
 }
-
-$mysqli->close();
