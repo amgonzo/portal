@@ -103,6 +103,20 @@ function abrirModalReporte(tipo, nombre) {
         $("#rep_mes").val(hoy.getMonth() + 1);
         $("#rep_anio").val(hoy.getFullYear());
 
+    } else if (tipo === 'recibo_pago') {
+        $("#div_fechas").hide();
+        $("#div_mes_anio").show();
+        $("#div_categoria").show();
+        $("#lbl_categoria").text('Seleccionar Persona');
+        $("#div_switch_inactivos").show();
+
+        // Cargar selector de personas (inicia en false)
+        cargarPersonasReporte(false);
+
+        const hoy = new Date();
+        $("#rep_mes").val(hoy.getMonth() + 1);
+        $("#rep_anio").val(hoy.getFullYear());
+
     // 3. Padrón por Categorías
     } else if (tipo === 'padron_categorias') {
         $("#div_fechas").hide();
@@ -167,7 +181,7 @@ function generarPDF() {
         urlParams.append('mes', $("#rep_mes").val());
         urlParams.append('anio', $("#rep_anio").val());
 
-    } else if (tipo === 'estado_cuenta' || tipo === 'consumo_quincenal_articulos') {
+    } else if (tipo === 'estado_cuenta' || tipo === 'consumo_quincenal_articulos' || tipo === 'recibo_pago') {
         const dni = $("#rep_categoria").val();
         if (!dni) {
             Swal.fire('Atención', 'Debe seleccionar una persona', 'warning');

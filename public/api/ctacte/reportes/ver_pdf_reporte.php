@@ -18,6 +18,7 @@ try {
 
 require_once $rutas['conexion'];
 require_once $rutas['middleware'];
+require_once $rutas['obtener_recibo'];
 
 $mysqli = conectarDB('CTACTE_');
 
@@ -60,6 +61,7 @@ $categoria = $_GET['cat'] ?? 'TODAS';
 
 $esReporteQuincenal = false;
 $esReporteRangoArticulos = false;
+$nroReporteRecibo = null; // Variable para almacenar el número de recibo de pago
 
 switch ($tipo) {
 
@@ -91,6 +93,87 @@ switch ($tipo) {
                     importe_total AS 'Monto',
                     COALESCE(anulado, 0) AS anulado,
                     COALESCE(motivo_anulacion, '') AS motivo_anulacion
+                FROM compras_cabecera
+                WHERE CONVERT(dni_empleado USING utf8mb4) = CONVERT('$dni' USING utf8mb4)
+                  AND fecha_compra BETWEEN '$periodoDesde' AND '$periodoHasta'
+                ORDER BY fecha_compra ASC";
+
+        $resConf = $mysqli->query("SELECT valor FROM configuracion WHERE clave = 'porcentaje_descuento_default' LIMIT 1");
+        $pctDefault = ($resConf && $rowConf = $resConf->fetch_assoc()) ? floatval($rowConf['valor']) : 30.00;
+
+        $sqlLimites = "SELECT 
+                        COALESCE(el.limite_mensual, c.limite_mensual, 0) AS limite_mensual,
+                        COALESCE(p.porcentaje_descuento, $pctDefault) AS porcentaje
+                       FROM personas p
+                       LEFT JOIN empleados_limites el 
+                           ON CONVERT(p.dni USING utf8mb4) = CONVERT(el.dni USING utf8mb4) 
+                           AND el.periodo_codigo = '$periodoCodigo'
+                       LEFT JOIN categorias c ON p.idcategoria = c.idcategoria
+                       WHERE CONVERT(p.dni USING utf8mb4) = CONVERT('$dni' USING utf8mb4) LIMIT 1";
+        $resLim = $mysqli->query($sqlLimites);
+        $datosLim = $resLim ? $resLim->fetch_assoc() : null;
+
+        $limiteMensual = floatval($datosLim['limite_mensual'] ?? 0);
+        $porcentajeDesc = floatval($datosLim['porcentaje'] ?? $pctDefault);
+        break;
+
+    case 'recibo_pago':
+        $dni  = trim($_GET['dni'] ?? '');
+        $mes  = intval($_GET['mes'] ?? date('n'));
+        $anio = intval($_GET['anio'] ?? date('Y'));
+
+        list($periodoCodigo, $periodoDesde, $periodoHasta) = obtenerFechasPeriodoPDF($mysqli, $mes, $anio);
+
+        $meses = [1=>'Enero', 2=>'Febrero', 3=>'Marzo', 4=>'Abril', 5=>'Mayo', 6=>'Junio', 7=>'Julio', 8=>'Agosto', 9=>'Septiembre', 10=>'Octubre', 11=>'Noviembre', 12=>'Diciembre'];
+        $nombreMes = $meses[$mes] ?? $mes;
+
+        $stmtPer = $mysqli->prepare("SELECT apellido, nombre FROM personas WHERE CONVERT(dni USING utf8mb4) = CONVERT(? USING utf8mb4)");
+        $stmtPer->bind_param("s", $dni);
+        $stmtPer->execute();
+        $persona = $stmtPer->get_result()->fetch_assoc();
+        $stmtPer->close();
+
+        $nombreCompleto = $persona ? mb_strtoupper($persona['apellido'] . ', ' . $persona['nombre']) : "DNI: $dni";
+
+        $titulo = "RECIBO DE PAGO";
+        $subtituloPersona = "activo";
+
+        // 1. Verificar si ya existe NRO_REPORTE en compras_cabecera para este empleado y período
+        $stmtCheck = $mysqli->prepare("SELECT NRO_REPORTE FROM compras_cabecera WHERE CONVERT(dni_empleado USING utf8mb4) = CONVERT(? USING utf8mb4) AND fecha_compra BETWEEN ? AND ? AND NRO_REPORTE IS NOT NULL AND NRO_REPORTE != '' LIMIT 1");
+        $stmtCheck->bind_param("sss", $dni, $periodoDesde, $periodoHasta);
+        $stmtCheck->execute();
+        $resCheck = $stmtCheck->get_result();
+        if ($rowCheck = $resCheck->fetch_assoc()) {
+            $nroReporteRecibo = $rowCheck['NRO_REPORTE'];
+        }
+        $stmtCheck->close();
+
+        // 2. Si no lo tiene guardado, buscamos el NRO_REPORTE consultando a MSSQL usando una venta del período
+        if (empty($nroReporteRecibo)) {
+            $stmtVenta = $mysqli->prepare("SELECT venta_id FROM compras_cabecera WHERE CONVERT(dni_empleado USING utf8mb4) = CONVERT(? USING utf8mb4) AND fecha_compra BETWEEN ? AND ? ORDER BY fecha_compra ASC LIMIT 1");
+            $stmtVenta->bind_param("sss", $dni, $periodoDesde, $periodoHasta);
+            $stmtVenta->execute();
+            $resVenta = $stmtVenta->get_result();
+            if ($rowVenta = $resVenta->fetch_assoc()) {
+                $ventaIdRef = $rowVenta['venta_id'];
+                $nroReporteRecibo = obtenerNroReciboDesdeMssql($ventaIdRef, $dni);
+
+                // Si lo obtuvimos, lo guardamos en la base de datos (UPDATE) para todos los registros del período
+                if (!empty($nroReporteRecibo)) {
+                    $stmtUpdate = $mysqli->prepare("UPDATE compras_cabecera SET NRO_REPORTE = ? WHERE CONVERT(dni_empleado USING utf8mb4) = CONVERT(? USING utf8mb4) AND fecha_compra BETWEEN ? AND ?");
+                    $stmtUpdate->bind_param("ssss", $nroReporteRecibo, $dni, $periodoDesde, $periodoHasta);
+                    $stmtUpdate->execute();
+                    $stmtUpdate->close();
+                }
+            }
+            $stmtVenta->close();
+        }
+
+        $sql = "SELECT 
+                    DATE_FORMAT(fecha_compra, '%d/%m/%Y %H:%i') AS 'Fecha', 
+                    CONCAT(LPAD(punto_venta_id, 4, '0'), '-', LPAD(nro_comprobante, 8, '0')) AS 'N° Comprobante', 
+                    importe_total AS 'Importe',
+                    COALESCE(anulado, 0) AS anulado
                 FROM compras_cabecera
                 WHERE CONVERT(dni_empleado USING utf8mb4) = CONVERT('$dni' USING utf8mb4)
                   AND fecha_compra BETWEEN '$periodoDesde' AND '$periodoHasta'
@@ -325,18 +408,52 @@ try {
         $pdf->Image($ruta_logo, 10, 10, 30, 0, 'PNG');
     }
 
-    $pdf->SetY(12);
-    $pdf->SetFont('helvetica', 'B', 13);
-    $pdf->Cell(0, 8, $titulo, 0, 1, 'C');
+    if ($tipo === 'recibo_pago') {
+        $pdf->SetY(12);
+        $pdf->SetFont('helvetica', 'B', 13);
+        $pdf->Cell(110, 8, '', 0, 0); 
+        $pdf->Cell(80, 6, $titulo, 0, 1, 'R');
+        
+        $pdf->SetFont('helvetica', '', 9);
+        $pdf->Cell(110, 5, '', 0, 0);
+        $pdf->Cell(80, 5, 'Autoservicio La Amistad', 0, 1, 'R');
+        
+        $pdf->Cell(110, 5, '', 0, 0);
+        $pdf->Cell(80, 5, 'CUIT: 30709047252 - Fecha: ' . date('d/m/Y'), 0, 1, 'R');
 
-    if (!empty($subtituloPersona)) {
-        $pdf->SetFont('helvetica', 'B', 10);
-        $pdf->Cell(0, 6, $subtituloPersona, 0, 1, 'C');
+        // Mostrar el Nro de Reporte arriba de todo si existe
+        if (!empty($nroReporteRecibo)) {
+            $pdf->SetFont('helvetica', 'B', 10);
+            $pdf->Cell(110, 5, '', 0, 0);
+            $pdf->Cell(80, 5, 'N° RECIBO DE PAGO: 00001-' . $nroReporteRecibo = str_pad($nroReporteRecibo, 8, '0', STR_PAD_LEFT), 0, 1, 'R');
+        }
+        
+        $pdf->Ln(4);
+        $pdf->Line(10, $pdf->GetY(), 200, $pdf->GetY());
+        $pdf->Ln(3);
+
+        $pdf->SetFont('helvetica', '', 9);
+        $pdf->Cell(0, 5, 'Asociado: ' . $nombreCompleto . ' (DNI: ' . $dni . ')', 0, 1, 'L');
+        $pdf->Cell(0, 5, 'Forma de pago: EFECTIVO', 0, 1, 'L');
+        $pdf->Ln(2);
+        
+        $pdf->Line(10, $pdf->GetY(), 200, $pdf->GetY());
+        $pdf->Ln(4);
+
+    } else {
+        $pdf->SetY(12);
+        $pdf->SetFont('helvetica', 'B', 13);
+        $pdf->Cell(0, 8, $titulo, 0, 1, 'C');
+
+        if (!empty($subtituloPersona)) {
+            $pdf->SetFont('helvetica', 'B', 10);
+            $pdf->Cell(0, 6, $subtituloPersona, 0, 1, 'C');
+        }
+
+        $pdf->SetFont('helvetica', '', 8);
+        $pdf->Cell(0, 5, "Fecha de generación: " . date('d/m/Y H:i'), 0, 1, 'C');
+        $pdf->Ln(4);
     }
-
-    $pdf->SetFont('helvetica', '', 8);
-    $pdf->Cell(0, 5, "Fecha de generación: " . date('d/m/Y H:i'), 0, 1, 'C');
-    $pdf->Ln(4);
 
     if ($tipo === 'estado_cuenta') {
         
@@ -435,6 +552,95 @@ try {
                 </td>
             </tr>
         </tbody>
+        </table>';
+
+    } else if ($tipo === 'recibo_pago') {
+        
+        $i = 1;
+        $totalConsumidoMes = 0;
+        $filasTabla = '';
+
+        while ($row = $res->fetch_assoc()) {
+            $monto = floatval($row['Importe']);
+            $esAnulado = (int)$row['anulado'] === 1;
+
+            if ($esAnulado) {
+                $montoFormateado = '<span style="text-decoration: line-through; color: #777;">$ ' . number_format($monto, 2, ',', '.') . '</span>';
+            } else {
+                $totalConsumidoMes += $monto;
+                $montoFormateado = '$ ' . number_format($monto, 2, ',', '.');
+            }
+
+            $filasTabla .= '<tr>
+                <td width="10%" style="text-align: center;">' . $i . '</td>
+                <td width="40%" style="text-align: center;">' . $row['Fecha'] . '</td>
+                <td width="30%" style="text-align: center;">' . $row['N° Comprobante'] . '</td>
+                <td width="20%" style="text-align: right;">' . $montoFormateado . '</td>
+            </tr>';
+            $i++;
+        }
+
+        $montoCubierto = min(max($totalConsumidoMes, 0), $limiteMensual);
+        $saldoExcedido = max($totalConsumidoMes - $limiteMensual, 0);
+        $descTotal     = round($montoCubierto * ((100 - $porcentajeDesc) / 100), 2);
+        $totalAPagar   = $descTotal + $saldoExcedido;
+
+        $html = '
+        <div style="font-size: 10pt; font-weight: bold; margin-bottom: 5px;">Detalle de Pagos</div>
+        <div style="font-size: 9pt; margin-bottom: 8px;">EFECTIVO: $ ' . number_format($totalAPagar, 2, ',', '.') . '</div>
+        
+        <div style="font-size: 9pt; font-weight: bold; margin-bottom: 5px;">Movimientos asociados:</div>
+        <table border="0.5" cellpadding="4" style="font-size: 8.5pt;">
+            <thead>
+                <tr style="background-color: #333; color: white; font-weight: bold; text-align: center;">
+                    <th width="10%">#</th>
+                    <th width="40%">FECHA</th>
+                    <th width="30%">N° COMPROBANTE</th>
+                    <th width="20%">IMPORTE</th>
+                </tr>
+            </thead>
+            <tbody>
+                ' . $filasTabla . '
+                <tr style="background-color: #f8f9fa; font-weight: bold;">
+                    <td colspan="3" style="text-align: right;">TOTAL CONSUMIDO EN EL MES:</td>
+                    <td style="text-align: right; font-size: 9pt;">
+                        $ ' . number_format($totalConsumidoMes, 2, ',', '.') . '
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="3" style="text-align: right;">LÍMITE MENSUAL ASIGNADO:</td>
+                    <td style="text-align: right;">
+                        $ ' . number_format($limiteMensual, 2, ',', '.') . '
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="3" style="text-align: right;">PORCENTAJE DE DESCUENTO:</td>
+                    <td style="text-align: right;">
+                        ' . number_format($porcentajeDesc, 0) . '%
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="3" style="text-align: right;">CON DESC:</td>
+                    <td style="text-align: right;">
+                        $ ' . number_format($descTotal, 2, ',', '.') . '
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="3" style="text-align: right;">SALDO EXCEDIDO:</td>
+                    <td style="text-align: right; color: ' . ($saldoExcedido > 0 ? '#c00000' : '#000') . ';">
+                        $ ' . number_format($saldoExcedido, 2, ',', '.') . '
+                    </td>
+                </tr>
+                <tr style="background-color: #e9ecef; font-weight: bold; font-size: 9.5pt;">
+                    <td colspan="3" style="text-align: right;">TOTAL FINAL A DESCONTAR:</td>
+                    <td style="text-align: right; color: #a00000;">
+                        $ ' . number_format($totalAPagar, 2, ',', '.') . '
+                    </td>
+                </tr>
+                <tr style="background-color: #f8f9fa; font-weight: font-size: 9.5pt;">
+                <td colspan="4" style="text-align: left;">LA SUMA DE ' . number_format($totalAPagar, 2, ',', '.') . ' EN CONCEPTO DE PAGO EN CUENTA CORRIENTE</td>
+                </tr>
+            </tbody>
         </table>';
 
     } else if ($tipo === 'resumen_mensual') {
@@ -571,7 +777,6 @@ try {
             foreach ($datosRangos as $rangoNombre => $quincenas) {
                 $html .= '<h3 style="border-bottom: 1px solid #000; margin-top: 20px; font-size: 11pt; font-weight: bold;">SEGMENTO: ' . mb_strtoupper($rangoNombre) . '</h3>';
 
-                // --- 1° QUINCENA ---
                 $html .= '<h4 style="margin-bottom: 3px; font-size: 10pt;">1° Quincena (1 al 15)</h4>';
                 $html .= '<table border="0.5" cellpadding="4" style="font-size: 8.5pt; margin-bottom: 10px;">
                     <thead>
@@ -605,7 +810,6 @@ try {
                 }
                 $html .= '</tbody></table>';
 
-                // --- 2° QUINCENA ---
                 $html .= '<h4 style="margin-bottom: 3px; font-size: 10pt; margin-top: 10px;">2° Quincena (16 al fin de mes)</h4>';
                 $html .= '<table border="0.5" cellpadding="4" style="font-size: 8.5pt;">
                     <thead>

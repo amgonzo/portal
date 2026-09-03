@@ -82,6 +82,38 @@ if ($tipo === 'estado_cuenta') {
     $stmt->close();
     exit();
 
+} elseif ($tipo === 'recibo_pago'){
+    $dni  = trim($_GET['dni'] ?? '');
+    $mes  = intval($_GET['mes'] ?? date('n'));
+    $anio = intval($_GET['anio'] ?? date('Y'));
+
+    if (empty($dni)) {
+        echo json_encode(["status" => "empty", "msg" => "DNI no proporcionado"]);
+        exit();
+    }
+
+    list($periodoCodigo, $periodoDesde, $periodoHasta) = obtenerRangoPeriodoReporte($mysqli, $mes, $anio);
+
+    // Consulta filtrando por el rango de fechas de corte real del período
+    $stmt = $mysqli->prepare("
+        SELECT venta_id 
+        FROM compras_cabecera 
+        WHERE CAST(dni_empleado AS CHAR) = CAST(? AS CHAR)
+          AND fecha_compra BETWEEN ? AND ?
+        LIMIT 1
+    ");
+    $stmt->bind_param("sss", $dni, $periodoDesde, $periodoHasta);
+    $stmt->execute();
+    $res = $stmt->get_result();
+
+    if ($res && $res->num_rows > 0) {
+        echo json_encode(["status" => "ok"]);
+    } else {
+        echo json_encode(["status" => "empty"]);
+    }
+    $stmt->close();
+    exit();
+
 } elseif ($tipo === 'resumen_mensual') {
     $mes  = intval($_GET['mes'] ?? date('n'));
     $anio = intval($_GET['anio'] ?? date('Y'));

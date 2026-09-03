@@ -19,7 +19,7 @@ $reportes = [
         "descripcion" => "Listado completo de estados de cuenta."
     ],
     [
-        "id" => "recibo",
+        "id" => "recibo_pago",
         "categoria" => "Recibos",
         "nombre" => "Recibo de Pago",
         "descripcion" => "Listado de Recibo por Asociado."
