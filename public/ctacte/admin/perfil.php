@@ -88,7 +88,7 @@
         $.ajax({
             type: "POST",
             url: "/api/cambiar_clave.php",
-            headers: { "Authorization": "Bearer " + TOKEN },
+            headers: obtenerHeadersSSO(),
             data: { clave: pass },
             success: function(res) {
                 // 2. Usamos SWAL (el modal grande) para el éxito, porque es un cambio crítico

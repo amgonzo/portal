@@ -170,6 +170,15 @@
                 </div>
                 <div class="modal-body">
                     <input type="hidden" id="edit_idpermiso">
+                    
+                    <!-- 👈 Nuevo campo de Aplicación en el Modal -->
+                    <div class="mb-3">
+                        <label>Aplicación Destino:</label>
+                        <select id="edit_app" class="form-control">
+                            <!-- Se puebla igual que en nuevo -->
+                        </select>
+                    </div>
+
                     <div class="mb-3">
                         <label>Clave del Permiso:</label>
                         <input type="text" id="edit_clave" class="form-control">

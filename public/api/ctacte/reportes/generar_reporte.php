@@ -18,8 +18,25 @@ try {
 
 require_once $rutas['conexion'];
 require_once $rutas['middleware'];
+require_once $rutas['contexto'];
 
-$mysqli = conectarDB('CTACTE_');
+// AUTENTICAR USUARIO
+$userAuth = validarTokenAPI($mysqli ?? null);
+
+// OBTENER EMPRESA
+$empresa = obtenerEmpresaActual($mysqli, $userAuth);
+
+if (!$empresa) {
+    http_response_code(400);
+    echo json_encode([
+        'status' => 'error',
+        'msg' => 'empresa_no_encontrada'
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+// CONECTAR A LA BASE DE LA EMPRESA
+$mysqli = conectarBase($empresa['db_nombre']);
 /**
  * Helper para obtener rango de fechas exacto de un período según config_periodos_reglas
  */

@@ -12,7 +12,7 @@ function cargarAuditoria() {
     $.ajax({
         url: API_BASE + '/sso/auditoria/get_todos_logs.php',
         type: 'GET',
-        headers: { "Authorization": "Bearer " + localStorage.getItem('sso_token') },
+        headers: obtenerHeadersSSO(),
         success: function(res) {
             if (res.status === 'ok') {
                 datosLogs = res.data;

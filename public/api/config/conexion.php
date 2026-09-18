@@ -1,12 +1,27 @@
 <?php
-// conexion.php simplificado (sin recargar vendor ni dotenv porque ya vienen cargados)
+// conexion.php actualizado para soportar conexión general (SSO) o dinámica por empresa
 
-function conectarDB($prefijo = '') {
-    // Lee las variables de entorno que ya cargó el index o login previamente
-    $host = $_ENV[$prefijo . 'DB_HOST'] ?? $_ENV['DB_HOST'] ?? 'localhost';
-    $db   = $_ENV[$prefijo . 'DB_NAME'] ?? $_ENV['DB_NAME'] ?? '';
-    $user = $_ENV[$prefijo . 'DB_USER'] ?? $_ENV['DB_USER'] ?? '';
-    $pass = $_ENV[$prefijo . 'DB_PASS'] ?? $_ENV['DB_PASS'] ?? '';
+function conectarDB($dbNombreOPre = '') {
+    $host = $_ENV['DB_HOST'] ?? 'localhost';
+    $user = $_ENV['DB_USER'] ?? '';
+    $pass = $_ENV['DB_PASS'] ?? '';
+    $db   = '';
+
+    if (!empty($dbNombreOPre)) {
+        // Si el parámetro coincide con un prefijo de entorno (ej: 'OTRA_')
+        if (isset($_ENV[$dbNombreOPre . 'DB_NAME'])) {
+            $host = $_ENV[$dbNombreOPre . 'DB_HOST'] ?? $host;
+            $db   = $_ENV[$dbNombreOPre . 'DB_NAME'];
+            $user = $_ENV[$dbNombreOPre . 'DB_USER'] ?? $user;
+            $pass = $_ENV[$dbNombreOPre . 'DB_PASS'] ?? $pass;
+        } else {
+            // Si no es un prefijo, asumimos que es el nombre directo de la base de datos (ej: 'super_3_ctacte')
+            $db = $dbNombreOPre;
+        }
+    } else {
+        // Por defecto usa las credenciales principales del .env (SSO)
+        $db = $_ENV['DB_NAME'] ?? '';
+    }
 
     $mysqli = new mysqli($host, $user, $pass, $db);
 
@@ -22,7 +37,7 @@ function conectarDB($prefijo = '') {
     return $mysqli;
 }
 
-// Por defecto la conexión general (SSO)
+// Por defecto la conexión general del SSO al incluir este archivo
 $mysqli = conectarDB(''); 
 date_default_timezone_set('America/Argentina/Buenos_Aires');
 ?>

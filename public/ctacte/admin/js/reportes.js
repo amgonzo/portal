@@ -6,7 +6,19 @@ $(document).ready(function() {
 // Función auxiliar para inyectar el token en las llamadas AJAX tal como en usuarios
 function getAuthHeaders() {
     const token = localStorage.getItem('sso_token');
-    return token ? { 'Authorization': 'Bearer ' + token } : {};
+    const empresaId = localStorage.getItem('sso_id_empresa_activa');
+
+    const headers = {};
+
+    if (token) {
+        headers['Authorization'] = 'Bearer ' + token;
+    }
+
+    if (empresaId) {
+        headers['X-EMPRESA-ID'] = empresaId;
+    }
+
+    return headers;
 }
 
 function cargarReportes() {
@@ -26,7 +38,7 @@ function cargarReportes() {
                     html += `<tr>
                         <td><span class="badge ${badgeClass}">${r.categoria}</span></td>
                         <td><b>${r.nombre}</b></td>
-                        <td>${r.descripcion}</td>
+                        <td>${aplicarDiccionarioTexto(r.descripcion)}</td>
                         <td class="text-center">
                             <button class="btn btn-sm btn-info" onclick="abrirModalReporte('${r.id}', '${r.nombre}')">
                                 <i class="fas fa-cog"></i> Configurar

@@ -14,6 +14,7 @@ function inicializarDataTable() {
     }
 
     tablaData = $('#tablaPendientes').DataTable({
+        // Traducción inline sin requerir conexión a internet ni CDN externo
         language: {
             processing:     "Procesando...",
             search:         "Buscar:",
@@ -39,10 +40,9 @@ function inicializarDataTable() {
 }
 
 function cargarPeriodos() {
-    fetch(API_BASE + '/ctacte/compras/obtener_periodos_combo.php', {
-        method: 'GET',
+    fetch('/api/ctacte/compras/obtener_periodos_combo.php', {
         headers: {
-            "Authorization": "Bearer " + (localStorage.getItem('sso_token') || '')
+            'Authorization': `Bearer ${localStorage.getItem('sso_token')}`
         }
     })
         .then(res => res.json())
@@ -59,10 +59,10 @@ function cargarPeriodos() {
 }
 
 function cargarComboPersonas() {
-    fetch(API_BASE + '/ctacte/personas/obtener_personas_combo.php?todos=1', {
-        method: 'GET',
+    // Pedimos 'todos=1' para que traiga activos e inactivos
+    fetch('/api/ctacte/personas/obtener_personas_combo.php?todos=1', {
         headers: {
-            "Authorization": "Bearer " + (localStorage.getItem('sso_token') || '')
+            'Authorization': `Bearer ${localStorage.getItem('sso_token')}`
         }
     })
         .then(res => res.json())
@@ -75,11 +75,13 @@ function cargarComboPersonas() {
 
             if (Array.isArray(personas)) {
                 personas.forEach(p => {
+                    // Si está inactivo, le agregamos la etiqueta para saberlo
                     const labelInactivo = Number(p.activo) === 0 ? ' (INACTIVO)' : '';
                     const opt = `<option value="${p.dni}">${p.apellido}, ${p.nombre}${labelInactivo} (DNI: ${p.dni})</option>`;
                     
                     optionsModal += opt;
                     
+                    // En el filtro superior solo agregamos los activos para no ensuciar la lista
                     if (Number(p.activo) === 1) {
                         optionsFiltro += opt;
                     }
@@ -92,16 +94,16 @@ function cargarComboPersonas() {
         .catch(err => console.error("Error al cargar personas:", err));
 }
 
+// Reemplazar la función cargarFacturas existente por esta versión:
 function cargarFacturas() {
     const periodo  = document.getElementById('filtro_periodo').value;
     const dni      = document.getElementById('filtro_empleado').value;
     const ticket   = document.getElementById('filtro_ticket').value.trim();
     const verAnulados = document.getElementById('filtro_anulados').value;
 
-    fetch(API_BASE + `/ctacte/compras/obtener_compras_filtradas.php?periodo=${periodo}&dni=${dni}&ticket=${encodeURIComponent(ticket)}&anulados=${verAnulados}`, {
-        method: 'GET',
+    fetch(`/api/ctacte/compras/obtener_compras_filtradas.php?periodo=${encodeURIComponent(periodo)}&dni=${encodeURIComponent(dni)}&ticket=${encodeURIComponent(ticket)}&anulados=${encodeURIComponent(verAnulados)}`, {
         headers: {
-            "Authorization": "Bearer " + (localStorage.getItem('sso_token') || '')
+            'Authorization': `Bearer ${localStorage.getItem('sso_token')}`
         }
     })
         .then(res => res.json())
@@ -109,6 +111,7 @@ function cargarFacturas() {
             tablaData.clear();
 
             if (Array.isArray(data) && data.length > 0) {
+                // Evaluamos los permisos una sola vez antes de iterar
                 const puedoReasignar = tienePermiso('comprobantes_reasignar');
                 const puedoAnular    = tienePermiso('comprobantes_anular');
 
@@ -119,7 +122,7 @@ function cargarFacturas() {
                     if (verAnulados === '1' && !esAnulado) return;
 
                     const pvFormateado = String(c.punto_venta_id).padStart(4, '0');
-                    const ticketFormateado = String(c.venta_id).padStart(8, '0');
+                    const ticketFormateado = String(c.nro_comprobante).padStart(8, '0');
                     const numeroTicketCompuesto = `${pvFormateado}-${ticketFormateado}`;
 
                     const articulosHTML = procesarYFormatearDetalles(c.detalles_resumen, index);
@@ -169,6 +172,7 @@ function cargarFacturas() {
                                 </button>
                             </div>`;
                     } else {
+                        // Construcción condicional según permisos
                         let botonesHTML = '';
 
                         if (puedoReasignar) {
@@ -185,6 +189,7 @@ function cargarFacturas() {
                                 </button>`;
                         }
 
+                        // Si no tiene ninguno de los dos permisos, muestra un guion o texto vacío
                         colBoton = botonesHTML !== '' 
                             ? `<div class="d-flex gap-1 justify-content-center">${botonesHTML}</div>` 
                             : `<div class="text-center text-muted small">—</div>`;
@@ -209,6 +214,7 @@ function cargarFacturas() {
         .catch(err => console.error("Error al cargar comprobantes:", err));
 }
 
+// Agregar esta función al final del archivo comprobantes.js:
 function anularComprobante(pv_id, venta_id, ticketFormateado) {
     Swal.fire({
         title: 'Anular Comprobante',
@@ -234,10 +240,10 @@ function anularComprobante(pv_id, venta_id, ticketFormateado) {
             formData.append('venta_id', venta_id);
             formData.append('motivo', result.value);
 
-            fetch(API_BASE + '/ctacte/compras/anular_compra.php', {
+            fetch('/api/ctacte/compras/anular_compra.php', {
                 method: 'POST',
                 headers: {
-                    "Authorization": "Bearer " + (localStorage.getItem('sso_token') || '')
+                    'Authorization': `Bearer ${localStorage.getItem('sso_token')}`
                 },
                 body: formData
             })
@@ -274,10 +280,10 @@ function desanularComprobante(pv_id, venta_id, ticketFormateado) {
             formData.append('punto_venta_id', pv_id);
             formData.append('venta_id', venta_id);
 
-            fetch(API_BASE + '/ctacte/compras/desanular_compra.php', {
+            fetch('/api/ctacte/compras/desanular_compra.php', {
                 method: 'POST',
                 headers: {
-                    "Authorization": "Bearer " + (localStorage.getItem('sso_token') || '')
+                    'Authorization': `Bearer ${localStorage.getItem('sso_token')}`
                 },
                 body: formData
             })
@@ -317,9 +323,10 @@ function procesarYFormatearDetalles(detallesStr, rowId) {
         const itemLimpio = item.trim();
         if (!itemLimpio) return;
 
+        // Separamos por ' - ' en lugar de 'x '
         const pos = itemLimpio.indexOf(' - ');
         if (pos !== -1) {
-            const cantConUnidad = itemLimpio.substring(0, pos).trim();
+            const cantConUnidad = itemLimpio.substring(0, pos).trim(); // Ej: "57 U" o "0.3 kg"
             const desc = itemLimpio.substring(pos + 3).trim();
             if (desc) {
                 mapaArticulos[desc] = cantConUnidad;
@@ -394,25 +401,30 @@ function guardarReasignacion(e) {
     e.preventDefault();
     const formData = new FormData(document.getElementById('formReasignar'));
 
-    fetch(API_BASE + '/ctacte/compras/reasignar_compra.php', {
+    fetch('/api/ctacte/compras/reasignar_compra.php', {
         method: 'POST',
         headers: {
-            "Authorization": "Bearer " + (localStorage.getItem('sso_token') || '')
+            'Authorization': `Bearer ${localStorage.getItem('sso_token')}`
         },
         body: formData
     })
     .then(res => res.json())
     .then(res => {
         if (res.status === 'ok') {
+            // 1. Ocultar el modal de forma limpia
             const modalEl = document.getElementById('modalReasignar');
             const modalInstance = bootstrap.Modal.getInstance(modalEl) || bootstrap.Modal.getOrCreateInstance(modalEl);
             if (modalInstance) {
                 modalInstance.hide();
             }
 
+            // 2. Recargar la tabla con los datos actualizados
             cargarFacturas();
+
+            // 3. Notificación con la función global toast() de SweetAlert2
             toast(res.msg || 'El comprobante fue reasignado correctamente.', 'success');
         } else {
+            // Muestra errores del backend (ej: "El ticket ya está asignado a esa persona.")
             toast(res.msg || 'No se pudo reasignar el comprobante.', 'error');
         }
     })
@@ -425,6 +437,7 @@ function guardarReasignacion(e) {
 function filtrarPorTicketEnDataTables() {
     const term = document.getElementById('filtro_ticket').value.trim();
     if (tablaData) {
+        // Búsqueda instantánea en el DataTables local
         tablaData.search(term).draw();
     }
 }

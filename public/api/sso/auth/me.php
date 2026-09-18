@@ -5,7 +5,6 @@ $rutas = require $_SERVER['DOCUMENT_ROOT'] . '/api/config/rutas.php';
 // 2. Cargamos Composer usando la clave del array
 require_once $rutas['autoload'];
 
-
 try {
     // 3. Cargamos el .env usando la ruta definida en rutas.php
     $dotenv = Dotenv\Dotenv::createImmutable($rutas['env_api']);
@@ -54,7 +53,6 @@ if (!$user) {
 
 // 2.1. Validar si el token expiró por tiempo de inactividad
 if (!empty($user['token_expira']) && strtotime($user['token_expira']) < time()) {
-    // El token venció: lo limpiamos de la base de datos
     $stmtClear = $mysqli->prepare("UPDATE usuarios SET token = NULL, token_expira = NULL WHERE idusuario = ?");
     $stmtClear->bind_param("i", $user['idusuario']);
     $stmtClear->execute();
@@ -64,7 +62,7 @@ if (!empty($user['token_expira']) && strtotime($user['token_expira']) < time()) 
     exit;
 }
 
-// 2.2. ¡Renovar el token! (Extiende la sesión 30 minutos más desde este preciso instante)
+// 2.2. ¡Renovar el token! (Extiende la sesión 30 minutos más)
 $minutosInactividad = 30;
 $stmtRenew = $mysqli->prepare("UPDATE usuarios SET token_expira = DATE_ADD(NOW(), INTERVAL ? MINUTE) WHERE idusuario = ?");
 $stmtRenew->bind_param("ii", $minutosInactividad, $user['idusuario']);
@@ -86,7 +84,25 @@ while($p = $resP->fetch_assoc()) {
     $permisos[] = $p['clavepermiso']; 
 }
 
-// 4. Responder con los datos reales y la estructura correcta
+// 4. Obtener roles asignados al usuario desde 'tiposusuario'
+$roles = [];
+$sqlR = "SELECT DISTINCT r.clave, r.descripcion 
+         FROM tiposusuario r 
+         JOIN usuarios_roles_apps ura ON r.idtipousuario = ura.idtipousuario
+         WHERE ura.idusuario = ?";
+
+$stmtR = $mysqli->prepare($sqlR);
+$stmtR->bind_param("i", $user['idusuario']);
+$stmtR->execute();
+$resR = $stmtR->get_result();
+while($r = $resR->fetch_assoc()) { 
+    $roles[] = [
+        "clave" => $r['clave'],
+        "nombre" => $r['descripcion']
+    ]; 
+}
+
+// 5. Responder con los datos reales, permisos y roles correctos
 echo json_encode([
     "status" => "ok",
     "usuario" => [
@@ -94,5 +110,6 @@ echo json_encode([
         "nombre" => $user['nombreapellido'],
         "username" => $user['username']
     ],
-    "permisos" => $permisos
+    "permisos" => $permisos,
+    "roles" => $roles
 ]);

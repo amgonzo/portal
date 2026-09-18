@@ -41,6 +41,7 @@ $mostrarNombre = filter_var(
     FILTER_VALIDATE_BOOLEAN
 );
 
+$empresaSlug = trim($_GET['empresa'] ?? '');
 
 // =========================================================
 // 5. DETECCIÓN BÁSICA DE DISPOSITIVO
@@ -212,11 +213,12 @@ $urlLogin = $rutas['login_sso_web'];
 
 
                 <!-- =================================================
-                     BOTÓN INGRESAR
+                     BOTÓN INGRESAR href="<?= htmlspecialchars($urlLogin) ?>"
                      ================================================= -->
 
                 <a
-                    href="<?= htmlspecialchars($urlLogin) ?>"
+                    
+                    href="<?= htmlspecialchars($urlLogin . ($empresaSlug !== '' ? '?empresa=' . rawurlencode($empresaSlug) : '')) ?>"
                     class="btn btn-primary btn-custom-xl w-100 shadow-sm mb-3 d-inline-flex align-items-center justify-content-center gap-2"
                 >
 

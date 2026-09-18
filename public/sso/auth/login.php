@@ -53,6 +53,8 @@ $mostrarNombre = filter_var(
     FILTER_VALIDATE_BOOLEAN
 );
 
+$empresaSlug = trim($_GET['empresa'] ?? '');
+
 ?>
 <!DOCTYPE html>
 
@@ -400,7 +402,24 @@ $mostrarNombre = filter_var(
                     data: {
 
                         username: user,
-                        password: pass
+                        password: pass,
+                        empresa: <?= json_encode($empresaSlug) ?> ||
+             (() => {
+                 const ultimaEmpresa = localStorage.getItem('sso_ultima_empresa');
+
+                 if (!ultimaEmpresa) {
+                     return '';
+                 }
+
+                 try {
+                     const datosEmpresa = JSON.parse(ultimaEmpresa);
+
+                     return datosEmpresa.slug || '';
+
+                 } catch (e) {
+                     return '';
+                 }
+             })()
 
                     },
 
@@ -415,64 +434,62 @@ $mostrarNombre = filter_var(
 
                         if (data.status === "ok") {
 
+                            localStorage.setItem('sso_token', data.token);
+                            localStorage.setItem('sso_aplicaciones', JSON.stringify(data.aplicaciones));
+                            localStorage.setItem('sso_empresas', JSON.stringify(data.empresas));
 
-                            // =================================================
-                            // GUARDAR TOKEN
-                            // =================================================
+                            if (data.empresa) {
+                                localStorage.setItem(
+                                    'sso_empresa_activa',
+                                    JSON.stringify(data.empresa)
+                                );
 
-                            localStorage.setItem(
-                                'sso_token',
-                                data.token
-                            );
-
-
-                            localStorage.setItem(
-                                'sso_aplicaciones',
-                                JSON.stringify(data.aplicaciones)
-                            );
-
-
-                            // =================================================
-                            // REDIRECCIÓN
-                            // =================================================
+                                localStorage.setItem(
+                                    'sso_ultima_empresa',
+                                    JSON.stringify(data.empresa)
+                                );
+                            }
 
                             window.location.href = URL_PANEL;
 
-
                         } else {
 
+                            let mensaje = "Usuario o contraseña incorrectos.";
 
-                            if (
-                                data.msg === "usuario" ||
-                                data.msg === "password" ||
-                                data.msg === "datos"
-                            ) {
+                            switch (data.msg) {
 
-                                toast(
-                                    "Usuario o contraseña incorrectos",
-                                    "error"
-                                );
+                                case "empresa":
+                                    mensaje = "No se indicó la empresa.";
+                                    break;
 
+                                case "empresa_inexistente":
+                                    mensaje = "La empresa indicada no existe o está inactiva.";
+                                    break;
 
-                            } else if (
-                                data.msg === "sin_acceso_app"
-                            ) {
+                                case "usuario":
+                                    mensaje = "Usuario o contraseña incorrectos.";
+                                    break;
 
-                                toast(
-                                    "El usuario no tiene aplicaciones asignadas",
-                                    "error"
-                                );
+                                case "password":
+                                    mensaje = "Usuario o contraseña incorrectos.";
+                                    break;
 
+                                case "usuario_baja":
+                                    mensaje = "El usuario se encuentra dado de baja.";
+                                    break;
 
-                            } else {
+                                case "sin_empresas":
+                                    mensaje = "El usuario no tiene una empresa asignada.";
+                                    break;
 
-                                toast(
-                                    "Error: " + data.msg,
-                                    "error"
-                                );
-
+                                default:
+                                    if (data.msg) {
+                                        mensaje = data.msg;
+                                    }
+                                    break;
                             }
 
+                            toast(mensaje, "error");
                         }
 
                     },

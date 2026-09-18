@@ -17,6 +17,7 @@ try {
 require_once $rutas['conexion'];
 require_once $rutas['middleware'];
 require_once $rutas['auditoria'];
+require_once $rutas['contexto'];
 
 header('Content-Type: application/json');
 
@@ -25,6 +26,50 @@ $userAuth = validarTokenAPI($mysqli);
 
 // 2. 🛡️ AGREGAR ESTO: Validar si el rol tiene permiso para este endpoint y método
 validarPermisoEndpoint($mysqli, $userAuth);
+
+$esSuperAdmin = false;
+
+$sqlSuperAdmin = "
+    SELECT 1
+    FROM usuarios_roles_apps ura
+    INNER JOIN tiposusuario tu
+        ON tu.idtipousuario = ura.idtipousuario
+    WHERE ura.idusuario = ?
+      AND UPPER(TRIM(tu.clave)) = 'SUPER_ADMIN'
+    LIMIT 1
+";
+
+$stmtSuperAdmin = $mysqli->prepare($sqlSuperAdmin);
+
+$idUsuarioAuth = intval($userAuth['idusuario']);
+
+$stmtSuperAdmin->bind_param(
+    "i",
+    $idUsuarioAuth
+);
+
+$stmtSuperAdmin->execute();
+
+$resSuperAdmin = $stmtSuperAdmin->get_result();
+
+$esSuperAdmin = ($resSuperAdmin->num_rows > 0);
+
+$stmtSuperAdmin->close();
+
+$empresaActual = null;
+$idEmpresaActual = 0;
+
+if (!$esSuperAdmin) {
+
+    $empresaActual = obtenerEmpresaActual(
+        $mysqli,
+        $userAuth
+    );
+
+    $idEmpresaActual = intval(
+        $empresaActual['idempresa']
+    );
+}
 
 $id      = $_POST['id'] ?? '';
 $nombre  = trim($_POST['nombre'] ?? '');
@@ -92,6 +137,26 @@ try {
         registrarLog($mysqli, 'alta_usuario', 'usuarios', $idUsuario, null, $_POST);
     }
 
+    // Asignar usuario a la empresa actual
+    if (!$esSuperAdmin) {
+
+        $stmtEmpresa = $mysqli->prepare("
+            INSERT INTO usuarios_empresas
+                (idusuario, idempresa, activo)
+            VALUES
+                (?, ?, 1)
+            ON DUPLICATE KEY UPDATE activo = 1
+        ");
+
+        $stmtEmpresa->bind_param(
+            "ii",
+            $idUsuario,
+            $idEmpresaActual
+        );
+
+        $stmtEmpresa->execute();
+    }
+    
     // Insertar nuevas relaciones app/rol
     $stmtURA = $mysqli->prepare("INSERT INTO usuarios_roles_apps (idusuario, idtipousuario, idaplicacion) VALUES (?, ?, ?)");
     foreach ($accesos as $acc) {

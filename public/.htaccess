@@ -1,0 +1,9 @@
+RewriteEngine On
+
+# No tocar archivos ni directorios reales
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# Cualquier empresa: /empresa o /empresa/
+RewriteRule ^([^/]+)/?$ index.php?empresa=$1 [QSA,L]

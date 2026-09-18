@@ -17,7 +17,7 @@ try {
 require_once $rutas['conexion'];
 require_once $rutas['middleware'];
 require_once $rutas['auditoria_core'];
-
+require_once $rutas['contexto'];
 header('Content-Type: application/json');
 
 // 1. Validar token y permisos con la conexión de SSO (donde existen los usuarios y roles)
@@ -46,7 +46,8 @@ header('Content-Type: application/json');
 $userAuth = validarTokenAPI($mysqli ?? null);
 
 // 2. Conectar a la base de datos de CTACTE_ ANTES de usarla
-$mysqli = conectarDB('CTACTE_'); 
+$empresa = obtenerEmpresaActual($mysqli, $userAuth);
+$mysqli = conectarBase($empresa['db_nombre']); 
 
 // 3. Validar permisos si corresponde y ejecutar
 validarPermisoEndpoint($mysqli, $userAuth);

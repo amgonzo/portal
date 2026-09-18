@@ -61,11 +61,12 @@ include_once 'menu.php';
         }
 
         // Consultamos al backend en cada carga para traer las apps actualizadas al instante
-        $.ajax({
-            url: API_BASE + '/sso/obtener_apps.php', // O el endpoint que devuelva las apps del token
+       $.ajax({
+            url: API_BASE + '/sso/obtener_apps.php',
             type: 'POST',
             contentType: 'application/json',
-            data: JSON.stringify({ token: token }),
+            headers: obtenerHeadersSSO(),
+            data: JSON.stringify({}),
             success: function(response) {
                 if (response.status === 'ok' && response.aplicaciones) {
                     // Guardamos las apps frescas en el localStorage
@@ -142,9 +143,9 @@ include_once 'menu.php';
             url: API_BASE + '/sso/seleccionar_app.php',
             type: 'POST',
             contentType: 'application/json',
-            data: JSON.stringify({ 
-                app_slug: slug,
-                token: localStorage.getItem('sso_token')
+            headers: obtenerHeadersSSO(),
+            data: JSON.stringify({  
+                app_slug: slug
             }),
             success: function(response) {
                 if (response.status === 'ok') {

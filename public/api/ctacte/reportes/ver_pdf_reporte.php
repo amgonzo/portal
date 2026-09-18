@@ -7,9 +7,7 @@ $rutas = require $_SERVER['DOCUMENT_ROOT'] . '/api/config/rutas.php';
 // 2. Cargamos Composer usando la clave del array
 require_once $rutas['autoload'];
 
-
 try {
-    // 3. Cargamos el .env usando la ruta definida en rutas.php
     $dotenv = Dotenv\Dotenv::createImmutable($rutas['env_api']);
     $dotenv->load();
 } catch (Exception $e) {
@@ -18,9 +16,53 @@ try {
 
 require_once $rutas['conexion'];
 require_once $rutas['middleware'];
+require_once $rutas['contexto'];
 require_once $rutas['obtener_recibo'];
+require_once $rutas['diccionario'];
 
-$mysqli = conectarDB('CTACTE_');
+header('Content-Type: application/json; charset=utf-8');
+
+// ============================================================
+// AUTENTICAR USUARIO
+// ============================================================
+
+// window.open() no envía el header Authorization,
+// por eso el token llega por GET.
+if (
+    empty($_SERVER['HTTP_AUTHORIZATION'])
+    && !empty($_GET['token'])
+) {
+    $_SERVER['HTTP_AUTHORIZATION'] = 'Bearer ' . $_GET['token'];
+}
+
+$userAuth = validarTokenAPI($mysqli ?? null);
+
+// ============================================================
+// OBTENER EMPRESA ACTUAL
+// ============================================================
+
+$empresa = obtenerEmpresaActual($mysqli, $userAuth);
+
+if (!$empresa) {
+    http_response_code(400);
+    echo json_encode([
+        'status' => 'error',
+        'msg' => 'empresa_no_encontrada'
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+// ============================================================
+// CONECTAR A LA BASE DE DATOS DE LA EMPRESA
+// ============================================================
+
+$mysqli = conectarBase($empresa['db_nombre']);
+
+// ============================================================
+// CARGAR DICCIONARIO
+// ============================================================
+
+$diccionarioEmpresa = cargarDiccionario($mysqli);
 
 /**
  * Helper para obtener las fechas del período operativo desde config_periodos_reglas
@@ -84,7 +126,7 @@ switch ($tipo) {
         $nombreCompleto = $persona ? mb_strtoupper($persona['apellido'] . ', ' . $persona['nombre']) : "DNI: $dni";
 
         $titulo = "ESTADO DE CUENTA - PERÍODO $nombreMes $anio";
-        $subtituloPersona = "Asociado: $nombreCompleto | DNI: $dni";
+        $subtituloPersona = diccionario($diccionarioEmpresa,'empleado_singular','Empleado') . ": $nombreCompleto | DNI: $dni";
 
         $sql = "SELECT 
                     DATE_FORMAT(fecha_compra, '%d/%m/%Y %H:%i') AS 'Fecha', 
@@ -280,7 +322,7 @@ switch ($tipo) {
         $nombreCompleto = $persona ? mb_strtoupper($persona['apellido'] . ', ' . $persona['nombre']) : "DNI: $dni";
 
         $titulo = "CONSUMO DE ARTÍCULOS POR QUINCENA (Mínimo 3 unidades)";
-        $subtituloPersona = "Asociado: $nombreCompleto | Período: $nombreMes $anio";
+        $subtituloPersona = diccionario($diccionarioEmpresa,'empleado_singular','Empleado') . ": $nombreCompleto | Período: $nombreMes $anio";
 
         $sql = "SELECT 
                     CASE 
@@ -433,7 +475,7 @@ try {
         $pdf->Ln(3);
 
         $pdf->SetFont('helvetica', '', 9);
-        $pdf->Cell(0, 5, 'Asociado: ' . $nombreCompleto . ' (DNI: ' . $dni . ')', 0, 1, 'L');
+        $pdf->Cell(0, 5, diccionario($diccionarioEmpresa,'empleado_singular','Empleado') . ': ' . $nombreCompleto . ' (DNI: ' . $dni . ')', 0, 1, 'L');
         $pdf->Cell(0, 5, 'Forma de pago: EFECTIVO', 0, 1, 'L');
         $pdf->Ln(2);
         
@@ -589,7 +631,7 @@ try {
         <div style="font-size: 10pt; font-weight: bold; margin-bottom: 5px;">Detalle de Pagos</div>
         <div style="font-size: 9pt; margin-bottom: 8px;">EFECTIVO: $ ' . number_format($totalAPagar, 2, ',', '.') . '</div>
         
-        <div style="font-size: 9pt; font-weight: bold; margin-bottom: 5px;">Movimientos asociados:</div>
+        <div style="font-size: 9pt; font-weight: bold; margin-bottom: 5px;">Movimientos ' . strtolower(diccionario($diccionarioEmpresa, 'empleado_plural', 'Empleados')) . ':</div>
         <table border="0.5" cellpadding="4" style="font-size: 8.5pt;">
             <thead>
                 <tr style="background-color: #333; color: white; font-weight: bold; text-align: center;">

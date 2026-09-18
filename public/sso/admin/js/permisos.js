@@ -11,7 +11,7 @@ $(document).ready(function() {
     $.ajax({
         url: API_BASE + '/sso/auth/me.php',
         type: 'GET',
-        headers: { "Authorization": "Bearer " + token },
+        headers: obtenerHeadersSSO(),
         success: function(response) {
             const res = (typeof response === 'string') ? JSON.parse(response) : response;
             if (res.status === 'ok' && res.usuario) {
@@ -62,7 +62,7 @@ function cargarAplicaciones() {
     $.ajax({
         type: "GET",
         url: API_BASE + "/sso/aplicaciones/listar_aplicaciones.php",
-        headers: { "Authorization": "Bearer " + localStorage.getItem('sso_token') },
+        headers: obtenerHeadersSSO(),
         success: function(response) {
             const res = (typeof response === 'string') ? JSON.parse(response) : response;
             if(res.status === "ok") {
@@ -70,8 +70,10 @@ function cargarAplicaciones() {
                 res.data.forEach(a => {
                     html += `<option value="${a.idaplicacion}">${a.nombre}</option>`;
                 });
-                $("#select_aplicacion, #nueva_app").html(html);
-
+                
+                // 👈 Poblamos tanto el buscador principal, el modal nuevo y el modal editar
+                $("#select_aplicacion, #nueva_app, #edit_app").html(html);
+                
                 if (res.data.length > 0) {
                     $("#select_aplicacion").val(res.data[0].idaplicacion);
                     cargarTipos();
@@ -80,12 +82,11 @@ function cargarAplicaciones() {
         }
     });
 }
-
 function cargarTipos() {
     $.ajax({
         type: "GET",
         url: API_BASE + "/sso/usuarios/listar_tipos_usuario.php",
-        headers: { "Authorization": "Bearer " + localStorage.getItem('sso_token') },
+        headers: obtenerHeadersSSO(),
         success: function(response) {
             const res = (typeof response === 'string') ? JSON.parse(response) : response;
             if(res.status === "ok") {
@@ -118,7 +119,7 @@ function cargarPermisosRol() {
         type: "GET",
         url: API_BASE + "/sso/permisos/get_permisos_rol.php",
         data: { idaplicacion: idApp, idtipousuario: idTipo },
-        headers: { "Authorization": "Bearer " + localStorage.getItem('sso_token') },
+        headers: obtenerHeadersSSO(),
         success: function(response) {
             const res = (typeof response === 'string') ? JSON.parse(response) : response;
             if(res.status === "ok") {
@@ -226,7 +227,7 @@ function guardarPermisos() {
         type: "POST",
         url: API_BASE + "/sso/permisos/guardar_permisos.php",
         data: { idaplicacion: idApp, idtipousuario: idTipo, permisos: seleccionados },
-        headers: { "Authorization": "Bearer " + localStorage.getItem('sso_token') },
+        headers: obtenerHeadersSSO(),
         success: function(response) {
             const res = (typeof response === 'string') ? JSON.parse(response) : response;
             if(res.status === "ok") {
@@ -260,7 +261,7 @@ function crearPermisoBase() {
             metodo: metodo,
             descripcion: desc
         },
-        headers: { "Authorization": "Bearer " + localStorage.getItem('sso_token') },
+        headers: obtenerHeadersSSO(),
         success: function(response) {
             const res = (typeof response === 'string') ? JSON.parse(response) : response;
             if (res.status === "ok") {
@@ -291,7 +292,7 @@ function crearNuevoTipoUsuario() {
         type: "POST",
         url: API_BASE + "/sso/usuarios/crear_tipo_usuario.php",
         data: { nombre: nombre },
-        headers: { "Authorization": "Bearer " + localStorage.getItem('sso_token') },
+        headers: obtenerHeadersSSO(),
         success: function(response) {
             const res = (typeof response === 'string') ? JSON.parse(response) : response;
             if (res.status === "ok") {
@@ -307,8 +308,11 @@ function crearNuevoTipoUsuario() {
 }
 
 // Funciones para Editar un Permiso existente (Endpoint, Método, Clave, Descripción)
+// Actualizar la función que abre el modal para incluir la app actual
+// Función para abrir el modal de edición cargando la app actual y bloqueándola para que no se cambie por error
 function abrirModalEditarPermiso(id, clave, endpoint, metodo, desc) {
     $("#edit_idpermiso").val(id);
+    $("#edit_app").val($("#select_aplicacion").val()); // Selecciona la app actual
     $("#edit_clave").val(clave);
     $("#edit_endpoint").val(endpoint === null ? '' : endpoint);
     $("#edit_metodo").val(metodo);
@@ -319,13 +323,14 @@ function abrirModalEditarPermiso(id, clave, endpoint, metodo, desc) {
 
 function actualizarPermisoBase() {
     const id = $("#edit_idpermiso").val();
+    const idApp = $("#edit_app").val();
     const clave = $("#edit_clave").val();
     const endpoint = $("#edit_endpoint").val();
     const metodo = $("#edit_metodo").val();
     const desc = $("#edit_desc").val();
 
-    if (!id || !clave) {
-        toast("La clave es obligatoria", "warning");
+    if (!id || !idApp || !clave) {
+        toast("La aplicación y la clave son obligatorias", "warning");
         return;
     }
 
@@ -334,12 +339,13 @@ function actualizarPermisoBase() {
         url: API_BASE + "/sso/permisos/editar_permisos.php",
         data: {
             idpermiso: id,
+            idaplicacion: idApp,
             clave: clave,
             endpoint: endpoint,
             metodo: metodo,
             descripcion: desc
         },
-        headers: { "Authorization": "Bearer " + localStorage.getItem('sso_token') }, // 👈 Acá estaba el faltante
+        headers: obtenerHeadersSSO(),
         success: function(response) {
             const res = (typeof response === 'string') ? JSON.parse(response) : response;
             if (res.status === "ok") {
@@ -348,14 +354,6 @@ function actualizarPermisoBase() {
                 cargarPermisosRol();
             } else {
                 toast("Error: " + res.msg, "error");
-            }
-        },
-        error: function(xhr) {
-            if (xhr.status === 401) {
-                toast("Sesión expirada o token inválido", "error");
-                setTimeout(() => { window.location.href = '../auth/login.php'; }, 1500);
-            } else {
-                toast("Error de conexión con el servidor", "error");
             }
         }
     });

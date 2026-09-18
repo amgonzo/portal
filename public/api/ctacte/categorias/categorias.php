@@ -20,6 +20,7 @@ try {
 require_once $rutas['conexion'];
 require_once $rutas['middleware'];
 require_once $rutas['auditoria'];
+require_once $rutas['contexto'];
 
 // api/ctacte/categorias.php
 header('Content-Type: application/json');
@@ -30,7 +31,8 @@ $userAuth = validarTokenAPI($mysqli ?? null);
 validarPermisoEndpoint($mysqli, $userAuth);
 
 // 2. Conectar a la base de datos de CTACTE_
-$mysqli = conectarDB('CTACTE_');
+$empresa = obtenerEmpresaActual($mysqli, $userAuth);
+$mysqli = conectarBase($empresa['db_nombre']);
 
 // 3. Capturar la acción de forma segura separando GET y POST
 $action = $_SERVER['REQUEST_METHOD'] === 'POST' ? ($_GET['action'] ?? $_POST['action'] ?? '') : ($_GET['action'] ?? '');

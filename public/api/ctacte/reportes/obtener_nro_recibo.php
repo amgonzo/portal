@@ -6,7 +6,7 @@ $rutas = require $_SERVER['DOCUMENT_ROOT'] . '/api/config/rutas.php';
 
 // 2. Cargamos Composer usando la clave del array
 require_once $rutas['autoload'];
-
+require_once $rutas['contexto'];
 
 try {
     // 3. Cargamos el .env usando la ruta definida en rutas.php

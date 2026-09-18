@@ -30,13 +30,28 @@ $stmtRU->execute();
 $resRU = $stmtRU->get_result();
 
 $esAuditorSesion = false;
-$id_auditor = 99;
 
-while($rowR = $resRU->fetch_assoc()) {
-    if ($rowR['idtipousuario'] == $id_auditor) {
+while ($rowR = $resRU->fetch_assoc()) {
+    $idRol = intval($rowR['idtipousuario']);
+
+    $stmtSuper = $mysqli->prepare("
+        SELECT 1
+        FROM tiposusuario
+        WHERE idtipousuario = ?
+          AND UPPER(TRIM(clave)) = 'SUPER_ADMIN'
+        LIMIT 1
+    ");
+
+    $stmtSuper->bind_param("i", $idRol);
+    $stmtSuper->execute();
+
+    if ($stmtSuper->get_result()->num_rows > 0) {
         $esAuditorSesion = true;
+        $stmtSuper->close();
         break;
     }
+
+    $stmtSuper->close();
 }
 
 if (!$idApp || !$idTipo) {

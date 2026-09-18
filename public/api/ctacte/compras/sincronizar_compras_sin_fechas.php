@@ -34,7 +34,8 @@ $userAuth = validarTokenAPI($mysqli ?? null);
 validarPermisoEndpoint($mysqli, $userAuth);
 
 // 3. Luego conectar a la base de datos de ctacte
-$mysqli = conectarDB('CTACTE_');
+$empresa = obtenerEmpresaActual($mysqli, $userAuth);
+$mysqli = conectarBase($empresa['db_nombre']);
 
 require __DIR__ . '/../../../vendor/autoload.php';
 

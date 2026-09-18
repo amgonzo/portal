@@ -2,7 +2,6 @@
 <html lang="es">
 <head>
     <?php include 'header.php'; ?>
-    <title>Auditoría - <?php echo $empresa; ?></title>
     <style>
         .text-old { color: #dc3545; text-decoration: line-through; font-size: 0.85rem; margin-right: 5px; }
         .text-new { color: #28a745; font-weight: bold; font-size: 0.85rem; }

@@ -17,6 +17,8 @@ try {
 require_once $rutas['conexion'];
 require_once $rutas['middleware'];
 require_once $rutas['auditoria'];
+require_once $rutas['contexto'];
+
 // api/ctacte/obtener_compras_sin_usuario.php
 header('Content-Type: application/json');
 
@@ -30,7 +32,8 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
 $userAuth = validarTokenAPI($mysqli ?? null);
 validarPermisoEndpoint($mysqli, $userAuth);
 
-$mysqli = conectarDB('CTACTE_');
+$empresa = obtenerEmpresaActual($mysqli, $userAuth);
+$mysqli = conectarBase($empresa['db_nombre']);
 
 try {
     $sql = "

@@ -1,53 +1,211 @@
 <?php
-// 1. Cargamos nuestro archivo central de rutas
+
+// =========================================================
+// 1. RUTAS CENTRALES
+// =========================================================
+
 $rutas = require $_SERVER['DOCUMENT_ROOT'] . '/api/config/rutas.php';
 
-// 2. Cargamos Composer usando la clave del array
+
+// =========================================================
+// 2. COMPOSER
+// =========================================================
+
 require_once $rutas['autoload'];
 
 
+// =========================================================
+// 3. .ENV
+// =========================================================
+
 try {
-    // 3. Cargamos el .env usando la ruta definida en rutas.php
-    $dotenv = Dotenv\Dotenv::createImmutable($rutas['env_api']);
+
+    $dotenv = Dotenv\Dotenv::createImmutable(
+        $rutas['env_api']
+    );
+
     $dotenv->load();
+
 } catch (Exception $e) {
-    // Manejo silencioso si no hay .env
+    // Continuamos si no existe .env
 }
+
+
+// =========================================================
+// 4. DEPENDENCIAS
+// =========================================================
 
 require_once $rutas['conexion'];
 require_once $rutas['middleware'];
-//require_once $rutas['auditoria'];
+require_once $rutas['contexto'];
 
-header('Content-Type: application/json');
+header('Content-Type: application/json; charset=utf-8');
+
+
+// =========================================================
+// 5. MÉTODO
+// =========================================================
 
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+
     http_response_code(405);
-    echo json_encode(["status" => "error", "msg" => "metodo_no_permitido"]);
-    exit();
+
+    echo json_encode([
+        "status" => "error",
+        "msg" => "metodo_no_permitido"
+    ]);
+
+    exit;
 }
 
-// 1. Validar token y sesión activa
+
+// =========================================================
+// 6. AUTENTICACIÓN
+// =========================================================
+
 $userAuth = validarTokenAPI($mysqli);
 
-// 2. 🛡️ Validar si el rol tiene permiso para este endpoint y método
-validarPermisoEndpoint($mysqli, $userAuth);
 
-$id_auditor = 99; 
-$esAuditor = ($userAuth['idtipousuario'] == $id_auditor);
+// =========================================================
+// 7. PERMISO DEL ENDPOINT
+// =========================================================
 
-// 3. Filtrar roles si no es auditor
-$where = "";
-if (!$esAuditor) {
-    $where = " WHERE idtipousuario != $id_auditor ";
+validarPermisoEndpoint(
+    $mysqli,
+    $userAuth
+);
+
+
+// =========================================================
+// 8. DETERMINAR SUPER_ADMIN
+// =========================================================
+
+$idUsuario = intval(
+    $userAuth['idusuario']
+);
+
+$esSuperAdmin = false;
+
+$stmtSuperAdmin = $mysqli->prepare("
+    SELECT 1
+
+    FROM usuarios_roles_apps ura
+
+    INNER JOIN tiposusuario tu
+        ON tu.idtipousuario = ura.idtipousuario
+
+    WHERE ura.idusuario = ?
+      AND UPPER(TRIM(tu.clave)) = 'SUPER_ADMIN'
+
+    LIMIT 1
+");
+
+if ($stmtSuperAdmin) {
+
+    $stmtSuperAdmin->bind_param(
+        "i",
+        $idUsuario
+    );
+
+    $stmtSuperAdmin->execute();
+
+    $resSuperAdmin =
+        $stmtSuperAdmin->get_result();
+
+    $esSuperAdmin =
+        ($resSuperAdmin->num_rows > 0);
+
+    $stmtSuperAdmin->close();
 }
 
-$sql = "SELECT idtipousuario, descripcion FROM tiposusuario $where ORDER BY idtipousuario ASC";
-$res = $mysqli->query($sql);
+
+// =========================================================
+// 9. OBTENER ROLES
+// =========================================================
+//
+// SUPER_ADMIN:
+//     Puede ver todos.
+//
+// Usuario normal:
+//     NO puede asignar SUPER_ADMIN.
+//
+// =========================================================
+
+if ($esSuperAdmin) {
+
+    $sql = "
+        SELECT
+            idtipousuario,
+            descripcion,
+            clave
+
+        FROM tiposusuario
+
+        ORDER BY idtipousuario ASC
+    ";
+
+    $stmt = $mysqli->prepare($sql);
+
+} else {
+
+    $sql = "
+        SELECT
+            idtipousuario,
+            descripcion,
+            clave
+
+        FROM tiposusuario
+
+        WHERE UPPER(TRIM(clave)) <> 'SUPER_ADMIN'
+
+        ORDER BY idtipousuario ASC
+    ";
+
+    $stmt = $mysqli->prepare($sql);
+}
+
+
+if (!$stmt) {
+
+    http_response_code(500);
+
+    echo json_encode([
+        "status" => "error",
+        "msg" => "Error preparando consulta de roles"
+    ]);
+
+    $mysqli->close();
+
+    exit;
+}
+
+
+$stmt->execute();
+
+$res = $stmt->get_result();
 
 $tipos = [];
-while ($f = $res->fetch_assoc()) {
-    $tipos[] = $f;
+
+while ($fila = $res->fetch_assoc()) {
+
+    $tipos[] = [
+        "idtipousuario" =>
+            intval($fila['idtipousuario']),
+
+        "descripcion" =>
+            $fila['descripcion'],
+
+        "clave" =>
+            $fila['clave']
+    ];
 }
 
-echo json_encode(["status" => "ok", "data" => $tipos]);
+
+echo json_encode([
+    "status" => "ok",
+    "data" => $tipos
+]);
+
+
+$stmt->close();
 $mysqli->close();

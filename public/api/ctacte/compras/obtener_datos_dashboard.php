@@ -1,13 +1,20 @@
 <?php
-// api/ctacte/obtener_datos_dashboard.php
-header('Content-Type: application/json');
 
-// 1. Cargamos nuestro archivo central de rutas
 $rutas = require $_SERVER['DOCUMENT_ROOT'] . '/api/config/rutas.php';
 
-// 2. Cargamos Composer usando la clave del array
 require_once $rutas['autoload'];
 
+try {
+    $dotenv = Dotenv\Dotenv::createImmutable($rutas['env_api']);
+    $dotenv->load();
+} catch (Exception $e) {
+}
+
+require_once $rutas['conexion'];
+require_once $rutas['middleware'];
+require_once $rutas['contexto'];
+
+header('Content-Type: application/json');
 
 try {
     // 3. Cargamos el .env usando la ruta definida en rutas.php
@@ -17,19 +24,17 @@ try {
     // Manejo silencioso si no hay .env
 }
 
-require_once $rutas['conexion'];
-require_once $rutas['middleware'];
-
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     http_response_code(405);
     echo json_encode(["status" => "error", "msg" => "metodo_no_permitido"]);
     exit;
 }
 
-$userAuth = validarTokenAPI($mysqli ?? null);
+$userAuth = validarTokenAPI($mysqli);
 validarPermisoEndpoint($mysqli, $userAuth);
 
-$mysqli = conectarDB('CTACTE_');
+$empresa = obtenerEmpresaActual($mysqli, $userAuth);
+$mysqli = conectarBase($empresa['db_nombre']);
 
 /**
  * Función Helper: Obtiene las fechas exactas (desde/hasta) y el periodo_codigo

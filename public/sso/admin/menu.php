@@ -2,10 +2,21 @@
     <div class="container-fluid"> 
         <nav class="navbar navbar-expand-lg ftco_navbar ftco-navbar-light" id="ftco-navbar">
             <div class="container-fluid">
+                <!-- Marca / Empresa Actual -->
                 <a class="navbar-brand d-flex align-items-center" href="panel.php" style="font-weight: bold; color: #337ab7; gap: 15px;">
                     <i class="fa-solid fa-shield-halved fs-4"></i>
                     <span><?PHP echo htmlspecialchars($empresa); ?></span>
                 </a>
+
+                <!-- SELECTOR DE EMPRESA PARA SUPERADMIN (Oculto por defecto, lo muestra el JS si corresponde) -->
+                <div id="contenedorSelectorEmpresa" class="ms-3" style="display: none;">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-light text-muted border-primary"><i class="fa fa-building"></i></span>
+                        <select id="selectEmpresaActiva" class="form-select form-select-sm border-primary text-primary fw-bold" style="max-width: 250px;" onchange="cambiarEmpresaActiva(this.value)">
+                            <option value="">Cargando empresas...</option>
+                        </select>
+                    </div>
+                </div>
 
                 <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#ftco-nav">
                     <span class="fa fa-bars"></span> Menú
@@ -26,13 +37,19 @@
                                 <a href="usuarios.php" class="dropdown-item item-permiso" data-permiso="usuarios_ver" style="display: none;">
                                     <i class="fa fa-users"></i> Gestión Usuarios
                                 </a>
-
+                                <a href="diccionario.php" class="dropdown-item item-permiso" data-permiso="diccionario_ver" style="display: none;">
+                                    <i class="fas fa-book"></i> Gestión Diccionario
+                                </a>
                                 <a href="permisos.php" class="dropdown-item item-permiso" data-permiso="roles_editar" style="display: none;">
                                     <i class="fas fa-key"></i> Configurar Permisos
                                 </a>
 
                                 <a href="aplicaciones.php" class="dropdown-item item-permiso" data-permiso="apps_ver" style="display: none;">
                                     <i class="fas fa-cubes"></i> Registrar Aplicaciones
+                                </a>
+
+                                <a href="empresas.php" class="dropdown-item item-permiso" data-permiso="empresas_ver" style="display: none;">
+                                    <i class="fa fa-users"></i> Registrar Empresas
                                 </a>
 
                                 <div class="dropdown-divider div-auditoria" style="display: none;"></div>
@@ -79,8 +96,72 @@
 </section>
 
 <script>
-    //const API_BASE = "<?php echo $apiUrl; ?>";
-    
+    // Asegurate de que API_BASE esté definida (descomentala si la usas desde PHP)
+    // const API_BASE = "<?php echo $apiUrl; ?>";
+
+    // Función auxiliar global para armar los headers con Token y Empresa Activa
+    function obtenerHeadersSSO() {
+        const token = localStorage.getItem('sso_token');
+        const idEmpresaActiva = localStorage.getItem('sso_id_empresa_activa');
+
+        const headers = {
+            "Authorization": "Bearer " + (token || "")
+        };
+
+        if (idEmpresaActiva) {
+            headers["X-EMPRESA-ID"] = String(idEmpresaActiva);
+        }
+
+        return headers;
+    }
+
+    // Función para cargar las empresas en el select del Superadmin
+    // Función para cargar las empresas en el select del Superadmin
+    function cargarListadoEmpresasParaSelector() {
+        $.ajax({
+            url: API_BASE + '/sso/empresas/listar_empresas.php',
+            type: 'GET',
+            headers: obtenerHeadersSSO(),
+            success: function(res) {
+                //console.log("Respuesta de listarempresas:", res);
+                
+                // Cambiamos res.empresas por res.data según lo que devuelve tu endpoint
+                if (res.status === 'ok' && Array.isArray(res.data)) {
+                    const select = document.getElementById('selectEmpresaActiva');
+                    if (!select) return;
+
+                    select.innerHTML = '<option value="">-- Seleccionar Empresa --</option>';
+                    const empresaActualID = localStorage.getItem('sso_id_empresa_activa') || '';
+
+                    res.data.forEach(emp => {
+                        if (parseInt(emp.activo) === 1) {
+                            const opt = document.createElement('option');
+                            opt.value = emp.idempresa;
+                            opt.textContent = emp.nombre || emp.razon_social;
+                            if (emp.idempresa == empresaActualID) {
+                                opt.selected = true;
+                            }
+                            select.appendChild(opt);
+                        }
+                    });
+                }
+            },
+            error: function(err) {
+                console.error("Error al cargar empresas:", err);
+            }
+        });
+    }
+
+    // Función que se ejecuta al cambiar de empresa en el selector
+    function cambiarEmpresaActiva(idEmpresa) {
+        if (!idEmpresa) {
+            localStorage.removeItem('sso_id_empresa_activa');
+        } else {
+            localStorage.setItem('sso_id_empresa_activa', idEmpresa);
+        }
+        window.location.reload();
+    }
+
     document.addEventListener("DOMContentLoaded", function() {
         // 1. Validar que exista el token
         const token = localStorage.getItem('sso_token');
@@ -89,22 +170,39 @@
             return;
         }
 
-        // 2. Consultar de forma segura al endpoint me.php que ya probamos que funciona
+        // 2. Consultar de forma segura al endpoint me.php
         $.ajax({
             url: API_BASE + '/sso/auth/me.php',
             type: 'GET',
-            headers: { "Authorization": "Bearer " + token },
+            headers: obtenerHeadersSSO(),
             success: function(response) {
+                //console.log("Respuesta de me.php:", response); // <-- Mirá esto en la consola (F12)
+
                 if (response.status === 'ok' && response.usuario) {
-                    // Pintar el nombre real que devuelve la base de datos
                     const spanUser = document.getElementById('navNombreUsuario');
                     if (spanUser) spanUser.textContent = response.usuario.nombre || 'Usuario';
 
-                    // Obtener los permisos seguros directamente de la respuesta de la API
                     const permisos = response.permisos || [];
+                    const roles = response.roles || [];
 
                     function tienePermisoAPI(clave) {
                         return Array.isArray(permisos) && permisos.includes(clave);
+                    }
+
+                    // Detector flexible de SUPER_ADMIN (soporta strings o objetos)
+                    const esSuperAdmin = Array.isArray(roles) && roles.some(r => {
+                        const val = typeof r === 'string' ? r : (r.clave || r.nombre || r.rol || '');
+                        return val.toUpperCase() === 'SUPER_ADMIN' || val.toUpperCase() === 'SUPERADMIN';
+                    });
+
+                    //console.log("¿Es Super Admin?", esSuperAdmin); // <-- Te dirá true o false
+
+                    if (esSuperAdmin) {
+                        const contenedorSelector = document.getElementById('contenedorSelectorEmpresa');
+                        if (contenedorSelector) {
+                            contenedorSelector.style.display = 'block';
+                            cargarListadoEmpresasParaSelector();
+                        }
                     }
 
                     // Evaluar si muestra el menú de Configuración
@@ -112,6 +210,7 @@
                                     tienePermisoAPI('usuarios_ver') || 
                                     tienePermisoAPI('roles_editar') || 
                                     tienePermisoAPI('apps_ver') || 
+                                    tienePermisoAPI('empresas_ver') ||
                                     tienePermisoAPI('auditoria_ver');
 
                     if (verConfig) {
@@ -140,7 +239,8 @@
                     window.location.href = '../auth/login.php';
                 }
             },
-            error: function() {
+            error: function(err) {
+                console.error("Error en me.php:", err);
                 localStorage.clear();
                 window.location.href = '../auth/login.php';
             }

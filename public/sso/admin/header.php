@@ -17,7 +17,7 @@ try {
 }
 
 $apiUrl = $_ENV['API_URL'] ?? '/api';
-$loginWeb = $rutas[' login_sso_web'] ?? '../auth/login.php';
+$loginWeb = $rutas['login_sso_web'] ?? '../auth/login.php';
 $empresa = $_ENV['APP_NAME'] ?? 'Mi Sistema';
 
 function versionar($url) {
@@ -86,6 +86,31 @@ function versionar($url) {
         // ID de usuario genérico o manejado por JS si es necesario
         const ID_USUARIO_LOGUEADO = localStorage.getItem('sso_idusuario') || 0;
         
+        function obtenerEmpresaActiva() {
+            try {
+                return JSON.parse(
+                    localStorage.getItem('sso_empresa_activa') || 'null'
+                );
+            } catch (e) {
+                return null;
+            }
+        }
+
+        function obtenerHeadersSSO() {
+            const token = localStorage.getItem('sso_token');
+            const empresa = obtenerEmpresaActiva();
+
+            const headers = {
+                "Authorization": "Bearer " + (token || "")
+            };
+
+            if (empresa && empresa.idempresa) {
+                headers["X-EMPRESA-ID"] = String(empresa.idempresa);
+            }
+
+            return headers;
+        }
+
         const toast = (mensaje, icono = 'success') => {
             Swal.mixin({
                 toast: true,
@@ -126,24 +151,43 @@ function versionar($url) {
             actualizarIconoTema(localStorage.getItem('theme_mode') || 'light');
         });
 
-        function cerrarSesion() {
-            var token = localStorage.getItem('sso_token');
 
-            $.ajax({
-                type: "POST",
-                url: API_BASE + "/sso/auth/logout.php",
-                headers: { "Authorization": "Bearer " + token },
-                success: function() {
-                    localStorage.clear();
-                    sessionStorage.clear();
-                    window.location.href = "../auth/login.php";
-                },
-                error: function() {
-                    localStorage.clear();
-                    window.location.href = "../auth/login.php";
-                }
-            });
+    function cerrarSesion() {
+
+        // Guardar la empresa activa antes de cerrar sesión
+        const empresaActiva = localStorage.getItem('sso_empresa_activa');
+
+        if (empresaActiva) {
+            localStorage.setItem('sso_ultima_empresa', empresaActiva);
         }
+
+        $.ajax({
+            type: "POST",
+            url: API_BASE + "/sso/auth/logout.php",
+            headers: obtenerHeadersSSO(),
+
+            complete: function() {
+
+                // Recuperar la última empresa
+                const ultimaEmpresa = localStorage.getItem('sso_ultima_empresa');
+
+                // Limpiar todo lo relacionado con la sesión
+                localStorage.clear();
+                sessionStorage.clear();
+
+                // Volver a guardar únicamente la última empresa
+                if (ultimaEmpresa) {
+                    localStorage.setItem('sso_ultima_empresa', ultimaEmpresa);
+                }
+
+                // Login central
+                window.location.href = "/sso/auth/login.php";
+            }
+        });
+    }
+
+
+
 
         // Interceptor global para peticiones AJAX de jQuery
     $(document).ajaxError(function(event, jqXHR, settings, thrownError) {

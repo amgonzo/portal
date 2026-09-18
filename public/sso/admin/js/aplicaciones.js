@@ -12,7 +12,7 @@ $(document).ready(function() {
     $.ajax({
         url: API_BASE + '/sso/auth/me.php',
         type: 'GET',
-        headers: { "Authorization": "Bearer " + token },
+        headers: obtenerHeadersSSO(),
         success: function(response) {
             const res = (typeof response === 'string') ? JSON.parse(response) : response;
             if (res.status === 'ok' && res.usuario) {
@@ -58,7 +58,7 @@ function cargarAplicaciones() {
     $.ajax({
         type: "GET",
         url: API_BASE + '/sso/aplicaciones/get_aplicaciones.php',
-        headers: { "Authorization": "Bearer " + localStorage.getItem('sso_token') },
+        headers: obtenerHeadersSSO(),
         success: function(response) {
             const res = (typeof response === 'string') ? JSON.parse(response) : response;
             if (res.status === 'ok') {
@@ -155,7 +155,7 @@ function guardarAplicacion() {
         url: API_BASE + "/sso/aplicaciones/guardar_aplicaciones.php",
         data: JSON.stringify(datos),
         contentType: "application/json",
-        headers: { "Authorization": "Bearer " + localStorage.getItem('sso_token') },
+        headers: obtenerHeadersSSO(),
         success: function(response) {
             let res;
             try {
@@ -239,7 +239,7 @@ function cargarAppsPlantilla() {
     $.ajax({
         type: "GET",
         url: API_BASE + '/sso/aplicaciones/get_aplicaciones.php',
-        headers: { "Authorization": "Bearer " + localStorage.getItem('sso_token') },
+        headers: obtenerHeadersSSO(),
         success: function(response) {
             const res = (typeof response === 'string') ? JSON.parse(response) : response;
             if (res.status === 'ok') {

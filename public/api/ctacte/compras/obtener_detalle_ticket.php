@@ -16,6 +16,7 @@ try {
 
 require_once $rutas['conexion'];
 require_once $rutas['middleware'];
+require_once $rutas['contexto'];
 
 header('Content-Type: application/json');
 
@@ -28,7 +29,8 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
 $userAuth = validarTokenAPI($mysqli ?? null);
 validarPermisoEndpoint($mysqli, $userAuth);
 
-$mysqli = conectarDB('CTACTE_');
+$empresa = obtenerEmpresaActual($mysqli, $userAuth);
+$mysqli = conectarBase($empresa['db_nombre']);
 
 if (empty($_GET['id'])) {
     echo json_encode(["status" => "error", "msg" => "Falta el identificador del ticket."]);

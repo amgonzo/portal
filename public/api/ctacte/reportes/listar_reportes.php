@@ -22,7 +22,7 @@ $reportes = [
         "id" => "recibo_pago",
         "categoria" => "Recibos",
         "nombre" => "Recibo de Pago",
-        "descripcion" => "Listado de Recibo por Asociado."
+        "descripcion" => "Listado de Recibo por Empleado."
     ],
     [
         "id" => "resumen_mensual",

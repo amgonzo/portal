@@ -57,7 +57,7 @@
                 <div class="card border-0 shadow-sm bg-white p-3 h-100" style="border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
                     <div class="d-flex align-items-center justify-content-between">
                         <div>
-                            <h6 class="text-muted text-uppercase fw-semibold small mb-2">Asociados con Uso</h6>
+                            <h6 class="text-muted text-uppercase fw-semibold small mb-2"><span data-diccionario="empleado_plural"></span> con Uso</h6>
                             <h3 id="card-empleados-uso" class="fw-bold text-dark mb-0">0 <span class="fs-5 text-muted fw-normal">/ 0</span></h3>
                         </div>
                         <div class="bg-primary-subtle text-primary rounded-3 p-3">
@@ -78,7 +78,7 @@
                     <div class="d-flex align-items-center justify-content-between">
                         <div>
                             <h6 class="text-muted text-uppercase fw-semibold small mb-2">Excediendo Límites</h6>
-                            <h3 id="card-alertas-limite" class="fw-bold text-danger mb-0">0 <span class="fs-6 fw-normal text-muted">asociados</span></h3>
+                            <h3 id="card-alertas-limite" class="fw-bold text-danger mb-0">0 <span class="fs-6 fw-normal text-muted"><span data-diccionario="empleado_plural"></span></span></h3>
                         </div>
                         <div class="bg-danger-subtle text-danger rounded-3 p-3">
                             <i class="bi bi-exclamation-triangle" style="font-size: 2rem; display: block; line-height: 1;"></i>
@@ -142,7 +142,7 @@
             <div class="col-12 col-lg-4 mb-4">
                 <div class="card border-0 shadow-sm rounded-3 p-3 bg-white">
                     <h5 class="fw-bold mb-1 text-danger"><i class="bi bi-shield-exclamation me-2"></i> Riesgo de Límite</h5>
-                    <p class="text-muted small mb-3">Asociados próximos a agotar su crédito mensual disponible.</p>
+                    <p class="text-muted small mb-3"><span data-diccionario="empleado_plural"></span> próximos a agotar su crédito mensual disponible.</p>
                     
                     <div id="contenedor-alertas-lista" class="d-flex flex-column gap-3" style="max-height: 550px; overflow-y: auto; padding-right: 4px;">
                         <p class="text-center text-muted small py-3">Cargando alertas de límite...</p>

@@ -25,7 +25,9 @@ return [
     'conexion'       => $publicRoot . '/api/config/conexion.php',
     'auditoria'      => $publicRoot . '/api/utils/auditoria.php',
     'auditoria_core' => $publicRoot . '/api/utils/auditoria_core.php',
+    'diccionario'    => $publicRoot . '/api/utils/diccionario.php',
     'middleware'     => $publicRoot . '/api/sso/auth/auth_middleware.php',
+    'contexto'       => $publicRoot . '/api/sso/auth/empresa_context.php',
     'login'          => $publicRoot . '/api/sso/auth/login.php',
     'obtener_recibo' => $publicRoot . '/api/ctacte/reportes/obtener_nro_recibo.php',
 

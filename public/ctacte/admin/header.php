@@ -45,12 +45,110 @@ function versionar($url) {
     <!-- Variables y Helpers Globales -->
     <script>
         const TOKEN = localStorage.getItem('sso_token') || '';
-        const MIS_PERMISOS = JSON.parse(localStorage.getItem('sso_permisos') || '[]');
-        window.APP_NAME = "<?php echo $empresa; ?>";
-        window.API_BASE = "<?php echo $apiUrl; ?>";
+        const MIS_PERMISOS = JSON.parse(
+            localStorage.getItem('sso_permisos') || '[]'
+        );
+        window.APP_NAME = <?php echo json_encode($empresa); ?>;
+        window.API_BASE = <?php echo json_encode($apiUrl); ?>;
+        // ============================================================
+        // DICCIONARIO DE LA EMPRESA
+        // ============================================================
+        const empresaActual = localStorage.getItem('sso_id_empresa_activa') || '';
+        let datosDiccionario = null;
+        try {
+            datosDiccionario = JSON.parse(
+                localStorage.getItem('app_diccionario') || 'null'
+            );
+        } catch (e) {
+            datosDiccionario = null;
+        }
+        // ------------------------------------------------------------
+        // Si existe diccionario y pertenece a la empresa actual,
+        // lo usamos directamente.
+        // ------------------------------------------------------------
+        if (
+            datosDiccionario &&
+            String(datosDiccionario.idempresa) === String(empresaActual)
+        ) {
+            window.APP_DICCIONARIO = datosDiccionario.diccionario || {};
+        } else {
+            window.APP_DICCIONARIO = {};
+            // --------------------------------------------------------
+            // Primera carga o cambio de empresa
+            // --------------------------------------------------------
+            if (TOKEN) {
+                fetch(
+                    API_BASE + '/config/diccionario.php',
+                    {
+                        method: 'GET',
+                        headers: {
+                            'Authorization': 'Bearer ' + TOKEN,
+                            'X-EMPRESA-ID': empresaActual
+                        }
+                    }
+                )
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(
+                            'No se pudo cargar el diccionario'
+                        );
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.status !== 'ok') {
+                        return;
+                    }
+                    window.APP_DICCIONARIO =
+                        data.diccionario || {};
+                    localStorage.setItem(
+                        'app_diccionario',
+                        JSON.stringify({
+                            idempresa: data.idempresa,
+                            diccionario: data.diccionario || {}
+                        })
+                    );
+                    aplicarDiccionario();
+                })
+                .catch(error => {
+                    console.error(
+                        'Error cargando diccionario:',
+                        error
+                    );
+                });
+            }
+        }
+        // ============================================================
+        // FUNCIÓN PARA USAR EL DICCIONARIO
+        // ============================================================
+        function diccionario(clave, defecto = '') {
+            return Object.prototype.hasOwnProperty.call(
+                APP_DICCIONARIO,
+                clave
+            )
+                ? APP_DICCIONARIO[clave]
+                : defecto;
+        }
+        function aplicarDiccionario() {
+            document.querySelectorAll('[data-diccionario]').forEach(elemento => {
+                const clave = elemento.dataset.diccionario;
 
+                elemento.textContent = diccionario(clave, '');
+            });
+        }
+        function aplicarDiccionarioTexto(texto) {
+            if (!texto) return texto;
+
+            return texto
+                .replace(/\bEmpleados\b/g, diccionario('empleado_plural', 'Empleados'))
+                .replace(/\bEmpleado\b/g, diccionario('empleado_singular', 'Empleado'));
+        }
+        // ============================================================
+        // PERMISOS
+        // ============================================================
         function tienePermiso(clave) {
-            return Array.isArray(MIS_PERMISOS) && MIS_PERMISOS.includes(clave);
+            return Array.isArray(MIS_PERMISOS)
+                && MIS_PERMISOS.includes(clave);
         }
     </script>
 
@@ -64,7 +162,7 @@ function versionar($url) {
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 
     <!-- 3. Frameworks y Plugins CSS (Vía CDN) -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.3/dist/flatly/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jquery-confirm/3.3.4/jquery-confirm.min.css">
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css">
     
@@ -109,7 +207,9 @@ function versionar($url) {
             $.ajax({
                 type: "POST",
                 url: API_BASE + "/sso/auth/logout.php",
-                headers: { "Authorization": "Bearer " + token },
+                headers: {
+                    "Authorization": "Bearer " + token
+                },
                 success: function() {
                     localStorage.clear();
                     sessionStorage.clear();
@@ -179,6 +279,7 @@ function versionar($url) {
         document.addEventListener('DOMContentLoaded', () => {
             const temaActual = localStorage.getItem('theme_mode') || 'light';
             actualizarIconoTema(temaActual);
+            aplicarDiccionario();
         });
     </script>
 </head>

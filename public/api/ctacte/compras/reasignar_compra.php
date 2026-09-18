@@ -17,6 +17,8 @@ try {
 require_once $rutas['conexion'];
 require_once $rutas['middleware'];
 require_once $rutas['auditoria'];
+require_once $rutas['contexto'];
+
 // api/ctacte/reasignar_comprobante.php
 header('Content-Type: application/json');
 
@@ -28,7 +30,8 @@ $userAuth = validarTokenAPI($mysqli ?? null);
 validarPermisoEndpoint($mysqli, $userAuth);
 
 // 3. Luego conectar a la base de datos de ctacte
-$mysqli = conectarDB('CTACTE_');
+$empresa = obtenerEmpresaActual($mysqli, $userAuth);
+$mysqli = conectarBase($empresa['db_nombre']);
 
 try {
     $pv_id     = intval($_POST['punto_venta_id'] ?? 0);

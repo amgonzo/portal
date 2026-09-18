@@ -134,7 +134,7 @@ $apiUrl = $_ENV['API_URL'] ?? '/api';
                                 href="empleados_limites.php"
                                 class="nav-link"
                             >
-                                Asociados
+                                <span data-diccionario="empleado_plural"></span>
                             </a>
 
                         </li>
@@ -458,7 +458,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (!token) {
 
-        window.location.href = <?= json_encode($rutas[' login_sso_web']) ?>;
+        window.location.href = <?= json_encode($rutas['login_sso_web']) ?>;
 
         return;
 
@@ -751,7 +751,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 localStorage.clear();
 
                 window.location.href =
-                    <?= json_encode($rutas[' login_sso_web']) ?>;
+                    <?= json_encode($rutas['login_sso_web']) ?>;
 
             }
 
@@ -763,7 +763,7 @@ document.addEventListener("DOMContentLoaded", () => {
             localStorage.clear();
 
             window.location.href =
-                <?= json_encode($rutas[' login_sso_web']) ?>;
+                <?= json_encode($rutas['login_sso_web']) ?>;
 
         }
 

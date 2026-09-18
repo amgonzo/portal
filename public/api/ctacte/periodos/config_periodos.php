@@ -17,6 +17,7 @@ try {
 require_once $rutas['conexion'];
 require_once $rutas['middleware'];
 require_once $rutas['auditoria'];
+require_once $rutas['contexto'];
 header('Content-Type: application/json');
 
 // 2. Validar token y permisos (usa la conexión al SSO, lo cual es correcto)
@@ -24,7 +25,8 @@ $userAuth = validarTokenAPI($mysqli ?? null);
 validarPermisoEndpoint($mysqli, $userAuth);
 
 // 3. SOBRESCRIBIR $mysqli conectándolo a la base de datos de CTACTE_ para las consultas del módulo
-$mysqli = conectarDB('CTACTE_');
+$empresa = obtenerEmpresaActual($mysqli, $userAuth);
+$mysqli = conectarBase($empresa['db_nombre']);
 
 $action = $_GET['action'] ?? '';
 
