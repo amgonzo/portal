@@ -9,7 +9,7 @@ require_once $rutas['public'] . '/api/utils/helpers.php';
 
 try {
 
-    $dotenv = Dotenv\Dotenv::createImmutable($rutas['env_ctacte']);
+    $dotenv = Dotenv\Dotenv::createImmutable($rutas['env_fichajes']);
     $dotenv->load();
 
 } catch (Exception $e) {
@@ -198,7 +198,7 @@ $empresa = $_ENV['APP_NAME'] ?? 'Mi Sistema';
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css">
     
     <link rel="stylesheet" href="<?php echo versionar('logo_sistema.css'); ?>">
-
+    
     <link rel="icon" href="/favicon.ico" type="image/x-icon">
 
     <!-- 4. Estilos Propios -->

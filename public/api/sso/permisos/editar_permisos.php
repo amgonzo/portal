@@ -1,4 +1,5 @@
 <?php
+
 $rutas = require $_SERVER['DOCUMENT_ROOT'] . '/api/config/rutas.php';
 require_once $rutas['autoload'];
 
@@ -15,50 +16,81 @@ header('Content-Type: application/json');
 
 $userAuth = validarTokenAPI($mysqli);
 
-$idpermiso    = $_POST['idpermiso'] ?? null;
-$idaplicacion = $_POST['idaplicacion'] ?? null;
-$clave        = trim($_POST['clave'] ?? '');
-$endpoint     = $_POST['endpoint'] ?? null;
-$metodo       = $_POST['metodo'] ?? 'ALL';
-$desc         = $_POST['descripcion'] ?? '';
+$idpermiso = $_POST['idpermiso'] ?? null;
+$clave     = trim($_POST['clave'] ?? '');
+$endpoint  = $_POST['endpoint'] ?? null;
+$metodo    = $_POST['metodo'] ?? 'ALL';
+$desc      = $_POST['descripcion'] ?? '';
 
-if (!$idpermiso || !$idaplicacion || !$clave) {
-    exit(json_encode(["status" => "error", "msg" => "Faltan datos obligatorios"]));
+if (!$idpermiso || !$clave) {
+    exit(json_encode([
+        "status" => "error",
+        "msg" => "La clave es obligatoria"
+    ]));
 }
 
 $mysqli->begin_transaction();
 
 try {
-    // 1. Verificar que la clave no pertenezca a OTRO permiso diferente en la misma app
+
+    // 1. Verificar que la clave no pertenezca a otro permiso
     $check = $mysqli->prepare("
-        SELECT p.idpermiso 
-        FROM permisos p 
-        JOIN aplicaciones_permisos ap ON p.idpermiso = ap.idpermiso 
-        WHERE ap.idaplicacion = ? AND p.clavepermiso = ? AND p.idpermiso != ?
+        SELECT idpermiso
+        FROM permisos
+        WHERE clavepermiso = ?
+          AND idpermiso != ?
+        LIMIT 1
     ");
-    $check->bind_param("isi", $idaplicacion, $clave, $idpermiso);
+
+    $check->bind_param("si", $clave, $idpermiso);
     $check->execute();
 
     if ($check->get_result()->num_rows > 0) {
-        throw new Exception("La clave ya existe para esta aplicación");
+        throw new Exception("La clave ya existe en otro permiso");
     }
 
-    // 2. Actualizar los datos base del permiso
-    $stmt = $mysqli->prepare("UPDATE permisos SET clavepermiso = ?, endpoint = ?, metodo = ?, descripcion = ? WHERE idpermiso = ?");
-    $stmt->bind_param("ssssi", $clave, $endpoint, $metodo, $desc, $idpermiso);
-    $stmt->execute();
+    // 2. Actualizar el permiso global
+    $stmt = $mysqli->prepare("
+        UPDATE permisos
+        SET clavepermiso = ?,
+            endpoint = ?,
+            metodo = ?,
+            descripcion = ?
+        WHERE idpermiso = ?
+    ");
 
-    // 3. Actualizar la relación en la tabla intermedia por si cambió de aplicación
-    $stmtRel = $mysqli->prepare("UPDATE aplicaciones_permisos SET idaplicacion = ? WHERE idpermiso = ?");
-    $stmtRel->bind_param("ii", $idaplicacion, $idpermiso);
-    $stmtRel->execute();
+    $stmt->bind_param(
+        "ssssi",
+        $clave,
+        $endpoint,
+        $metodo,
+        $desc,
+        $idpermiso
+    );
+
+    $stmt->execute();
 
     $mysqli->commit();
 
-    registrarLog($mysqli, 'editar_permiso', 'permisos', $idpermiso, null, $_POST);
-    echo json_encode(["status" => "ok"]);
+    registrarLog(
+        $mysqli,
+        'editar_permiso',
+        'permisos',
+        $idpermiso,
+        null,
+        $_POST
+    );
+
+    echo json_encode([
+        "status" => "ok"
+    ]);
 
 } catch (Exception $e) {
+
     $mysqli->rollback();
-    echo json_encode(["status" => "error", "msg" => $e->getMessage()]);
+
+    echo json_encode([
+        "status" => "error",
+        "msg" => $e->getMessage()
+    ]);
 }

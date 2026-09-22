@@ -121,9 +121,7 @@ function cargarTablaLimites() {
     // Petición migrada a fetch con control de respuestas HTML/JSON igual al dashboard
     fetch(API_BASE + `/ctacte/empleados/obtener_limites.php?mes=${mes}&anio=${anio}`, {
         method: 'GET',
-        headers: {
-            "Authorization": "Bearer " + (localStorage.getItem('sso_token') || '')
-        }
+        headers: obtenerHeadersSSO()
     })
     .then(async response => {
         const text = await response.text();

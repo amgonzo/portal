@@ -1,5 +1,5 @@
 /* =================================================== */
-/* 🔤 FUENTES Y TIPOGRAFÍA GLOBAL                       */
+/* _ FUENTES Y TIPOGRAFÍA GLOBAL                       */
 /* =================================================== */
 
 :root, [data-bs-theme] {
@@ -43,7 +43,7 @@ h2, .h2 { font-weight: 700 !important; }
 /* 🌙 MODO OSCURO SUAVE (SLATE / GRAFITO DE TONO MEDIO)*/
 /* =================================================== */
 [data-bs-theme="dark"] body {
-    background-color: #22272e !important; /* Fondo suave y descansado */
+    background-color: #22272e !important;
     color: #adbac7 !important;
 }
 
@@ -57,7 +57,7 @@ h2, .h2 { font-weight: 700 !important; }
     border-color: #444c56 !important;
 }
 
-/* 2. SUB-BLOQUES INTERNOS (Headers de modales, filtros, alertas, bg-light) */
+/* 2. SUB-BLOQUES INTERNOS */
 [data-bs-theme="dark"] .modal-header,
 [data-bs-theme="dark"] .modal-footer,
 [data-bs-theme="dark"] .bg-light,
@@ -78,7 +78,7 @@ h2, .h2 { font-weight: 700 !important; }
 [data-bs-theme="dark"] .text-dark,
 [data-bs-theme="dark"] .modal-title,
 [data-bs-theme="dark"] strong {
-    color: #f0f6fc !important; /* Blanco suave, no encandila */
+    color: #f0f6fc !important;
 }
 
 [data-bs-theme="dark"] .text-muted {
@@ -118,39 +118,39 @@ h2, .h2 { font-weight: 700 !important; }
 }
 
 /* =================================================== */
-/* 🎨 FIX PARA CAJAS E ÍCONOS SUTILES (bg-*-subtle)   */
+/* 🎨 FIX PARA CAJAS E ÍCONOS SUTILES (bg-*-subtle)    */
 /* =================================================== */
 
 [data-bs-theme="dark"] .bg-primary-subtle {
-    background-color: rgba(52, 152, 219, 0.18) !important; /* Fondo azul translúcido */
+    background-color: rgba(52, 152, 219, 0.18) !important;
 }
 [data-bs-theme="dark"] .bg-primary-subtle .text-primary,
 [data-bs-theme="dark"] .text-primary {
-    color: #5dade2 !important; /* Azul celeste brillante e hiper legible */
+    color: #5dade2 !important;
 }
 
 [data-bs-theme="dark"] .bg-success-subtle {
-    background-color: rgba(24, 188, 156, 0.18) !important; /* Fondo verde translúcido */
+    background-color: rgba(24, 188, 156, 0.18) !important;
 }
 [data-bs-theme="dark"] .bg-success-subtle .text-success,
 [data-bs-theme="dark"] .text-success {
-    color: #2ecc71 !important; /* Verde Neón suave */
+    color: #2ecc71 !important;
 }
 
 [data-bs-theme="dark"] .bg-danger-subtle {
-    background-color: rgba(231, 76, 60, 0.18) !important; /* Fondo rojo translúcido */
+    background-color: rgba(231, 76, 60, 0.18) !important;
 }
 [data-bs-theme="dark"] .bg-danger-subtle .text-danger,
 [data-bs-theme="dark"] .text-danger {
-    color: #ff6b6b !important; /* Rojo vívido */
+    color: #ff6b6b !important;
 }
 
 [data-bs-theme="dark"] .bg-warning-subtle {
-    background-color: rgba(243, 156, 18, 0.18) !important; /* Fondo amarillo translúcido */
+    background-color: rgba(243, 156, 18, 0.18) !important;
 }
 [data-bs-theme="dark"] .bg-warning-subtle .text-warning,
 [data-bs-theme="dark"] .text-warning {
-    color: #f1c40f !important; /* Amarillo brillante */
+    color: #f1c40f !important;
 }
 
 /* =================================================== */
@@ -158,26 +158,23 @@ h2, .h2 { font-weight: 700 !important; }
 /* =================================================== */
 
 [data-bs-theme="dark"] .swal2-toast {
-    background-color: #2d333b !important; /* Mismo fondo suave de las tarjetas */
-    color: #f0f6fc !important;            /* Texto claro legible */
-    border: 1px solid #444c56 !important; /* Borde sutil para despegarlo del fondo */
+    background-color: #2d333b !important;
+    color: #f0f6fc !important;
+    border: 1px solid #444c56 !important;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
 }
 
-/* Color del título y mensaje del toast */
 [data-bs-theme="dark"] .swal2-toast .swal2-title,
 [data-bs-theme="dark"] .swal2-toast .swal2-html-container {
     color: #f0f6fc !important;
 }
 
-/* Botón de cierre en el toast (si existiera) */
 [data-bs-theme="dark"] .swal2-toast .swal2-close {
     color: #adbac7 !important;
 }
 
-/* 📊 Fix para las barras de gráficos bg-primary en Modo Oscuro */
 [data-bs-theme="dark"] .bg-primary {
-    background-color: #3498db !important; /* Azul cobalto brillante/legible */
+    background-color: #3498db !important;
 }
 
 /* =================================================== */
@@ -190,121 +187,58 @@ h2, .h2 { font-weight: 700 !important; }
 .badge.bg-primary, .badge-primary  { background-color: #2c3e50 !important; color: #ffffff !important; }
 
 /* =================================================== */
-/* 🔢 FIX PAGINACIÓN DATATABLES EN MODO OSCURO         */
-/* =================================================== */
-
-/* 1. Texto de información, selector de cantidad y buscador */
-[data-bs-theme="dark"] .dataTables_wrapper .dataTables_info,
-[data-bs-theme="dark"] .dataTables_wrapper .dataTables_length,
-[data-bs-theme="dark"] .dataTables_wrapper .dataTables_filter {
-    color: #adbac7 !important;
-}
-
-/* 2. Botones de Paginación Estándar de DataTables */
-[data-bs-theme="dark"] .dataTables_wrapper .dataTables_paginate .paginate_button {
-    color: #adbac7 !important;
-    background: #2a2f36 !important;
-    border: 1px solid #444c56 !important;
-    border-radius: 4px;
-}
-
-[data-bs-theme="dark"] .dataTables_wrapper .dataTables_paginate .paginate_button:hover {
-    color: #ffffff !important;
-    background: #373e47 !important;
-    border-color: #5d6775 !important;
-}
-
-/* Página Activa / Seleccionada */
-[data-bs-theme="dark"] .dataTables_wrapper .dataTables_paginate .paginate_button.current,
-[data-bs-theme="dark"] .dataTables_wrapper .dataTables_paginate .paginate_button.current:hover {
-    color: #ffffff !important;
-    background: #18bc9c !important; /* Verde Flatly */
-    border-color: #18bc9c !important;
-}
-
-/* Botones Deshabilitados (Anterior / Siguiente si no hay más páginas) */
-[data-bs-theme="dark"] .dataTables_wrapper .dataTables_paginate .paginate_button.disabled,
-[data-bs-theme="dark"] .dataTables_wrapper .dataTables_paginate .paginate_button.disabled:hover {
-    color: #5d6775 !important;
-    background: #22272e !important;
-    border-color: #353c46 !important;
-}
-
-/* 3. Compatibilidad si usás Paginación con Render de Bootstrap 5 (.pagination) */
-[data-bs-theme="dark"] .pagination .page-link {
-    background-color: #2a2f36 !important;
-    border-color: #444c56 !important;
-    color: #adbac7 !important;
-}
-
-[data-bs-theme="dark"] .pagination .page-link:hover {
-    background-color: #373e47 !important;
-    color: #ffffff !important;
-}
-
-[data-bs-theme="dark"] .pagination .page-item.active .page-link {
-    background-color: #18bc9c !important;
-    border-color: #18bc9c !important;
-    color: #ffffff !important;
-}
-
-[data-bs-theme="dark"] .pagination .page-item.disabled .page-link {
-    background-color: #22272e !important;
-    border-color: #353c46 !important;
-    color: #5d6775 !important;
-}
-
-/* =================================================== */
 /* 🔘 FIX PARA BOTONES OUTLINE PRIMARY EN MODO OSCURO  */
 /* =================================================== */
 
 [data-bs-theme="dark"] .btn-outline-primary {
-    color: #5dade2 !important;        /* Texto e ícono en celeste claro vibrante */
-    border-color: #5dade2 !important; /* Borde bien visible */
+    color: #5dade2 !important;
+    border-color: #5dade2 !important;
     background-color: transparent !important;
 }
 
-/* Estado Hover / Clic */
 [data-bs-theme="dark"] .btn-outline-primary:hover,
 [data-bs-theme="dark"] .btn-outline-primary:focus,
 [data-bs-theme="dark"] .btn-outline-primary:active,
 [data-bs-theme="dark"] .btn-outline-primary.active {
-    color: #ffffff !important;            /* Texto blanco al pasar el mouse */
-    background-color: #3498db !important; /* Relleno azul brillante */
+    color: #ffffff !important;
+    background-color: #3498db !important;
     border-color: #3498db !important;
-    box-shadow: 0 0 8px rgba(52, 152, 219, 0.3) !important; /* Resplandor suave */
+    box-shadow: 0 0 8px rgba(52, 152, 219, 0.3) !important;
 }
 
 /* =================================================== */
 /* 🎨 BOTONES PRINCIPALES Y COLOR PRIMARIO GLOBAL      */
 /* =================================================== */
 
-:root {
-    /* Color primario en Modo Claro (Ejemplo: Azul Noche / Slate #2c3e50) */
+:root,
+[data-bs-theme="light"] {
     --bs-primary: #2c3e50 !important;
     --bs-primary-rgb: 44, 62, 80 !important;
     --bs-link-color: #2c3e50 !important;
     --bs-link-hover-color: #1a252f !important;
 }
 
-/* Botón Primario - Modo Claro */
-.btn-primary {
+[data-bs-theme="light"] .btn-primary,
+body:not([data-bs-theme="dark"]) .btn-primary {
     background-color: #2c3e50 !important;
     border-color: #2c3e50 !important;
     color: #ffffff !important;
 }
 
-.btn-primary:hover, 
-.btn-primary:focus, 
-.btn-primary:active, 
-.btn-primary.active {
+[data-bs-theme="light"] .btn-primary:hover,
+[data-bs-theme="light"] .btn-primary:focus,
+[data-bs-theme="light"] .btn-primary:active,
+[data-bs-theme="light"] .btn-primary.active,
+body:not([data-bs-theme="dark"]) .btn-primary:hover,
+body:not([data-bs-theme="dark"]) .btn-primary:focus,
+body:not([data-bs-theme="dark"]) .btn-primary:active,
+body:not([data-bs-theme="dark"]) .btn-primary.active {
     background-color: #1a252f !important;
     border-color: #1a252f !important;
     color: #ffffff !important;
     box-shadow: 0 0 0 0.25rem rgba(44, 62, 80, 0.25) !important;
 }
 
-/* Botón Primario - Modo Oscuro (Tono más vibrante sobre fondo oscuro) */
 [data-bs-theme="dark"] {
     --bs-primary: #3b82f6 !important;
     --bs-primary-rgb: 59, 130, 246 !important;
@@ -318,9 +252,10 @@ h2, .h2 { font-weight: 700 !important; }
     color: #ffffff !important;
 }
 
-[data-bs-theme="dark"] .btn-primary:hover, 
-[data-bs-theme="dark"] .btn-primary:focus, 
-[data-bs-theme="dark"] .btn-primary:active {
+[data-bs-theme="dark"] .btn-primary:hover,
+[data-bs-theme="dark"] .btn-primary:focus,
+[data-bs-theme="dark"] .btn-primary:active,
+[data-bs-theme="dark"] .btn-primary.active {
     background-color: #2563eb !important;
     border-color: #2563eb !important;
     box-shadow: 0 0 0 0.25rem rgba(59, 130, 246, 0.3) !important;
@@ -330,21 +265,18 @@ h2, .h2 { font-weight: 700 !important; }
 /* 🔑 AJUSTES ESPECÍFICOS PARA INDEX Y LOGIN           */
 /* =================================================== */
 
-/* 1. Contorno al hacer foco en Inputs */
 .form-control:focus, 
 .form-select:focus {
     border-color: var(--bs-primary) !important;
     box-shadow: 0 0 0 0.25rem rgba(var(--bs-primary-rgb), 0.2) !important;
 }
 
-/* 2. Íconos dentro de los Inputs (Input Group Text) en Modo Oscuro */
 [data-bs-theme="dark"] .input-group-text {
     background-color: #373e47 !important;
     border-color: #444c56 !important;
     color: #adbac7 !important;
 }
 
-/* 3. Links ("Olvidó su contraseña", etc.) */
 [data-bs-theme="dark"] a {
     color: #60a5fa !important;
 }
@@ -354,7 +286,6 @@ h2, .h2 { font-weight: 700 !important; }
     text-decoration: underline !important;
 }
 
-/* 4. Fix para títulos azules explícitos (.text-primary) */
 .text-primary {
     color: var(--bs-primary) !important;
 }
@@ -380,12 +311,10 @@ h2, .h2 { font-weight: 700 !important; }
     transition: background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
 }
 
-/* Radio buttons redondeados */
 .form-check-input[type="radio"] {
     border-radius: 50%;
 }
 
-/* Estado Marcado (Checked) - Tono Primario Bootstrap 4 (#2c3e50 / Flatly) */
 .form-check-input:checked {
     background-color: #2c3e50;
     border-color: #2c3e50;
@@ -396,7 +325,6 @@ h2, .h2 { font-weight: 700 !important; }
     background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='2' fill='%23fff'/%3e%3c/svg%3e");
 }
 
-/* Estado Focus (Foco) */
 .form-check-input:focus {
     border-color: #2c3e50;
     outline: 0;
@@ -420,4 +348,118 @@ h2, .h2 { font-weight: 700 !important; }
 [data-bs-theme="dark"] .form-check-input:focus {
     border-color: #3b82f6;
     box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.3);
+}
+
+/* =================================================== */
+/* 🔢 FIX DEFINITIVO PAGINACIÓN DATATABLES             */
+/* =================================================== */
+
+.dataTables_wrapper .dataTables_paginate {
+    background: transparent !important;
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    white-space: nowrap;
+    text-align: right;
+}
+
+/* =================================================== */
+/* INFORMACIÓN / FILTROS MODO OSCURO                   */
+/* =================================================== */
+
+html[data-bs-theme="dark"] .dataTables_wrapper .dataTables_info,
+html[data-bs-theme="dark"] .dataTables_wrapper .dataTables_length,
+html[data-bs-theme="dark"] .dataTables_wrapper .dataTables_filter {
+    color: #adbac7 !important;
+}
+
+/* =================================================== */
+/* ☀️ MODO CLARO                                       */
+/* =================================================== */
+
+html[data-bs-theme="light"] .dataTables_wrapper .dataTables_paginate .paginate_button,
+html[data-bs-theme="light"] .dataTables_wrapper .dataTables_paginate .paginate_button a,
+html[data-bs-theme="light"] .pagination .page-item:not(.active) .page-link {
+    background: #f8f9fa !important;
+    background-color: #f8f9fa !important;
+    background-image: none !important;
+    color: #212529 !important;
+    border: 1px solid #dee2e6 !important;
+    border-radius: 4px !important;
+}
+
+html[data-bs-theme="light"] .dataTables_wrapper .dataTables_paginate .paginate_button:hover,
+html[data-bs-theme="light"] .dataTables_wrapper .dataTables_paginate .paginate_button a:hover,
+html[data-bs-theme="light"] .pagination .page-item:not(.active) .page-link:hover {
+    background: #e9ecef !important;
+    background-color: #e9ecef !important;
+    background-image: none !important;
+    color: #212529 !important;
+    border-color: #dee2e6 !important;
+}
+
+html[data-bs-theme="light"] .dataTables_wrapper .dataTables_paginate .paginate_button.current,
+html[data-bs-theme="light"] .dataTables_wrapper .dataTables_paginate .paginate_button.current:hover,
+html[data-bs-theme="light"] .pagination .page-item.active .page-link {
+    background: #3182ce !important;
+    background-color: #3182ce !important;
+    background-image: none !important;
+    border-color: #3182ce !important;
+    color: #ffffff !important;
+}
+
+html[data-bs-theme="light"] .dataTables_wrapper .dataTables_paginate .paginate_button.disabled,
+html[data-bs-theme="light"] .dataTables_wrapper .dataTables_paginate .paginate_button.disabled:hover,
+html[data-bs-theme="light"] .pagination .page-item.disabled .page-link {
+    background: #f8f9fa !important;
+    background-color: #f8f9fa !important;
+    background-image: none !important;
+    color: #adb5bd !important;
+    border-color: #dee2e6 !important;
+}
+
+/* =================================================== */
+/* 🌙 MODO OSCURO                                     */
+/* =================================================== */
+
+html[data-bs-theme="dark"] .dataTables_wrapper .dataTables_paginate .paginate_button,
+html[data-bs-theme="dark"] .dataTables_wrapper .dataTables_paginate .paginate_button a,
+html[data-bs-theme="dark"] .pagination .page-item:not(.active) .page-link {
+    background: #2d333b !important;
+    background-color: #2d333b !important;
+    background-image: none !important;
+    color: #adbac7 !important;
+    border: 1px solid #444c56 !important;
+    border-radius: 4px !important;
+}
+
+html[data-bs-theme="dark"] .dataTables_wrapper .dataTables_paginate .paginate_button:hover,
+html[data-bs-theme="dark"] .dataTables_wrapper .dataTables_paginate .paginate_button a:hover,
+html[data-bs-theme="dark"] .pagination .page-item:not(.active) .page-link:hover {
+    background: #373e47 !important;
+    background-color: #373e47 !important;
+    background-image: none !important;
+    color: #ffffff !important;
+    border-color: #5d6775 !important;
+}
+
+html[data-bs-theme="dark"] .dataTables_wrapper .dataTables_paginate .paginate_button.current,
+html[data-bs-theme="dark"] .dataTables_wrapper .dataTables_paginate .paginate_button.current:hover,
+html[data-bs-theme="dark"] .pagination .page-item.active .page-link {
+    background: #3b82f6 !important;
+    background-color: #3b82f6 !important;
+    background-image: none !important;
+    border-color: #3b82f6 !important;
+    color: #ffffff !important;
+}
+
+html[data-bs-theme="dark"] .dataTables_wrapper .dataTables_paginate .paginate_button.disabled,
+html[data-bs-theme="dark"] .dataTables_wrapper .dataTables_paginate .paginate_button.disabled:hover,
+html[data-bs-theme="dark"] .pagination .page-item.disabled .page-link {
+    background: #22272e !important;
+    background-color: #22272e !important;
+    background-image: none !important;
+    color: #5d6775 !important;
+    border-color: #353c46 !important;
 }

@@ -55,9 +55,7 @@ async function listarCategorias() {
     try {
         const res = await fetch(API_BASE + '/ctacte/categorias/categorias.php?action=listar', {
             method: 'GET',
-            headers: {
-                "Authorization": "Bearer " + (localStorage.getItem('sso_token') || '')
-            }
+            headers: obtenerHeadersSSO()
         });
         const json = await res.json();
 
@@ -151,9 +149,7 @@ async function guardar() {
     try {
         const res = await fetch(API_BASE + `/ctacte/categorias/categorias.php?action=${action}`, {
             method: 'POST',
-            headers: {
-                "Authorization": "Bearer " + (localStorage.getItem('sso_token') || '')
-            },
+            headers: obtenerHeadersSSO(),
             body: formData
         });
         const json = await res.json();
@@ -224,9 +220,7 @@ async function cargarPersonasAsignacion() {
     try {
         const res = await fetch(API_BASE + '/ctacte/categorias/categorias.php?action=listar_personas_asignacion', {
             method: 'GET',
-            headers: {
-                "Authorization": "Bearer " + (localStorage.getItem('sso_token') || '')
-            }
+            headers: obtenerHeadersSSO()
         });
         const json = await res.json();
 
@@ -296,9 +290,7 @@ async function guardarReasignacion() {
     try {
         const res = await fetch(API_BASE + '/ctacte/categorias/categorias.php?action=asignar_persona', {
             method: 'POST',
-            headers: {
-                "Authorization": "Bearer " + (localStorage.getItem('sso_token') || '')
-            },
+            headers: obtenerHeadersSSO(),
             body: formData
         });
         const json = await res.json();
@@ -362,9 +354,7 @@ async function procesarAplicacionLimites() {
     try {
         const res = await fetch(API_BASE + '/ctacte/categorias/categorias.php?action=aplicar_limites_mes', {
             method: 'POST',
-            headers: {
-                "Authorization": "Bearer " + (localStorage.getItem('sso_token') || '')
-            },
+            headers: obtenerHeadersSSO(),
             body: formData
         });
         const json = await res.json();
@@ -392,9 +382,7 @@ async function verPersonasCategoria(idcategoria, nombreCategoria) {
     try {
         const res = await fetch(API_BASE + `/ctacte/categorias/categorias.php?action=listar_personas_por_categoria&idcategoria=${idcategoria}`, {
             method: 'GET',
-            headers: {
-                "Authorization": "Bearer " + (localStorage.getItem('sso_token') || '')
-            }
+            headers: obtenerHeadersSSO()
         });
         const json = await res.json();
 

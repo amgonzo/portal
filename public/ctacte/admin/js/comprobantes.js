@@ -41,9 +41,7 @@ function inicializarDataTable() {
 
 function cargarPeriodos() {
     fetch('/api/ctacte/compras/obtener_periodos_combo.php', {
-        headers: {
-            'Authorization': `Bearer ${localStorage.getItem('sso_token')}`
-        }
+        headers: obtenerHeadersSSO()
     })
         .then(res => res.json())
         .then(periodos => {
@@ -61,9 +59,7 @@ function cargarPeriodos() {
 function cargarComboPersonas() {
     // Pedimos 'todos=1' para que traiga activos e inactivos
     fetch('/api/ctacte/personas/obtener_personas_combo.php?todos=1', {
-        headers: {
-            'Authorization': `Bearer ${localStorage.getItem('sso_token')}`
-        }
+        headers: obtenerHeadersSSO()
     })
         .then(res => res.json())
         .then(personas => {
@@ -102,9 +98,7 @@ function cargarFacturas() {
     const verAnulados = document.getElementById('filtro_anulados').value;
 
     fetch(`/api/ctacte/compras/obtener_compras_filtradas.php?periodo=${encodeURIComponent(periodo)}&dni=${encodeURIComponent(dni)}&ticket=${encodeURIComponent(ticket)}&anulados=${encodeURIComponent(verAnulados)}`, {
-        headers: {
-            'Authorization': `Bearer ${localStorage.getItem('sso_token')}`
-        }
+        headers: obtenerHeadersSSO()
     })
         .then(res => res.json())
         .then(data => {
@@ -403,9 +397,7 @@ function guardarReasignacion(e) {
 
     fetch('/api/ctacte/compras/reasignar_compra.php', {
         method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${localStorage.getItem('sso_token')}`
-        },
+        headers: obtenerHeadersSSO(),
         body: formData
     })
     .then(res => res.json())

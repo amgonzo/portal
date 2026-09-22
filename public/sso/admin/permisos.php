@@ -46,6 +46,9 @@
                 <button class="btn btn-primary" data-bs-toggle="modal" name="btnNuevoPermiso" id="btnNuevoPermiso" data-bs-target="#modalNuevoPermiso" style="display: none;">
                     <i class="fas fa-plus"></i> Nuevo Permiso Base
                 </button>
+                <button class="btn btn-outline-primary me-2" data-bs-toggle="modal" data-bs-target="#modalAsociarPermiso" id="btnAsociarPermiso" style="display: none;">
+                    <i class="fas fa-link"></i> Asociar Permiso
+                </button>
             </div>
         </div>
 
@@ -101,12 +104,6 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="mb-3">
-                        <label>Aplicación Destino:</label>
-                        <select id="nueva_app" class="form-control">
-                            <!-- Se puebla dinámicamente -->
-                        </select>
-                    </div>
                     <div class="mb-3">
                         <label>Clave del Permiso:</label>
                         <input type="text" id="nueva_clave" class="form-control" placeholder="ej: usuarios_leer">
@@ -170,15 +167,6 @@
                 </div>
                 <div class="modal-body">
                     <input type="hidden" id="edit_idpermiso">
-                    
-                    <!-- 👈 Nuevo campo de Aplicación en el Modal -->
-                    <div class="mb-3">
-                        <label>Aplicación Destino:</label>
-                        <select id="edit_app" class="form-control">
-                            <!-- Se puebla igual que en nuevo -->
-                        </select>
-                    </div>
-
                     <div class="mb-3">
                         <label>Clave del Permiso:</label>
                         <input type="text" id="edit_clave" class="form-control">
@@ -206,6 +194,71 @@
                     <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                     <button class="btn btn-primary" onclick="actualizarPermisoBase()">Guardar Cambios</button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Asociar Permiso Existente -->
+    <div class="modal fade" id="modalAsociarPermiso" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+
+                <div class="modal-header">
+                    <h5 class="modal-title">Asociar Permiso a una Aplicación</h5>
+                    <button type="button"
+                            class="btn-close"
+                            data-bs-dismiss="modal"></button>
+                </div>
+
+                <div class="modal-body">
+
+                    <div class="mb-3">
+                        <label class="form-label">Permiso existente:</label>
+                        <select id="asociar_permiso" class="form-control">
+                            <option value="">Cargando permisos...</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Aplicación destino:</label>
+                        <select id="asociar_app" class="form-control">
+                            <option value="">Cargando aplicaciones...</option>
+                        </select>
+                    </div>
+
+                    <div id="infoPermisoAsociar"
+                        class="alert alert-light border"
+                        style="display:none;">
+                    </div>
+
+                    <div id="aplicacionesPermisoAsociar"
+                        class="mt-3"
+                        style="display:none;">
+
+                        <label class="form-label">
+                            Aplicaciones donde está asociado:
+                        </label>
+
+                        <div id="listaAplicacionesPermiso"
+                            class="list-group">
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <div class="modal-footer">
+                    <button class="btn btn-secondary"
+                            data-bs-dismiss="modal">
+                        Cancelar
+                    </button>
+
+                    <button class="btn btn-primary"
+                            onclick="asociarPermisoAplicacion()">
+                        <i class="fas fa-link"></i> Asociar Permiso
+                    </button>
+                </div>
+
             </div>
         </div>
     </div>

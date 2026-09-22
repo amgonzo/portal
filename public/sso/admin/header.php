@@ -5,6 +5,8 @@ $rutas = require $_SERVER['DOCUMENT_ROOT'] . '/api/config/rutas.php';
 // Carga directa del .env y autoload desde la config central si la necesitás
 require_once $rutas['autoload'];
 
+require_once $rutas['public'] . '/api/utils/helpers.php';
+
 try {
 
     $dotenv = Dotenv\Dotenv::createImmutable($rutas['env_sso']);
@@ -20,13 +22,6 @@ $apiUrl = $_ENV['API_URL'] ?? '/api';
 $loginWeb = $rutas['login_sso_web'] ?? '../auth/login.php';
 $empresa = $_ENV['APP_NAME'] ?? 'Mi Sistema';
 
-function versionar($url) {
-    // Limpiamos la URL por si viene con barra inicial
-    $urlLimpia = ltrim($url, '/');
-    $rutaAbsoluta = $_SERVER['DOCUMENT_ROOT'] . '/' . $urlLimpia;
-    
-    return file_exists($rutaAbsoluta) ? '/' . $urlLimpia . "?v=" . filemtime($rutaAbsoluta) : $url;
-}
 ?>
 <!DOCTYPE html>
 <html lang="es" data-bs-theme="light">
@@ -65,11 +60,7 @@ function versionar($url) {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css">
     
     <!-- Estilos personalizados -->
-    <?php if (file_exists(__DIR__ . '/../css/boostrap5a4.css')): ?>
-        <link rel="stylesheet" href="../css/boostrap5a4.css?v=<?php echo filemtime(__DIR__ . '/../css/boostrap5a4.css'); ?>">
-    <?php elseif (file_exists(__DIR__ . '/css/boostrap5a4.css')): ?>
-        <link rel="stylesheet" href="css/boostrap5a4.css?v=<?php echo filemtime(__DIR__ . '/css/boostrap5a4.css'); ?>">
-    <?php endif; ?>
+    <link rel="stylesheet" href="<?php echo versionar('css/boostrap5a4.css'); ?>">
 
     <!-- JS Base -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>

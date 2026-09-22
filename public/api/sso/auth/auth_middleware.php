@@ -302,50 +302,35 @@ function validarPermisoEndpoint($mysqli, $userAuth)
     }
 
 
-    // --------------------------------------------------------
-    // Normalizar endpoint
-    // --------------------------------------------------------
-    //
-    // Ejemplo:
-    //
-    // /api/sso/usuarios/listar_usuarios.php
-    //
-    // queda:
-    //
-    // /sso/usuarios/listar_usuarios.php
-    //
-    //
-    // /api/ctacte/dashboard/metricas.php
-    //
-    // queda:
-    //
-    // /ctacte/dashboard/metricas.php
-    //
-    // --------------------------------------------------------
-
-    // --------------------------------------------------------
-// Normalizar endpoint según la aplicación
+// --------------------------------------------------------
+// Normalizar endpoint
 // --------------------------------------------------------
 //
-// SSO:
-// /api/sso/usuarios/listar_tipos_usuario.php
-//      ↓
-// /usuarios/listar_tipos_usuario.php
+// /api/sso/usuarios/listar.php
+//      -> /usuarios/listar.php
 //
-// CtaCte:
-// /api/ctacte/compras/obtener_datos_dashboard.php
-//      ↓
-// /compras/obtener_datos_dashboard.php
+// /api/ctacte/compras/listar.php
+//      -> /compras/listar.php
+//
+// /api/fichajes/empleados/empleados.php
+//      -> /empleados/empleados.php
+//
+// /api/cualquier_app/loquesea.php
+//      -> /loquesea.php
 //
 // --------------------------------------------------------
 
-if (preg_match('#^/api/sso(/.*)$#', $requestUri, $match)) {
+$partes = explode('/', trim($requestUri, '/'));
 
-    $endpoint = $match[1];
+if (
+    count($partes) >= 3 &&
+    $partes[0] === 'api'
+) {
 
-} elseif (preg_match('#^/api/ctacte(/.*)$#', $requestUri, $match)) {
+    array_shift($partes); // api
+    array_shift($partes); // nombre aplicación
 
-    $endpoint = $match[1];
+    $endpoint = '/' . implode('/', $partes);
 
 } else {
 
@@ -359,8 +344,6 @@ if (preg_match('#^/api/sso(/.*)$#', $requestUri, $match)) {
 if ($endpoint === '') {
     $endpoint = '/';
 }
-
-$endpoint = '/' . ltrim($endpoint, '/');
 
 
     // --------------------------------------------------------

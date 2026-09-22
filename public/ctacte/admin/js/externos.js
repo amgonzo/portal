@@ -39,9 +39,7 @@ async function cargarCategoriasSelect() {
     try {
         const res = await fetch(API_BASE + '/ctacte/categorias/categorias.php?action=listar', {
             method: 'GET',
-            headers: {
-                "Authorization": "Bearer " + (localStorage.getItem('sso_token') || '')
-            }
+            headers: obtenerHeadersSSO()
         });
         const json = await res.json();
         if (json.status === 'ok') {
@@ -60,9 +58,7 @@ async function listarExternos() {
     try {
         const res = await fetch(API_BASE + '/ctacte/externos/externos.php?action=listar', {
             method: 'GET',
-            headers: {
-                "Authorization": "Bearer " + (localStorage.getItem('sso_token') || '')
-            }
+            headers: obtenerHeadersSSO()
         });
         const json = await res.json();
 
@@ -151,9 +147,7 @@ async function guardar() {
     try {
         const res = await fetch(API_BASE + '/ctacte/externos/externos.php?action=guardar', {
             method: 'POST',
-            headers: {
-                "Authorization": "Bearer " + (localStorage.getItem('sso_token') || '')
-            },
+            headers: obtenerHeadersSSO(),
             body: formData
         });
         const json = await res.json();
@@ -180,9 +174,7 @@ async function cambiarEstado(dni, nuevoEstado) {
     try {
         const res = await fetch(API_BASE + '/ctacte/externos/externos.php?action=cambiar_estado', {
             method: 'POST',
-            headers: {
-                "Authorization": "Bearer " + (localStorage.getItem('sso_token') || '')
-            },
+            headers: obtenerHeadersSSO(),
             body: formData
         });
         const json = await res.json();

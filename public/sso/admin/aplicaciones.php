@@ -73,36 +73,29 @@
 
                     <div class="mb-3">
                         <label for="icono" class="form-label">Icono (FontAwesome)</label>
-                        <select class="form-select" id="icono" name="icono">
-                            <option value="fa-solid fa-cubes">Cubes (Por defecto)</option>
-                            <option value="fa-solid fa-file-invoice-dollar">Factura / Cuenta Corriente</option>
-                            <option value="fa-solid fa-user-nurse">Medicina / Salud</option>
-                            <option value="fa-solid fa-book-bookmark">Documentación / SaaS</option>
-                            <option value="fa-solid fa-gears">Configuración / Admin</option>
-                            <option value="fa-solid fa-users">Usuarios / Clientes</option>
-                            <option value="fa-solid fa-chart-line">Estadísticas / Reportes</option>
-                            <option value="fa-solid fa-shield-halved">Seguridad / SSO</option>
-                        </select>
+
+                        <div class="d-flex align-items-center gap-2">
+                            <select class="form-select" id="icono" name="icono">
+                                <option value="fa-solid fa-cubes">Cubes (Por defecto)</option>
+                                <option value="fa-solid fa-file-invoice-dollar">Factura / Cuenta Corriente</option>
+                                <option value="fa-solid fa-user-nurse">Medicina / Salud</option>
+                                <option value="fa-solid fa-book-bookmark">Documentación / SaaS</option>
+                                <option value="fa-solid fa-gears">Configuración / Admin</option>
+                                <option value="fa-solid fa-users">Usuarios / Clientes</option>
+                                <option value="fa-solid fa-chart-line">Estadísticas / Reportes</option>
+                                <option value="fa-solid fa-shield-halved">Seguridad / SSO</option>
+                            </select>
+
+                            <div
+                                id="iconoPreview"
+                                class="border rounded d-flex align-items-center justify-content-center bg-body"
+                                style="width: 48px; height: 38px; min-width: 48px;"
+                                title="Vista previa"
+                            >
+                                <i class="fa-solid fa-cubes fa-lg"></i>
+                            </div>
+                        </div>
                     </div>
-
-                    <div class="mb-3">
-    <label for="app_plantilla" class="form-label">Copiar permisos de otra aplicación (Opcional):</label>
-    <select id="app_plantilla" class="form-select">
-        <option value="">-- Seleccionar aplicación de referencia --</option>
-        <!-- Cargá aquí tus aplicaciones existentes con PHP o JS -->
-    </select>
-</div>
-
-<!-- Contenedor donde se pintarán los checkboxes con los permisos disponibles -->
-<div id="contenedor-permisos-disponibles" class="mb-3" style="display: none;">
-    <label class="form-label">Seleccioná los permisos que querés incluir para esta app:</label>
-    <div class="card p-3 bg-light">
-        <div id="lista-checkboxes-permisos" style="max-height: 200px; overflow-y: auto;">
-            <!-- Se llenará dinámicamente vía AJAX -->
-        </div>
-        <button type="button" class="btn btn-sm btn-outline-secondary mt-2 w-100" id="btn-seleccionar-todos">Seleccionar / Deseleccionar todos</button>
-    </div>
-</div>
 
                     <div class="mb-3 form-check">
                         <input type="checkbox" class="form-check-input" id="activo" name="activo" value="1" checked>

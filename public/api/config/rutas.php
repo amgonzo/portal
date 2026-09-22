@@ -20,6 +20,7 @@ return [
     'env_sso'    => $publicRoot . '/sso',
     'env_api'    => $publicRoot . '/api',
     'env_ctacte' => $publicRoot . '/ctacte',
+    'env_fichajes' => $publicRoot . '/fichajes',
 
     // Archivos PHP
     'conexion'       => $publicRoot . '/api/config/conexion.php',
@@ -41,6 +42,9 @@ return [
 
     'logo_ctacte'        => $publicRoot . '/img/logoctacte.png',
     'logo_ctacte_web'    => '/img/logoctacte.png',
+
+    'logo_fichajes'        => $publicRoot . '/img/logoctacte.png',
+    'logo_fichajes_web'    => '/img/logoctacte.png',
 
     'favicon'         => $publicRoot . '/favicon.ico',
     'favicon_web'     => '/favicon.ico',

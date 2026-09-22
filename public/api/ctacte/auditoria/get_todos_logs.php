@@ -21,20 +21,16 @@ require_once $rutas['contexto'];
 header('Content-Type: application/json');
 
 // 1. Guardamos la conexión original de SSO para la autenticación y permisos
-$mysqli_sso = $mysqli ?? conectarDB('SSO'); // O como maneje tu conexion.php la base de SSO
+$userAuth = validarTokenAPI($mysqli ?? null);
+validarPermisoEndpoint($mysqli, $userAuth);
 
-// 1. Validar token primero con la conexión de SSO
-$userAuth = validarTokenAPI($mysqli_sso);
+// 2. Conectar a la base de datos de CTACTE_
+$empresa = obtenerEmpresaActual($mysqli, $userAuth);
+$mysqli = conectarBase($empresa['db_nombre']);
 
-// 3. Validar permisos usando la conexión de SSO donde SÍ existe la tabla permisos_rol
-validarPermisoEndpoint($mysqli_sso, $userAuth);
-
-// 2. Ahora sí, conectamos a la base de datos de CTACTE_ para buscar los logs de auditoría
-$mysqli_ctacte = conectarDB('CTACTE_'); 
 
 // Ejecutamos la consulta pasándole la conexión de ctacte
-echo json_encode(ejecutarGetTodosLogs($mysqli_ctacte));
-
+echo json_encode(ejecutarGetTodosLogs($mysqli));
 /*<?php
  
 

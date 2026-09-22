@@ -99,22 +99,6 @@
     // Asegurate de que API_BASE esté definida (descomentala si la usas desde PHP)
     // const API_BASE = "<?php echo $apiUrl; ?>";
 
-    // Función auxiliar global para armar los headers con Token y Empresa Activa
-    function obtenerHeadersSSO() {
-        const token = localStorage.getItem('sso_token');
-        const idEmpresaActiva = localStorage.getItem('sso_id_empresa_activa');
-
-        const headers = {
-            "Authorization": "Bearer " + (token || "")
-        };
-
-        if (idEmpresaActiva) {
-            headers["X-EMPRESA-ID"] = String(idEmpresaActiva);
-        }
-
-        return headers;
-    }
-
     // Función para cargar las empresas en el select del Superadmin
     // Función para cargar las empresas en el select del Superadmin
     function cargarListadoEmpresasParaSelector() {
@@ -131,7 +115,17 @@
                     if (!select) return;
 
                     select.innerHTML = '<option value="">-- Seleccionar Empresa --</option>';
-                    const empresaActualID = localStorage.getItem('sso_id_empresa_activa') || '';
+                    let empresaActualID = '';
+
+                    try {
+                        const empresaActiva = JSON.parse(
+                            localStorage.getItem('sso_empresa_activa') || 'null'
+                        );
+
+                        empresaActualID = empresaActiva?.idempresa || '';
+                    } catch (e) {
+                        empresaActualID = '';
+                    }
 
                     res.data.forEach(emp => {
                         if (parseInt(emp.activo) === 1) {
@@ -153,12 +147,28 @@
     }
 
     // Función que se ejecuta al cambiar de empresa en el selector
+    
     function cambiarEmpresaActiva(idEmpresa) {
+
         if (!idEmpresa) {
-            localStorage.removeItem('sso_id_empresa_activa');
-        } else {
-            localStorage.setItem('sso_id_empresa_activa', idEmpresa);
+            localStorage.removeItem('sso_empresa_activa');
+            window.location.reload();
+            return;
         }
+
+        const select = document.getElementById('selectEmpresaActiva');
+        const opcion = select.options[select.selectedIndex];
+
+        const empresa = {
+            idempresa: parseInt(idEmpresa, 10),
+            nombre: opcion ? opcion.textContent : ''
+        };
+
+        localStorage.setItem(
+            'sso_empresa_activa',
+            JSON.stringify(empresa)
+        );
+
         window.location.reload();
     }
 

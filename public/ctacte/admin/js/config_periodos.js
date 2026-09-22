@@ -57,9 +57,7 @@ async function listarReglas() {
     try {
         const res = await fetch(API_BASE + '/ctacte/periodos/config_periodos.php?action=listar', {
             method: 'GET',
-            headers: {
-                "Authorization": "Bearer " + (localStorage.getItem('sso_token') || '')
-            }
+            headers: obtenerHeadersSSO()
         });
         const json = await res.json();
 
@@ -147,9 +145,7 @@ async function guardarRegla() {
     try {
         const res = await fetch(API_BASE + '/ctacte/periodos/config_periodos.php?action=editar', {
             method: 'POST',
-            headers: {
-                "Authorization": "Bearer " + (localStorage.getItem('sso_token') || '')
-            },
+            headers: obtenerHeadersSSO(),
             body: formData
         });
         const json = await res.json();

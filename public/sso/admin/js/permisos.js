@@ -19,9 +19,9 @@ $(document).ready(function() {
 
                 // 2. Controlar visibilidad de botones según permisos
                 if (!tienePermiso('configuracion_avanzada')) {
-                    $('#btnNuevoTipoUsuario, #btnNuevoPermiso, #btnEditarTipoUsuario').hide();
+                    $('#btnNuevoTipoUsuario, #btnNuevoPermiso, #btnAsociarPermiso, #btnEditarTipoUsuario').hide();
                 } else {
-                    $('#btnNuevoTipoUsuario, #btnNuevoPermiso, #btnEditarTipoUsuario').show();
+                    $('#btnNuevoTipoUsuario, #btnNuevoPermiso, #btnAsociarPermiso, #btnEditarTipoUsuario').show();
                 }
 
                 // 3. Cargar aplicaciones iniciales (esto disparará la carga en cascada de forma ordenada)
@@ -45,12 +45,10 @@ $(document).ready(function() {
         }
     });
 
-    $(document).on("change", "#select_tipo_permiso", function() {
-        const idTipo = $(this).val();
-        if (idTipo) {
-            cargarPermisosRol();
-        }
+   $(document).on("show.bs.modal", "#modalAsociarPermiso", function() {
+        cargarPermisosParaAsociar();
     });
+
 });
 
 // Función global de permisos para este módulo
@@ -72,7 +70,7 @@ function cargarAplicaciones() {
                 });
                 
                 // 👈 Poblamos tanto el buscador principal, el modal nuevo y el modal editar
-                $("#select_aplicacion, #nueva_app, #edit_app").html(html);
+                $("#select_aplicacion, #asociar_app").html(html);
                 
                 if (res.data.length > 0) {
                     $("#select_aplicacion").val(res.data[0].idaplicacion);
@@ -240,14 +238,14 @@ function guardarPermisos() {
 }
 
 function crearPermisoBase() {
-    const idApp = $("#nueva_app").val(); // Asegúrate de capturar la aplicación del modal
-    const clave = $("#nueva_clave").val();
-    const endpoint = $("#nuevo_endpoint").val();
-    const metodo = $("#nuevo_metodo").val();
-    const desc = $("#nueva_desc").val();
 
-    if (!idApp || !clave) {
-        toast("La aplicación y la clave del permiso son obligatorias", 'error');
+    const clave = $("#nueva_clave").val().trim();
+    const endpoint = $("#nuevo_endpoint").val().trim();
+    const metodo = $("#nuevo_metodo").val();
+    const desc = $("#nueva_desc").val().trim();
+
+    if (!clave) {
+        toast("La clave del permiso es obligatoria", "warning");
         return;
     }
 
@@ -255,27 +253,38 @@ function crearPermisoBase() {
         type: "POST",
         url: API_BASE + "/sso/permisos/crear_permiso.php",
         data: {
-            idaplicacion: idApp, // 👈 Obligatorio por el nuevo esquema
+            idaplicacion: $("#select_aplicacion").val(),
             clave: clave,
             endpoint: endpoint,
             metodo: metodo,
             descripcion: desc
         },
         headers: obtenerHeadersSSO(),
+
         success: function(response) {
-            const res = (typeof response === 'string') ? JSON.parse(response) : response;
+
+            const res = (typeof response === 'string')
+                ? JSON.parse(response)
+                : response;
+
             if (res.status === "ok") {
-                $("#modalNuevoPermiso").modal('hide');
-                $("#nueva_clave, #nuevo_endpoint, #nuevo_desc").val('');
-                $("#nuevo_metodo").val('ALL');
+
+                $("#modalNuevoPermiso").modal("hide");
+
+                $("#nueva_clave, #nuevo_endpoint, #nueva_desc").val("");
+                $("#nuevo_metodo").val("ALL");
+
                 toast("Permiso creado correctamente");
+
                 cargarPermisosRol();
+
             } else {
-                toast(res.msg, 'error');
+                toast(res.msg, "error");
             }
         },
+
         error: function() {
-            toast("Error de conexión con el servidor", 'error');
+            toast("Error de conexión con el servidor", "error");
         }
     });
 }
@@ -311,26 +320,26 @@ function crearNuevoTipoUsuario() {
 // Actualizar la función que abre el modal para incluir la app actual
 // Función para abrir el modal de edición cargando la app actual y bloqueándola para que no se cambie por error
 function abrirModalEditarPermiso(id, clave, endpoint, metodo, desc) {
+
     $("#edit_idpermiso").val(id);
-    $("#edit_app").val($("#select_aplicacion").val()); // Selecciona la app actual
     $("#edit_clave").val(clave);
     $("#edit_endpoint").val(endpoint === null ? '' : endpoint);
     $("#edit_metodo").val(metodo);
     $("#edit_desc").val(desc === null ? '' : desc);
-    
+
     $("#modalEditarPermiso").modal("show");
 }
 
 function actualizarPermisoBase() {
-    const id = $("#edit_idpermiso").val();
-    const idApp = $("#edit_app").val();
-    const clave = $("#edit_clave").val();
-    const endpoint = $("#edit_endpoint").val();
-    const metodo = $("#edit_metodo").val();
-    const desc = $("#edit_desc").val();
 
-    if (!id || !idApp || !clave) {
-        toast("La aplicación y la clave son obligatorias", "warning");
+    const id = $("#edit_idpermiso").val();
+    const clave = $("#edit_clave").val().trim();
+    const endpoint = $("#edit_endpoint").val().trim();
+    const metodo = $("#edit_metodo").val();
+    const desc = $("#edit_desc").val().trim();
+
+    if (!id || !clave) {
+        toast("La clave del permiso es obligatoria", "warning");
         return;
     }
 
@@ -339,22 +348,358 @@ function actualizarPermisoBase() {
         url: API_BASE + "/sso/permisos/editar_permisos.php",
         data: {
             idpermiso: id,
-            idaplicacion: idApp,
             clave: clave,
             endpoint: endpoint,
             metodo: metodo,
             descripcion: desc
         },
         headers: obtenerHeadersSSO(),
+
         success: function(response) {
-            const res = (typeof response === 'string') ? JSON.parse(response) : response;
+
+            const res = (typeof response === 'string')
+                ? JSON.parse(response)
+                : response;
+
             if (res.status === "ok") {
+
                 toast("Permiso actualizado correctamente");
+
                 $("#modalEditarPermiso").modal("hide");
+
                 cargarPermisosRol();
+
             } else {
                 toast("Error: " + res.msg, "error");
             }
+        },
+
+        error: function() {
+            toast("Error de conexión con el servidor", "error");
         }
+    });
+}
+
+function cargarPermisosParaAsociar() {
+
+    $.ajax({
+        type: "GET",
+        url: API_BASE + "/sso/permisos/listar_permisos.php",
+        headers: obtenerHeadersSSO(),
+
+        success: function(response) {
+
+            const res = (typeof response === 'string')
+                ? JSON.parse(response)
+                : response;
+
+            if (res.status !== "ok") {
+                toast(res.msg || "Error al cargar permisos", "error");
+                return;
+            }
+
+            let html = '<option value="">Seleccione un permiso...</option>';
+
+            res.data.forEach(p => {
+
+                html += `
+                    <option value="${p.idpermiso}">
+                        ${p.clavepermiso} - ${p.descripcion || ''}
+                    </option>
+                `;
+            });
+
+            $("#asociar_permiso").html(html);
+        },
+
+        error: function() {
+            toast("Error al cargar los permisos", "error");
+        }
+    });
+}
+
+$(document).on("change", "#asociar_permiso", function() {
+
+    const idPermiso = $(this).val();
+    cargarAplicacionesDelPermiso(idPermiso);
+
+    if (!idPermiso) {
+        $("#infoPermisoAsociar").hide().html("");
+        return;
+    }
+
+    $.ajax({
+        type: "GET",
+        url: API_BASE + "/sso/permisos/listar_permisos.php",
+        headers: obtenerHeadersSSO(),
+
+        success: function(response) {
+
+            const res = (typeof response === 'string')
+                ? JSON.parse(response)
+                : response;
+
+            if (res.status !== "ok") {
+                return;
+            }
+
+            const permiso = res.data.find(
+                p => parseInt(p.idpermiso) === parseInt(idPermiso)
+            );
+
+            if (!permiso) {
+                return;
+            }
+
+            const endpoint = permiso.endpoint
+                ? `<code>${permiso.endpoint}</code>`
+                : '-';
+
+            const metodo = permiso.metodo || 'ALL';
+
+            $("#infoPermisoAsociar")
+                .html(`
+                    <strong>${permiso.clavepermiso}</strong><br>
+                    ${permiso.descripcion || ''}<br>
+                    Endpoint: ${endpoint}<br>
+                    Método: <strong>${metodo}</strong>
+                `)
+                .show();
+        }
+    });
+});
+
+function asociarPermisoAplicacion() {
+
+    const idPermiso = $("#asociar_permiso").val();
+    const idAplicacion = $("#asociar_app").val();
+
+    if (!idPermiso || !idAplicacion) {
+        toast("Seleccioná el permiso y la aplicación destino", "warning");
+        return;
+    }
+
+    $.ajax({
+        type: "POST",
+        url: API_BASE + "/sso/permisos/agregar_permiso_aplicacion.php",
+        data: {
+            idpermiso: idPermiso,
+            idaplicacion: idAplicacion
+        },
+        headers: obtenerHeadersSSO(),
+
+        success: function(response) {
+
+            const res = (typeof response === 'string')
+                ? JSON.parse(response)
+                : response;
+
+            if (res.status === "ok") {
+
+                $("#modalAsociarPermiso").modal("hide");
+
+                $("#asociar_permiso").val("");
+                $("#infoPermisoAsociar").hide().html("");
+
+                toast("Permiso asociado correctamente");
+
+                // Si la aplicación destino es la que estamos viendo,
+                // actualizamos la lista inmediatamente.
+                if (String($("#select_aplicacion").val()) === String(idAplicacion)) {
+                    cargarPermisosRol();
+                }
+
+            } else {
+                toast(res.msg || "No se pudo asociar el permiso", "error");
+            }
+        },
+
+        error: function(xhr) {
+
+            console.error("Error al asociar permiso:", xhr.responseText);
+
+            if (xhr.status === 401) {
+                toast("Sesión expirada", "error");
+                setTimeout(() => {
+                    window.location.href = '../auth/login.php';
+                }, 1500);
+            } else {
+                toast("Error de conexión con el servidor", "error");
+            }
+        }
+    });
+}
+
+function cargarAplicacionesDelPermiso(idPermiso) {
+
+    $("#aplicacionesPermisoAsociar").hide();
+    $("#listaAplicacionesPermiso").html("");
+
+    if (!idPermiso) {
+        return;
+    }
+
+    $.ajax({
+        type: "GET",
+        url: API_BASE + "/sso/permisos/listar_aplicaciones_permiso.php",
+        data: {
+            idpermiso: idPermiso
+        },
+        headers: obtenerHeadersSSO(),
+
+        success: function(response) {
+
+            const res = (typeof response === 'string')
+                ? JSON.parse(response)
+                : response;
+
+            if (res.status !== "ok") {
+                toast(
+                    res.msg || "Error al consultar las aplicaciones",
+                    "error"
+                );
+                return;
+            }
+
+            if (!res.data || res.data.length === 0) {
+                $("#listaAplicacionesPermiso").html(`
+                    <div class="alert alert-light border mb-0">
+                        Este permiso no está asociado a ninguna aplicación.
+                    </div>
+                `);
+
+                $("#aplicacionesPermisoAsociar").show();
+                return;
+            }
+
+            let html = "";
+
+            res.data.forEach(app => {
+
+                html += `
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+
+                        <div>
+                            <strong>${app.nombre}</strong>
+                            <br>
+                            <small class="text-muted">${app.slug}</small>
+                        </div>
+
+                        <button
+                            type="button"
+                            class="btn btn-sm btn-outline-danger"
+                            onclick="desasociarPermisoAplicacion(${idPermiso}, ${app.idaplicacion}, '${String(app.nombre).replace(/'/g, "\\'")}')"
+                        >
+                            <i class="fas fa-unlink"></i>
+                            Desasociar
+                        </button>
+
+                    </div>
+                `;
+            });
+
+            $("#listaAplicacionesPermiso").html(html);
+            $("#aplicacionesPermisoAsociar").show();
+        },
+
+        error: function(xhr) {
+
+            console.error(
+                "Error al consultar aplicaciones del permiso:",
+                xhr.responseText
+            );
+
+            toast(
+                "Error de conexión al consultar las aplicaciones",
+                "error"
+            );
+        }
+    });
+}
+
+function desasociarPermisoAplicacion(idPermiso, idAplicacion, nombreAplicacion) {
+
+    if (!idPermiso || !idAplicacion) {
+        return;
+    }
+
+    Swal.fire({
+        title: '¿Está seguro?',
+        text: `Desea desasociar este permiso de la aplicación "${nombreAplicacion}".`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Sí, desasociar',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+
+        if (!result.isConfirmed) {
+            return;
+        }
+
+        $.ajax({
+            type: "POST",
+            url: API_BASE + "/sso/permisos/desasociar_permiso_aplicacion.php",
+
+            data: {
+                idpermiso: idPermiso,
+                idaplicacion: idAplicacion
+            },
+
+            headers: obtenerHeadersSSO(),
+
+            success: function(response) {
+
+                const res = (typeof response === 'string')
+                    ? JSON.parse(response)
+                    : response;
+
+                if (res.status === "ok") {
+
+                    toast("Permiso desasociado correctamente");
+
+                    cargarAplicacionesDelPermiso(idPermiso);
+
+                    if (
+                        String($("#select_aplicacion").val()) ===
+                        String(idAplicacion)
+                    ) {
+                        cargarPermisosRol();
+                    }
+
+                } else {
+
+                    toast(
+                        res.msg || "No se pudo desasociar el permiso",
+                        "error"
+                    );
+                }
+            },
+
+            error: function(xhr) {
+
+                console.error(
+                    "Error al desasociar permiso:",
+                    xhr.responseText
+                );
+
+                if (xhr.status === 401) {
+
+                    toast("Sesión expirada", "error");
+
+                    setTimeout(() => {
+                        window.location.href = '../auth/login.php';
+                    }, 1500);
+
+                } else {
+
+                    toast(
+                        "Error de conexión con el servidor",
+                        "error"
+                    );
+                }
+            }
+        });
     });
 }

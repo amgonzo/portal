@@ -27,7 +27,6 @@ $(document).ready(function() {
 
                 // 3. Una vez obtenidos los permisos, cargamos las aplicaciones
                 cargarAplicaciones();
-                cargarAppsPlantilla();
             } else {
                 localStorage.clear();
                 window.location.href = '../auth/login.php';
@@ -118,6 +117,9 @@ function abrirModalApp() {
     $('#formApp')[0].reset();
     $('#idaplicacion').val('');
     $('#icono').val('fa-solid fa-cubes'); // Resetea al valor por defecto
+
+    actualizarPreviewIcono();
+
     $('#modalAppTitulo').text('Nueva Aplicación');
     $('#activo').prop('checked', true);
     $('#modalApp').modal('show');
@@ -129,16 +131,15 @@ function editarApp(app) {
     $('#slug').val(app.slug);
     $('#url_base').val(app.url_base);
     $('#icono').val(app.icono ? app.icono : 'fa-solid fa-cubes'); // Carga el icono actual de la app
+
+    actualizarPreviewIcono();
+    
     $('#activo').prop('checked', app.activo == 1);
     $('#modalAppTitulo').text('Editar Aplicación');
     $('#modalApp').modal('show');
 }
 
 function guardarAplicacion() {
-    let permisosSeleccionados = [];
-    $('.permiso-checkbox:checked').each(function() {
-        permisosSeleccionados.push(parseInt($(this).val()));
-    });
 
     let datos = {
         idaplicacion: $('#idaplicacion').val(),
@@ -147,7 +148,6 @@ function guardarAplicacion() {
         url_base: $('#url_base').val(),
         icono: $('#icono').val(), // 👈 Incluye el icono seleccionado
         activo: $('#activo').is(':checked') ? 1 : 0,
-        permisos_seleccionados: permisosSeleccionados
     };
 
     $.ajax({
@@ -186,69 +186,22 @@ function guardarAplicacion() {
     });
 }
 
-document.getElementById('app_plantilla').addEventListener('change', function() {
-    let idAppModelo = this.value;
-    let contenedor = document.getElementById('contenedor-permisos-disponibles');
-    let lista = document.getElementById('lista-checkboxes-permisos');
-    
-    if (!idAppModelo) {
-        contenedor.style.display = 'none';
-        lista.innerHTML = '';
-        return;
-    }
+function formatearIcono(icono) {
+    if (!icono) return '';
 
-    // Petición AJAX para obtener los permisos de la app seleccionada
-    fetch(API_BASE + `/sso/aplicaciones/obtener_permisos_app.php?idaplicacion=${idAppModelo}`, {
-        method: 'GET',
-        headers: {
-            "Authorization": "Bearer " + localStorage.getItem('sso_token'),
-            "Content-Type": "application/json"
-        }
-    })
-        .then(response => response.json())
-        .then(data => {
-            lista.innerHTML = '';
-            if (data.length === 0) {
-                lista.innerHTML = '<span class="text-muted">Esta aplicación no tiene permisos registrados.</span>';
-            } else {
-                data.forEach(permiso => {
-                    let div = document.createElement('div');
-                    div.className = 'form-check';
-                    div.innerHTML = `
-                        <input class="form-check-input permiso-checkbox" type="checkbox" name="permisos_seleccionados[]" value="${permiso.idpermiso}" id="perm_${permiso.idpermiso}" checked>
-                        <label class="form-check-label" for="perm_${permiso.idpermiso}">
-                            <strong>${permiso.clavepermiso}</strong> <span class="text-muted">(${permiso.descripcion || 'Sin descripción'})</span>
-                        </label>
-                    `;
-                    lista.appendChild(div);
-                });
-            }
-            contenedor.style.display = 'block';
-        })
-        .catch(error => console.error('Error al cargar permisos:', error));
-});
-
-// Opcional: Botón para marcar/desmarcar todos rápido
-document.getElementById('btn-seleccionar-todos').addEventListener('click', function() {
-    let checkboxes = document.querySelectorAll('.permiso-checkbox');
-    let todosMarcados = Array.from(checkboxes.every(chk => chk.checked));
-    checkboxes.forEach(chk => chk.checked = !todosMarcados);
-});
-
-function cargarAppsPlantilla() {
-    $.ajax({
-        type: "GET",
-        url: API_BASE + '/sso/aplicaciones/get_aplicaciones.php',
-        headers: obtenerHeadersSSO(),
-        success: function(response) {
-            const res = (typeof response === 'string') ? JSON.parse(response) : response;
-            if (res.status === 'ok') {
-                let html = '<option value="">-- Seleccionar aplicación de referencia --</option>';
-                res.data.forEach(app => {
-                    html += `<option value="${app.idaplicacion}">${app.nombre}</option>`;
-                });
-                $('#app_plantilla').html(html);
-            }
-        }
-    });
+    return $('<span><i class="' + icono + ' me-2"></i>' + 
+        ($('#icono option[value="' + icono + '"]').text().trim() || icono) + 
+        '</span>');
 }
+
+function actualizarPreviewIcono() {
+    const icono = $('#icono').val() || 'fa-solid fa-cubes';
+
+    $('#iconoPreview').html(
+        `<i class="${icono} fa-lg"></i>`
+    );
+}
+
+$(document).on('change', '#icono', function() {
+    actualizarPreviewIcono();
+});
