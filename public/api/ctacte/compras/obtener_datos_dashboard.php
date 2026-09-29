@@ -34,7 +34,11 @@ $userAuth = validarTokenAPI($mysqli);
 validarPermisoEndpoint($mysqli, $userAuth);
 
 $empresa = obtenerEmpresaActual($mysqli, $userAuth);
-$mysqli = conectarBase($empresa['db_nombre']);
+$mysqli = conectarDBEmpresa(
+    $mysqli,
+    (int)$empresa['idempresa'],
+    'DATOS'
+);
 
 /**
  * Función Helper: Obtiene las fechas exactas (desde/hasta) y el periodo_codigo

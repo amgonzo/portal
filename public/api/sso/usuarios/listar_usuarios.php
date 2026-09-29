@@ -1,4 +1,5 @@
 <?php
+
 error_reporting(E_ALL);
 ini_set('display_errors', '1');
 
@@ -9,21 +10,13 @@ require_once $rutas['autoload'];
 try {
     $dotenv = Dotenv\Dotenv::createImmutable($rutas['env_api']);
     $dotenv->load();
-} catch (Exception $e) {
-}
+} catch (Exception $e) {}
 
 require_once $rutas['conexion'];
 require_once $rutas['middleware'];
 require_once $rutas['contexto'];
 
 header('Content-Type: application/json');
-
-
-/*
-|--------------------------------------------------------------------------
-| Método
-|--------------------------------------------------------------------------
-*/
 
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
 
@@ -40,166 +33,289 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
 
 /*
 |--------------------------------------------------------------------------
-| Autenticación
+| VALIDAR TOKEN
 |--------------------------------------------------------------------------
 */
 
 $userAuth = validarTokenAPI($mysqli);
 
-
-/*
-|--------------------------------------------------------------------------
-| Permiso del endpoint
-|--------------------------------------------------------------------------
-*/
-
-validarPermisoEndpoint($mysqli, $userAuth);
+$idUsuarioAuth =
+    intval($userAuth['idusuario']);
 
 
 /*
 |--------------------------------------------------------------------------
-| ¿Es SUPER_ADMIN?
+| DETERMINAR TIPO DE SISTEMA
 |--------------------------------------------------------------------------
+|
+| ROOT:
+|   Usuario global de la plataforma.
+|
+| USER:
+|   Usuario normal, cuyo acceso se determina
+|   por empresa + aplicación + rol.
+|
 */
 
-$esSuperAdmin = false;
+$sqlTipoSistema = "
+    SELECT
+        uts.clave AS tipo_sistema
+    FROM usuarios u
 
-$sqlSuperAdmin = "
-    SELECT 1
-    FROM usuarios_roles_apps ura
-    INNER JOIN tiposusuario tu
-        ON tu.idtipousuario = ura.idtipousuario
-    WHERE ura.idusuario = ?
-      AND UPPER(TRIM(tu.clave)) = 'SUPER_ADMIN'
+    INNER JOIN usuarios_tipo_sistema uts
+        ON uts.idtiposistema = u.idtiposistema
+
+    WHERE u.idusuario = ?
+      AND u.baja = 0
+
     LIMIT 1
 ";
 
-$stmtSuperAdmin = $mysqli->prepare($sqlSuperAdmin);
+$stmtTipo =
+    $mysqli->prepare($sqlTipoSistema);
 
-$idUsuarioAuth = intval($userAuth['idusuario']);
+if (!$stmtTipo) {
 
-$stmtSuperAdmin->bind_param(
+    http_response_code(500);
+
+    echo json_encode([
+        "status" => "error",
+        "msg" => "No se pudo determinar el tipo de usuario"
+    ]);
+
+    exit;
+}
+
+$stmtTipo->bind_param(
     "i",
     $idUsuarioAuth
 );
 
-$stmtSuperAdmin->execute();
+$stmtTipo->execute();
 
-$resSuperAdmin = $stmtSuperAdmin->get_result();
+$resTipo =
+    $stmtTipo->get_result();
 
-$esSuperAdmin = ($resSuperAdmin->num_rows > 0);
+$filaTipo =
+    $resTipo->fetch_assoc();
 
-$stmtSuperAdmin->close();
+$stmtTipo->close();
+
+$tipoSistema =
+    strtoupper(
+        trim(
+            $filaTipo['tipo_sistema'] ?? ''
+        )
+    );
+
+$esRoot =
+    ($tipoSistema === 'ROOT');
 
 
 /*
 |--------------------------------------------------------------------------
-| Empresa actual / Filtro por Empresa
+| PERMISO
 |--------------------------------------------------------------------------
 |
-| Si es SUPER_ADMIN, puede venir un parámetro ?idempresa=X opcionalmente.
-| Si es usuario normal, está obligado a usar su empresa actual de sesión.
+| ROOT tiene todos los permisos desde me.php,
+| por lo tanto no necesita tener un rol en
+| usuarios_roles_apps para acceder a este endpoint.
+|
+| USER sí debe pasar por la validación normal.
 |
 */
 
-$empresaActual = null;
-$idEmpresaFiltro = 0;
+if (!$esRoot) {
 
-if (!$esSuperAdmin) {
-
-    $empresaActual = obtenerEmpresaActual(
+    validarPermisoEndpoint(
         $mysqli,
         $userAuth
     );
-
-    $idEmpresaFiltro = intval(
-        $empresaActual['idempresa']
-    );
-
-} else {
-    // 1. PRIMERO intentamos leer la empresa desde el Header HTTP que manda el JavaScript
-    $headers = getallheaders();
-    $headerEmpresa = isset($headers['X-EMPRESA-ID'])
-    ? intval($headers['X-EMPRESA-ID'])
-    : 0;
-
-    // 2. Si no viene en el header, revisamos si vino por GET (por compatibilidad)
-    if ($headerEmpresa > 0) {
-        $idEmpresaFiltro = $headerEmpresa;
-    } elseif (isset($_GET['idempresa']) && intval($_GET['idempresa']) > 0) {
-        $idEmpresaFiltro = intval($_GET['idempresa']);
-    }
-
-    // 3. Si tenemos un ID de empresa válido, buscamos su nombre para la respuesta
-    if ($idEmpresaFiltro > 0) {
-        $stmtEmp = $mysqli->prepare("SELECT idempresa, nombre FROM empresas WHERE idempresa = ? LIMIT 1");
-        if ($stmtEmp) {
-            $stmtEmp->bind_param("i", $idEmpresaFiltro);
-            $stmtEmp->execute();
-            $resEmp = $stmtEmp->get_result();
-            if ($rowEmp = $resEmp->fetch_assoc()) {
-                $empresaActual = [
-                    'idempresa' => intval($rowEmp['idempresa']),
-                    'nombre' => $rowEmp['nombre']
-                ];
-            }
-            $stmtEmp->close();
-        }
-    }
 }
 
 
 /*
 |--------------------------------------------------------------------------
-| Listado
+| EMPRESA ACTUAL
 |--------------------------------------------------------------------------
 */
 
-if ($esSuperAdmin && $idEmpresaFiltro === 0) {
+$empresaActual = null;
+
+$idEmpresaFiltro = 0;
+
+
+/*
+|--------------------------------------------------------------------------
+| ROOT
+|--------------------------------------------------------------------------
+|
+| ROOT puede trabajar:
+|
+|   - sin empresa seleccionada -> todas
+|   - con X-EMPRESA-ID -> una empresa
+|
+*/
+
+if ($esRoot) {
+
+    $headers = getallheaders();
+
+    $headerEmpresa =
+        $headers['X-EMPRESA-ID']
+        ?? $headers['x-empresa-id']
+        ?? '';
+
+    $idEmpresaFiltro =
+        intval($headerEmpresa);
 
     /*
-     * SUPER_ADMIN sin filtro de empresa: ve TODOS los usuarios del sistema.
+     * Compatibilidad:
+     * también aceptamos idempresa por GET.
      */
 
-    $sql = "
-        SELECT
-            u.idusuario,
-            u.nombreapellido,
-            u.username,
-            u.email,
-            u.baja,
+    if (
+        $idEmpresaFiltro <= 0 &&
+        isset($_GET['idempresa']) &&
+        intval($_GET['idempresa']) > 0
+    ) {
 
-            ura.idtipousuario,
-            ura.idaplicacion,
+        $idEmpresaFiltro =
+            intval($_GET['idempresa']);
+    }
 
-            tu.descripcion AS rolnombre,
-            a.nombre AS nombre_app
 
-        FROM usuarios u
+    /*
+     * Si ROOT seleccionó una empresa,
+     * obtenemos sus datos.
+     */
 
-        LEFT JOIN usuarios_roles_apps ura
-            ON ura.idusuario = u.idusuario
+    if ($idEmpresaFiltro > 0) {
 
-        LEFT JOIN tiposusuario tu
-            ON tu.idtipousuario = ura.idtipousuario
+        $stmtEmp =
+            $mysqli->prepare("
+                SELECT
+                    idempresa,
+                    nombre
 
-        LEFT JOIN aplicaciones a
-            ON a.idaplicacion = ura.idaplicacion
+                FROM empresas
 
-        ORDER BY u.nombreapellido ASC
-    ";
+                WHERE idempresa = ?
+                  AND activo = 1
 
-    $stmt = $mysqli->prepare($sql);
+                LIMIT 1
+            ");
+
+        if ($stmtEmp) {
+
+            $stmtEmp->bind_param(
+                "i",
+                $idEmpresaFiltro
+            );
+
+            $stmtEmp->execute();
+
+            $resEmp =
+                $stmtEmp->get_result();
+
+            if (
+                $rowEmp =
+                    $resEmp->fetch_assoc()
+            ) {
+
+                $empresaActual = [
+
+                    'idempresa' =>
+                        intval(
+                            $rowEmp['idempresa']
+                        ),
+
+                    'nombre' =>
+                        $rowEmp['nombre']
+                ];
+
+            } else {
+
+                http_response_code(404);
+
+                echo json_encode([
+                    "status" => "error",
+                    "msg" => "Empresa inexistente o inactiva"
+                ]);
+
+                $stmtEmp->close();
+                exit;
+            }
+
+            $stmtEmp->close();
+        }
+    }
+
 
 } else {
 
     /*
-     * Usuarios normales O SUPER_ADMIN filtrando por una empresa específica:
-     * SOLO usuarios relacionados con esa empresa.
+     * USER
+     *
+     * La empresa sale del contexto actual.
+     */
+
+    $empresaActual =
+        obtenerEmpresaActual(
+            $mysqli,
+            $userAuth
+        );
+
+    if (!$empresaActual) {
+
+        http_response_code(400);
+
+        echo json_encode([
+            "status" => "error",
+            "msg" => "No se pudo determinar la empresa actual"
+        ]);
+
+        exit;
+    }
+
+    $idEmpresaFiltro =
+        intval(
+            $empresaActual['idempresa']
+        );
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| LISTADO
+|--------------------------------------------------------------------------
+|
+| ROOT SIN EMPRESA:
+|   Ve todos los usuarios y todos sus accesos.
+|
+| ROOT CON EMPRESA:
+|   Ve solamente usuarios de esa empresa.
+|
+| USER:
+|   Ve solamente usuarios de su empresa actual.
+|
+*/
+
+
+if (
+    $esRoot &&
+    $idEmpresaFiltro === 0
+) {
+
+    /*
+     * ROOT SIN EMPRESA
+     *
+     * Todos los usuarios.
      */
 
     $sql = "
         SELECT
+
             u.idusuario,
             u.nombreapellido,
             u.username,
@@ -210,31 +326,107 @@ if ($esSuperAdmin && $idEmpresaFiltro === 0) {
             ura.idaplicacion,
 
             tu.descripcion AS rolnombre,
-            a.nombre AS nombre_app
+            a.nombre AS nombre_app,
+
+            e.idempresa,
+            e.nombre AS nombre_empresa
 
         FROM usuarios u
-
-        INNER JOIN usuarios_empresas ue
-            ON ue.idusuario = u.idusuario
-           AND ue.idempresa = ?
-           AND ue.activo = 1
 
         LEFT JOIN usuarios_roles_apps ura
             ON ura.idusuario = u.idusuario
 
         LEFT JOIN tiposusuario tu
-            ON tu.idtipousuario = ura.idtipousuario
+            ON tu.idtipousuario =
+               ura.idtipousuario
 
         LEFT JOIN aplicaciones a
-            ON a.idaplicacion = ura.idaplicacion
+            ON a.idaplicacion =
+               ura.idaplicacion
 
-        ORDER BY u.nombreapellido ASC
+        LEFT JOIN empresas e
+            ON e.idempresa =
+               ura.idempresa
+
+        ORDER BY
+            u.nombreapellido ASC,
+            e.nombre ASC,
+            a.nombre ASC
     ";
 
-    $stmt = $mysqli->prepare($sql);
+    $stmt =
+        $mysqli->prepare($sql);
+
+} else {
+
+    /*
+     * ROOT CON EMPRESA
+     * o
+     * USER
+     *
+     * Solamente usuarios pertenecientes
+     * a esa empresa.
+     */
+
+    $sql = "
+        SELECT
+
+            u.idusuario,
+            u.nombreapellido,
+            u.username,
+            u.email,
+            u.baja,
+
+            ura.idtipousuario,
+            ura.idaplicacion,
+
+            tu.descripcion AS rolnombre,
+            a.nombre AS nombre_app,
+
+            e.idempresa,
+            e.nombre AS nombre_empresa
+
+        FROM usuarios u
+
+        INNER JOIN usuarios_empresas ue
+
+            ON ue.idusuario =
+               u.idusuario
+
+           AND ue.idempresa = ?
+
+           AND ue.activo = 1
+
+        LEFT JOIN usuarios_roles_apps ura
+
+            ON ura.idusuario =
+               u.idusuario
+
+           AND ura.idempresa = ?
+
+        LEFT JOIN tiposusuario tu
+            ON tu.idtipousuario =
+               ura.idtipousuario
+
+        LEFT JOIN aplicaciones a
+            ON a.idaplicacion =
+               ura.idaplicacion
+
+        LEFT JOIN empresas e
+            ON e.idempresa =
+               ura.idempresa
+
+        ORDER BY
+            u.nombreapellido ASC,
+            a.nombre ASC
+    ";
+
+    $stmt =
+        $mysqli->prepare($sql);
 
     $stmt->bind_param(
-        "i",
+        "ii",
+        $idEmpresaFiltro,
         $idEmpresaFiltro
     );
 }
@@ -242,57 +434,101 @@ if ($esSuperAdmin && $idEmpresaFiltro === 0) {
 
 /*
 |--------------------------------------------------------------------------
-| Ejecutar listado
+| EJECUTAR
 |--------------------------------------------------------------------------
 */
 
 $stmt->execute();
 
-$res = $stmt->get_result();
+$res =
+    $stmt->get_result();
 
 
 /*
 |--------------------------------------------------------------------------
-| Armar respuesta
+| ARMAR RESPUESTA
 |--------------------------------------------------------------------------
 */
 
 $usuariosMap = [];
 
-while ($fila = $res->fetch_assoc()) {
 
-    $idUser = intval(
-        $fila['idusuario']
-    );
+while (
+    $fila =
+        $res->fetch_assoc()
+) {
 
-    if (!isset($usuariosMap[$idUser])) {
+    $idUser =
+        intval(
+            $fila['idusuario']
+        );
+
+
+    if (
+        !isset(
+            $usuariosMap[$idUser]
+        )
+    ) {
 
         $usuariosMap[$idUser] = [
-            'idusuario' => $idUser,
-            'nombreapellido' => $fila['nombreapellido'],
-            'username' => $fila['username'],
-            'email' => $fila['email'],
-            'baja' => intval($fila['baja']),
+
+            'idusuario' =>
+                $idUser,
+
+            'nombreapellido' =>
+                $fila['nombreapellido'],
+
+            'username' =>
+                $fila['username'],
+
+            'email' =>
+                $fila['email'],
+
+            'baja' =>
+                intval(
+                    $fila['baja']
+                ),
+
             'accesos' => []
         ];
     }
 
 
-    if ($fila['idaplicacion'] !== null) {
+    /*
+     * Agregar acceso
+     */
+
+    if (
+        $fila['idaplicacion'] !== null
+    ) {
 
         $usuariosMap[$idUser]['accesos'][] = [
 
             'idaplicacion' =>
-                intval($fila['idaplicacion']),
+                intval(
+                    $fila['idaplicacion']
+                ),
 
             'idtipousuario' =>
-                intval($fila['idtipousuario']),
+                intval(
+                    $fila['idtipousuario']
+                ),
 
             'nombre_app' =>
                 $fila['nombre_app'],
 
             'rolnombre' =>
-                $fila['rolnombre']
+                $fila['rolnombre'],
+
+            'idempresa' =>
+                $fila['idempresa'] !== null
+                    ? intval(
+                        $fila['idempresa']
+                    )
+                    : null,
+
+            'nombre_empresa' =>
+                $fila['nombre_empresa']
         ];
     }
 }
@@ -300,28 +536,49 @@ while ($fila = $res->fetch_assoc()) {
 
 /*
 |--------------------------------------------------------------------------
-| Respuesta
+| RESPUESTA
 |--------------------------------------------------------------------------
 */
 
 echo json_encode([
+
     "status" => "ok",
 
-    "empresa" => $empresaActual ? [
-        "idempresa" =>
-            intval($empresaActual['idempresa']),
+    "empresa" =>
+        $empresaActual
+            ? [
 
-        "nombre" =>
-            $empresaActual['nombre']
-    ] : null,
+                "idempresa" =>
+                    intval(
+                        $empresaActual['idempresa']
+                    ),
+
+                "nombre" =>
+                    $empresaActual['nombre']
+
+            ]
+            : null,
+
+    /*
+     * Mantenemos el nombre por compatibilidad
+     * con el JS actual.
+     *
+     * Pero ahora significa ROOT.
+     */
+
+    "root" =>
+        $esRoot,
 
     "super_admin" =>
-        $esSuperAdmin,
+        false,
 
     "data" =>
-        array_values($usuariosMap)
+        array_values(
+            $usuariosMap
+        )
 ]);
 
 
 $stmt->close();
+
 $mysqli->close();

@@ -139,20 +139,54 @@
     <div class="modal fade" id="modalNuevoRol" tabindex="-1" role="dialog">
         <div class="modal-dialog" role="document">
             <div class="modal-content">
+
                 <div class="modal-header">
                     <h5 class="modal-title">Crear Nuevo Tipo de Usuario</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <button type="button"
+                            class="btn-close"
+                            data-bs-dismiss="modal"></button>
                 </div>
+
                 <div class="modal-body">
+
                     <div class="mb-3">
                         <label>Nombre del Rol:</label>
-                        <input type="text" id="nuevo_rol_nombre" class="form-control" placeholder="ej: Auditor Externo">
+                        <input
+                            type="text"
+                            id="nuevo_rol_nombre"
+                            class="form-control"
+                            placeholder="ej: Auditor Externo">
                     </div>
+
+                    <div class="mb-3">
+                        <label>Clave del Rol:</label>
+                        <input
+                            type="text"
+                            id="nuevo_rol_clave"
+                            class="form-control"
+                            placeholder="ej: AUDITOR_EXTERNO"
+                            maxlength="50">
+                        <small class="text-muted">
+                            Identificador interno del rol. Usá letras, números y guiones bajos.
+                        </small>
+                    </div>
+
                 </div>
+
                 <div class="modal-footer">
-                    <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button class="btn btn-primary" onclick="crearNuevoTipoUsuario()">Crear Tipo de Usuario</button>
+                    <button
+                        class="btn btn-secondary"
+                        data-bs-dismiss="modal">
+                        Cancelar
+                    </button>
+
+                    <button
+                        class="btn btn-primary"
+                        onclick="crearNuevoTipoUsuario()">
+                        Crear Tipo de Usuario
+                    </button>
                 </div>
+
             </div>
         </div>
     </div>

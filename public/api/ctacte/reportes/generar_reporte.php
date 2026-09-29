@@ -36,7 +36,11 @@ if (!$empresa) {
 }
 
 // CONECTAR A LA BASE DE LA EMPRESA
-$mysqli = conectarBase($empresa['db_nombre']);
+$mysqli = conectarDBEmpresa(
+    $mysqli,
+    (int)$empresa['idempresa'],
+    'DATOS'
+);
 /**
  * Helper para obtener rango de fechas exacto de un período según config_periodos_reglas
  */

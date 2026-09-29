@@ -31,7 +31,11 @@ validarPermisoEndpoint($mysqli, $userAuth);
 
 // 3. Luego conectar a la base de datos de ctacte
 $empresa = obtenerEmpresaActual($mysqli, $userAuth);
-$mysqli = conectarBase($empresa['db_nombre']);
+$mysqli = conectarDBEmpresa(
+    $mysqli,
+    (int)$empresa['idempresa'],
+    'DATOS'
+);
 
 try {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {

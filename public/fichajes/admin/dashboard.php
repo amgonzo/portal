@@ -176,8 +176,7 @@
     </div>
 
     <!-- Scripts y Modales -->
-    <?php include "modal/modal_detalle_marca.php"; ?> 
-    <script src="js/dashboard_fichajes.js?v=<?php echo time(); ?>"></script>
+
 </body>
 
 </html>

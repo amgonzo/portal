@@ -463,3 +463,8 @@ html[data-bs-theme="dark"] .pagination .page-item.disabled .page-link {
     color: #5d6775 !important;
     border-color: #353c46 !important;
 }
+
+.form-control::placeholder,
+.form-select::placeholder {
+    opacity: 0.55;
+}

@@ -32,7 +32,11 @@ validarPermisoEndpoint($mysqli, $userAuth);
 
 // 2. Conectar a la base de datos de CTACTE_
 $empresa = obtenerEmpresaActual($mysqli, $userAuth);
-$mysqli = conectarBase($empresa['db_nombre']);
+$mysqli = conectarDBEmpresa(
+    $mysqli,
+    (int)$empresa['idempresa'],
+    'DATOS'
+);
 
 // 3. Capturar la acción de forma segura separando GET y POST
 $action = $_SERVER['REQUEST_METHOD'] === 'POST' ? ($_GET['action'] ?? $_POST['action'] ?? '') : ($_GET['action'] ?? '');

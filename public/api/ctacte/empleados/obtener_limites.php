@@ -28,7 +28,11 @@ validarPermisoEndpoint($mysqli, $userAuth);
 
 // 2. Conectar a la base de datos de CTACTE_
 $empresa = obtenerEmpresaActual($mysqli, $userAuth);
-$mysqli = conectarBase($empresa['db_nombre']);
+$mysqli = conectarDBEmpresa(
+    $mysqli,
+    (int)$empresa['idempresa'],
+    'DATOS'
+);
 
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     http_response_code(405);

@@ -14,49 +14,82 @@ header('Content-Type: application/json');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     http_response_code(405);
-    echo json_encode(["status" => "error", "msg" => "metodo_no_permitido"]);
+
+    echo json_encode([
+        "status" => "error",
+        "msg" => "metodo_no_permitido"
+    ]);
+
     exit();
 }
+
+/* =========================================================
+   AUTENTICACIÓN Y PERMISOS
+   ========================================================= */
 
 $userAuth = validarTokenAPI($mysqli);
 validarPermisoEndpoint($mysqli, $userAuth);
 
+/* =========================================================
+   ID EMPRESA
+   ========================================================= */
+
 $idempresa = intval($_GET['id'] ?? 0);
 
-if (!$idempresa) {
-    echo json_encode(["status" => "error", "msg" => "ID de empresa no proporcionado"]);
+if ($idempresa <= 0) {
+
+    echo json_encode([
+        "status" => "error",
+        "msg" => "ID de empresa no proporcionado"
+    ]);
+
     exit;
 }
 
-// Obtener datos principales de la empresa
-$stmt = $mysqli->prepare("SELECT * FROM empresas WHERE idempresa = ?");
+/* =========================================================
+   OBTENER EMPRESA
+   ========================================================= */
+
+$stmt = $mysqli->prepare("
+    SELECT
+        idempresa,
+        nombre,
+        razon_social,
+        cuit,
+        slug,
+        db_nombre,
+        activo
+    FROM empresas
+    WHERE idempresa = ?
+");
+
 $stmt->bind_param("i", $idempresa);
 $stmt->execute();
+
 $resultado = $stmt->get_result();
 
 if ($resultado->num_rows === 0) {
-    echo json_encode(["status" => "error", "msg" => "Empresa no encontrada"]);
+
+    echo json_encode([
+        "status" => "error",
+        "msg" => "Empresa no encontrada"
+    ]);
+
+    $mysqli->close();
     exit;
 }
 
 $empresa = $resultado->fetch_assoc();
-$empresa['idempresa'] = intval($empresa['idempresa']);
-$empresa['activo'] = intval($empresa['activo']);
 
-// Obtener usuarios vinculados a esta empresa
-$stmtUsr = $mysqli->prepare("SELECT u.idusuario, u.nombreapellido, u.username 
-                             FROM usuarios_empresas ue 
-                             JOIN usuarios u ON ue.idusuario = u.idusuario 
-                             WHERE ue.idempresa = ? AND ue.activo = 1");
-$stmtUsr->bind_param("i", $idempresa);
-$stmtUsr->execute();
-$resUsr = $stmtUsr->get_result();
+$empresa['idempresa'] =
+    intval($empresa['idempresa']);
 
-$empresa['usuarios'] = [];
-while ($row = $resUsr->fetch_assoc()) {
-    $row['idusuario'] = intval($row['idusuario']);
-    $empresa['usuarios'][] = $row;
-}
+$empresa['activo'] =
+    intval($empresa['activo']);
+
+/* =========================================================
+   RESPUESTA
+   ========================================================= */
 
 echo json_encode([
     "status" => "ok",

@@ -15,7 +15,7 @@ require_once $rutas['autoload'];
 
 
 // =========================================================
-// 3. CARGAR .ENV DE fichajes
+// 3. CARGAR .ENV DE FICHAJES
 // =========================================================
 
 try {
@@ -121,103 +121,40 @@ $apiUrl = $_ENV['API_URL'] ?? '/api';
 
                         </li>
 
-                        <!-- EMPLEADOS -->
-
-                        <li
-                            class="nav-item menu-item-permiso"
-                            data-permiso="asociados_ver"
-                            style="display: none;"
-                        >
-
-                            <a
-                                href="empleados.php"
-                                class="nav-link"
-                            >
-                                <span data-diccionario="empleado_plural"></span>
+                        <li class="nav-item">
+                            <a href="empleados.php" class="nav-link">
+                                <i class="fa fa-users"></i> <span data-diccionario="empleado_plural"></span>
                             </a>
-
                         </li>
 
-                        <!-- RELOJES -->
-
-                        <li
-                            class="nav-item menu-item-permiso"
-                            data-permiso="relojes_ver"
-                            style="display: none;"
-                        >
-
-                            <a
-                                href="relojes.php"
-                                class="nav-link"
-                            >
-                                <span data-diccionario="reloj_plural"></span>
+                        <li class="nav-item">
+                            <a href="relojes.php" class="nav-link">
+                                <i class="fa fa-clock"></i> Relojes
                             </a>
-
                         </li>
-                         <!-- Turnos -->
 
-                        <li
-                            class="nav-item menu-item-permiso"
-                            data-permiso="turnos_ver"
-                            style="display: none;"
-                        >
-
-                            <a
-                                href="turnos.php"
-                                class="nav-link"
-                            >
-                                <span data-diccionario="turno_plural"></span>
+                        <li class="nav-item">
+                            <a href="turnos.php" class="nav-link">
+                                <i class="fa fa-calendar"></i> Turnos
                             </a>
-
                         </li>
-                         <!-- PERMISOS SALIDA -->
 
-                        <li
-                            class="nav-item menu-item-permiso"
-                            data-permiso="permisos_ver"
-                            style="display: none;"
-                        >
-
-                            <a
-                                href="permisos.php"
-                                class="nav-link"
-                            >
-                                <span data-diccionario="permiso_plural"></span>
+                        <li class="nav-item">
+                            <a href="permisos.php" class="nav-link">
+                                <i class="fa fa-key"></i> Permisos
                             </a>
-
                         </li>
-                         <!-- JORNADAS -->
 
-                        <li
-                            class="nav-item menu-item-permiso"
-                            data-permiso="jornadas_ver"
-                            style="display: none;"
-                        >
-
-                            <a
-                                href="jornada.php"
-                                class="nav-link"
-                            >
-                                <span data-diccionario="jornada_plural"></span>
+                        <li class="nav-item">
+                            <a href="jornadas.php" class="nav-link">
+                                <i class="fa fa-calendar-check"></i> Jornadas
                             </a>
-
                         </li>
-                        
-                        <!-- REPORTES -->
 
-                        <li
-                            class="nav-item menu-item-permiso"
-                            data-permiso="reportes_ver"
-                            style="display: none;"
-                        >
-
-                            <a
-                                href="reportes.php"
-                                class="nav-link"
-                            >
-                                Reportes
+                        <li class="nav-item">
+                            <a href="reportes.php" class="nav-link">
+                                <i class="fa fa-chart-bar"></i> Reportes
                             </a>
-
                         </li>
 
 
@@ -267,14 +204,14 @@ $apiUrl = $_ENV['API_URL'] ?? '/api';
                                 <!-- CATEGORÍAS -->
 
                                 <a
-                                    href="categorias.php"
+                                    href="agentes.php"
                                     class="dropdown-item item-permiso"
-                                    data-permiso="categorias_gestionar"
+                                    data-permiso="agentes_gestionar"
                                     style="display: none;"
                                 >
 
                                     <i class="fas fa-tags"></i>
-                                    Categorias
+                                    Agentes
 
                                 </a>
 
@@ -392,7 +329,6 @@ $apiUrl = $_ENV['API_URL'] ?? '/api';
                                     id="linkPasswordSso"
                                     href="#"
                                     class="dropdown-item"
-                                    
                                 >
 
                                     <i class="fa fa-key me-2"></i>
@@ -475,17 +411,19 @@ $apiUrl = $_ENV['API_URL'] ?? '/api';
 
 <script>
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
 
     // =========================================================
     // TOKEN
     // =========================================================
 
-    const token = localStorage.getItem('sso_token');
+    const token =
+        localStorage.getItem('sso_token');
 
     if (!token) {
 
-        window.location.href = <?= json_encode($rutas['login_sso_web']) ?>;
+        window.location.href =
+            <?= json_encode($rutas['login_sso_web']) ?>;
 
         return;
 
@@ -528,7 +466,8 @@ document.addEventListener("DOMContentLoaded", () => {
         divSso.style.display = 'block';
 
         btnSso.href =
-            urlPanelSso + '?token=' +
+            urlPanelSso +
+            '?token=' +
             encodeURIComponent(token);
 
     }
@@ -541,260 +480,278 @@ document.addEventListener("DOMContentLoaded", () => {
     if (linkPass) {
 
         linkPass.href =
-            urlPerfilSso + '?token=' +
+            urlPerfilSso +
+            '?token=' +
             encodeURIComponent(token);
 
     }
 
 
     // =========================================================
-    // VALIDAR TOKEN
+    // OBTENER CONTEXTO SSO
     // =========================================================
 
-    $.ajax({
+    try {
 
-        url: API_BASE + '/sso/auth/me.php',
-
-        type: 'GET',
-
-        headers: {
-            "Authorization": "Bearer " + token
-        },
-
-
-        success: function(response) {
-
-            const res =
-                (typeof response === 'string')
-                    ? JSON.parse(response)
-                    : response;
-
-
-            if (res.status === 'ok' && res.usuario) {
-
-                const user = res.usuario;
-
-
-                // =================================================
-                // NOMBRE USUARIO
-                // =================================================
-
-                const nombreDisplay =
-                    user.nombreapellido ||
-                    user.nombre ||
-                    user.username ||
-                    user.email ||
-                    'Usuario';
-
-
-                const spanUser =
-                    document.getElementById('nombre-usuario-ui');
-
-
-                if (spanUser) {
-
-                    spanUser.textContent =
-                        nombreDisplay;
-
+        const response =
+            await fetch(
+                API_BASE + '/sso/auth/me.php',
+                {
+                    method: 'GET',
+                    headers: obtenerHeadersSSO()
                 }
+            );
 
 
-                // =================================================
-                // GUARDAR USUARIO
-                // =================================================
+        const res =
+            await response.json();
 
-                localStorage.setItem(
-                    'usuario_actual',
-                    JSON.stringify(user)
-                );
 
-
-                // =================================================
-                // PERMISOS
-                // =================================================
-
-                const permisos =
-                    res.permisos || [];
-
-
-                localStorage.setItem(
-                    'sso_permisos',
-                    JSON.stringify(permisos)
-                );
-
-
-                function tienePermisoAPI(clave) {
-
-                    return Array.isArray(permisos) &&
-                           permisos.includes(clave);
-
-                }
-
-
-                // =================================================
-                // ADMINISTRADOR
-                // =================================================
-
-                const esAdmin =
-                    user.idtipousuario == 99 ||
-                    user.tipousuario == 99 ||
-                    user.id == 2;
-
-
-                // =================================================
-                // MENÚ PRINCIPAL
-                // =================================================
-
-                document
-                    .querySelectorAll('.menu-item-permiso')
-                    .forEach(item => {
-
-                        const permisoRequerido =
-                            item.getAttribute('data-permiso');
-
-
-                        if (
-                            esAdmin ||
-                            !permisoRequerido ||
-                            tienePermisoAPI(permisoRequerido)
-                        ) {
-
-                            item.style.display = 'block';
-
-                        }
-
-                    });
-
-
-                // =================================================
-                // CONFIGURACIÓN
-                // =================================================
-
-                document
-                    .querySelectorAll('.item-permiso')
-                    .forEach(item => {
-
-                        const permisoRequerido =
-                            item.getAttribute('data-permiso');
-
-
-                        if (
-                            esAdmin ||
-                            !permisoRequerido ||
-                            tienePermisoAPI(permisoRequerido)
-                        ) {
-
-                            item.style.display = 'block';
-
-                        }
-
-                    });
-
-
-                // =================================================
-                // MENÚ CONFIGURACIÓN
-                // =================================================
-
-                const verConfig =
-                    esAdmin ||
-                    tienePermisoAPI('configuracion_ver') ||
-                    tienePermisoAPI('sistema_configuracion') ||
-                    tienePermisoAPI('categorias_gestionar') ||
-                    tienePermisoAPI('periodos_configurar') ||
-                    tienePermisoAPI('auditoria_ver');
-
-
-                if (verConfig) {
-
-                    const menuConfig =
-                        document.querySelector('.menu-config');
-
-
-                    if (menuConfig) {
-
-                        menuConfig.style.display =
-                            'block';
-
-                    }
-
-                }
-
-
-                // =================================================
-                // AUDITORÍA
-                // =================================================
-
-                if (
-                    esAdmin ||
-                    tienePermisoAPI('auditoria_ver')
-                ) {
-
-                    const auditContainer =
-                        document.querySelector(
-                            '.seccion-auditoria-container'
-                        );
-
-
-                    const divAuditoria =
-                        document.querySelector(
-                            '.div-auditoria'
-                        );
-
-
-                    const headerAuditoria =
-                        document.querySelector(
-                            '.header-auditoria'
-                        );
-
-
-                    if (auditContainer) {
-
-                        auditContainer.style.display =
-                            'block';
-
-                    }
-
-
-                    if (divAuditoria) {
-
-                        divAuditoria.style.display =
-                            'block';
-
-                    }
-
-
-                    if (headerAuditoria) {
-
-                        headerAuditoria.style.display =
-                            'block';
-
-                    }
-
-                }
-
-
-            } else {
-
-                localStorage.clear();
-
-                window.location.href =
-                    <?= json_encode($rutas['login_sso_web']) ?>;
-
-            }
-
-        },
-
-
-        error: function() {
+        if (
+            res.status !== 'ok' ||
+            !res.usuario
+        ) {
 
             localStorage.clear();
 
             window.location.href =
                 <?= json_encode($rutas['login_sso_web']) ?>;
 
+            return;
+
         }
 
-    });
+
+        const user =
+            res.usuario;
+
+
+        // =====================================================
+        // NOMBRE USUARIO
+        // =====================================================
+
+        const nombreDisplay =
+            user.nombreapellido ||
+            user.nombre ||
+            user.username ||
+            user.email ||
+            'Usuario';
+
+
+        const spanUser =
+            document.getElementById(
+                'nombre-usuario-ui'
+            );
+
+
+        if (spanUser) {
+
+            spanUser.textContent =
+                nombreDisplay;
+
+        }
+
+
+        // =====================================================
+        // GUARDAR USUARIO
+        // =====================================================
+
+        localStorage.setItem(
+            'usuario_actual',
+            JSON.stringify(user)
+        );
+
+
+        // =====================================================
+        // PERMISOS
+        // =====================================================
+
+        const permisos =
+            Array.isArray(res.permisos)
+                ? res.permisos
+                : [];
+
+
+        MIS_PERMISOS =
+            permisos;
+
+
+        localStorage.setItem(
+            'sso_permisos',
+            JSON.stringify(permisos)
+        );
+
+
+        /*console.log(
+            'Permisos SSO cargados:',
+            MIS_PERMISOS
+        );*/
+
+
+        // =====================================================
+        // FUNCIÓN DE PERMISOS
+        // =====================================================
+
+        function tienePermisoAPI(clave) {
+
+            return Array.isArray(MIS_PERMISOS) &&
+                   MIS_PERMISOS.includes(clave);
+
+        }
+
+
+        // =====================================================
+        // ADMINISTRADOR
+        // =====================================================
+
+        const esAdmin =
+            user.idtipousuario == 99 ||
+            user.tipousuario == 99 ||
+            user.id == 2;
+
+
+        // =====================================================
+        // MENÚ PRINCIPAL
+        // =====================================================
+
+        document
+            .querySelectorAll('.menu-item-permiso')
+            .forEach(item => {
+
+                const permisoRequerido =
+                    item.getAttribute('data-permiso');
+
+
+                if (
+                    esAdmin ||
+                    !permisoRequerido ||
+                    tienePermisoAPI(permisoRequerido)
+                ) {
+
+                    item.style.display = 'block';
+
+                }
+
+            });
+
+
+        // =====================================================
+        // CONFIGURACIÓN
+        // =====================================================
+
+        document
+            .querySelectorAll('.item-permiso')
+            .forEach(item => {
+
+                const permisoRequerido =
+                    item.getAttribute('data-permiso');
+
+
+                if (
+                    esAdmin ||
+                    !permisoRequerido ||
+                    tienePermisoAPI(permisoRequerido)
+                ) {
+
+                    item.style.display = 'block';
+
+                }
+
+            });
+
+
+        // =====================================================
+        // MENÚ CONFIGURACIÓN
+        // =====================================================
+
+        const verConfig =
+            esAdmin ||
+            tienePermisoAPI('configuracion_ver') ||
+            tienePermisoAPI('sistema_configuracion') ||
+            tienePermisoAPI('categorias_gestionar') ||
+            tienePermisoAPI('periodos_configurar') ||
+            tienePermisoAPI('auditoria_ver');
+
+
+        if (verConfig) {
+
+            const menuConfig =
+                document.querySelector(
+                    '.menu-config'
+                );
+
+
+            if (menuConfig) {
+
+                menuConfig.style.display =
+                    'block';
+
+            }
+
+        }
+
+
+        // =====================================================
+        // AUDITORÍA
+        // =====================================================
+
+        if (
+            esAdmin ||
+            tienePermisoAPI('auditoria_ver')
+        ) {
+
+            const auditContainer =
+                document.querySelector(
+                    '.seccion-auditoria-container'
+                );
+
+
+            const divAuditoria =
+                document.querySelector(
+                    '.div-auditoria'
+                );
+
+
+            const headerAuditoria =
+                document.querySelector(
+                    '.header-auditoria'
+                );
+
+
+            if (auditContainer) {
+
+                auditContainer.style.display =
+                    'block';
+
+            }
+
+
+            if (divAuditoria) {
+
+                divAuditoria.style.display =
+                    'block';
+
+            }
+
+
+            if (headerAuditoria) {
+
+                headerAuditoria.style.display =
+                    'block';
+
+            }
+
+        }
+
+
+    } catch (error) {
+
+        console.error(
+            'Error consultando contexto SSO:',
+            error
+        );
+
+    }
 
 });
 

@@ -36,12 +36,16 @@ $empresa = $_ENV['APP_NAME'] ?? 'Mi Sistema';
             window.location.href = '../auth/login.php';
         }
     </script>
-
+    <script>
+        window.SSO_LOGIN_URL = <?= json_encode($rutas['login_sso_web']) ?>;
+    </script>
     <!-- Variables y Helpers Globales basados en Storage -->
     <script>
         const TOKEN = localStorage.getItem('sso_token') || '';
         // Puedes guardar los permisos en localStorage al loguear para usarlos aquí
-        const MIS_PERMISOS = JSON.parse(localStorage.getItem('sso_permisos') || '[]');
+        let MIS_PERMISOS = JSON.parse(
+            localStorage.getItem('sso_permisos') || '[]'
+        );
         window.APP_NAME = "Ecosistema SSO";
 
         function tienePermiso(clave) {
@@ -72,143 +76,10 @@ $empresa = $_ENV['APP_NAME'] ?? 'Mi Sistema';
     <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
     
+    <script src="<?= htmlspecialchars($rutas['js_sso_web']) ?>?v=<?= filemtime($rutas['js_sso']) ?>"></script>
+
     <script>
-        const API_BASE = "<?php echo $apiUrl; ?>";
-        // ID de usuario genérico o manejado por JS si es necesario
-        const ID_USUARIO_LOGUEADO = localStorage.getItem('sso_idusuario') || 0;
-        
-        function obtenerEmpresaActiva() {
-            try {
-                return JSON.parse(
-                    localStorage.getItem('sso_empresa_activa') || 'null'
-                );
-            } catch (e) {
-                return null;
-            }
-        }
-
-        function obtenerHeadersSSO() {
-            const token = localStorage.getItem('sso_token');
-            const empresa = obtenerEmpresaActiva();
-
-            const headers = {
-                "Authorization": "Bearer " + (token || "")
-            };
-
-            if (empresa && empresa.idempresa) {
-                headers["X-EMPRESA-ID"] = String(empresa.idempresa);
-            }
-
-            return headers;
-        }
-
-        const toast = (mensaje, icono = 'success') => {
-            Swal.mixin({
-                toast: true,
-                position: 'bottom-end',
-                showConfirmButton: false,
-                timer: 3000,
-                timerProgressBar: true
-            }).fire({ icon: icono, title: mensaje });
-        };
-
-        // Estado inicial de Modo Oscuro
-        (function() {
-            const temaGuardado = localStorage.getItem('theme_mode') || 'light';
-            document.documentElement.setAttribute('data-bs-theme', temaGuardado);
-        })();
-
-        function toggleModoOscuro() {
-            const html = document.documentElement;
-            const nuevoTema = (html.getAttribute('data-bs-theme') === 'dark') ? 'light' : 'dark';
-            html.setAttribute('data-bs-theme', nuevoTema);
-            localStorage.setItem('theme_mode', nuevoTema);
-            actualizarIconoTema(nuevoTema);
-        }
-
-        function actualizarIconoTema(tema) {
-            const icono = document.getElementById('iconoTheme');
-            const switchInput = document.getElementById('checkThemeSwitch');
-            if (tema === 'dark') {
-                if (icono) icono.className = 'bi bi-sun-fill text-warning me-2';
-                if (switchInput) switchInput.checked = true;
-            } else {
-                if (icono) icono.className = 'bi bi-moon-stars-fill me-2';
-                if (switchInput) switchInput.checked = false;
-            }
-        }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            actualizarIconoTema(localStorage.getItem('theme_mode') || 'light');
-        });
-
-
-    function cerrarSesion() {
-
-        // Guardar la empresa activa antes de cerrar sesión
-        const empresaActiva = localStorage.getItem('sso_empresa_activa');
-
-        if (empresaActiva) {
-            localStorage.setItem('sso_ultima_empresa', empresaActiva);
-        }
-
-        $.ajax({
-            type: "POST",
-            url: API_BASE + "/sso/auth/logout.php",
-            headers: obtenerHeadersSSO(),
-
-            complete: function() {
-
-                // Recuperar la última empresa
-                const ultimaEmpresa = localStorage.getItem('sso_ultima_empresa');
-
-                // Limpiar todo lo relacionado con la sesión
-                localStorage.clear();
-                sessionStorage.clear();
-
-                // Volver a guardar únicamente la última empresa
-                if (ultimaEmpresa) {
-                    localStorage.setItem('sso_ultima_empresa', ultimaEmpresa);
-                }
-
-                // Login central
-                window.location.href = "/sso/auth/login.php";
-            }
-        });
-    }
-
-
-
-
-        // Interceptor global para peticiones AJAX de jQuery
-    $(document).ajaxError(function(event, jqXHR, settings, thrownError) {
-        // Si la API responde con 401 (No autorizado / Token expirado)
-        if (jqXHR.status === 401) {
-            // Evitamos bucles si el error ocurre justamente en el login o logout
-            if (settings.url.includes('login.php') || settings.url.includes('logout.php')) {
-                return;
-            }
-
-            // Limpiamos el localStorage del token vencido
-            localStorage.removeItem('sso_token');
-
-            // Mostramos una alerta elegante si usas SweetAlert, o un alert común
-            if (typeof Swal !== 'undefined') {
-                Swal.fire({
-                    title: 'Sesión expirada',
-                    text: 'Tu sesión ha expirado por inactividad. Por favor, volví a ingresar.',
-                    icon: 'warning',
-                    confirmButtonText: 'Ir al Login',
-                    allowOutsideClick: false
-                }).then(() => {
-                    window.location.href = '../auth/login.php'; // Ajusta la ruta a tu login
-                });
-            } else {
-                alert('Tu sesión ha expirado por inactividad.');
-                window.location.href = '../auth/login.php';
-            }
-        }
-    });
+        const API_BASE = "<?php echo $apiUrl; ?>";   
     </script>
 </head>
 <body class="bg-body-tertiary">

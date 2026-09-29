@@ -17,25 +17,67 @@ $userAuth = validarTokenAPI($mysqli);
 validarPermisoEndpoint($mysqli, $userAuth);
 
 $idempresa = intval($_POST['id'] ?? 0);
-$tarea     = $_POST['tarea'] ?? ''; // 'alta' o 'baja'
+$tarea = $_POST['tarea'] ?? '';
 
-if (!$idempresa || !in_array($tarea, ['alta', 'baja'])) {
-    echo json_encode(["status" => "error", "msg" => "Parámetros inválidos"]);
+if ($idempresa <= 0 || !in_array($tarea, ['alta', 'baja'], true)) {
+    echo json_encode([
+        "status" => "error",
+        "msg" => "Parámetros inválidos"
+    ]);
     exit;
 }
 
+$stmtAntes = $mysqli->prepare("
+    SELECT *
+    FROM empresas
+    WHERE idempresa = ?
+");
+
+$stmtAntes->bind_param("i", $idempresa);
+$stmtAntes->execute();
+
+$resultadoAntes = $stmtAntes->get_result();
+
+if ($resultadoAntes->num_rows === 0) {
+    echo json_encode([
+        "status" => "error",
+        "msg" => "La empresa no existe"
+    ]);
+    exit;
+}
+
+$datosAntes = $resultadoAntes->fetch_assoc();
+
 $nuevoEstado = ($tarea === 'alta') ? 1 : 0;
 
-$datosAntes = $mysqli->query("SELECT * FROM empresas WHERE idempresa = $idempresa")->fetch_assoc();
+$stmt = $mysqli->prepare("
+    UPDATE empresas
+    SET activo = ?
+    WHERE idempresa = ?
+");
 
-$stmt = $mysqli->prepare("UPDATE empresas SET activo = ? WHERE idempresa = ?");
 $stmt->bind_param("ii", $nuevoEstado, $idempresa);
 
-if ($stmt->execute()) {
-    registrarLog($mysqli, 'cambiar_estado_empresa', 'empresas', $idempresa, $datosAntes, $_POST);
-    echo json_encode(["status" => "ok"]);
-} else {
-    echo json_encode(["status" => "error", "msg" => "No se pudo actualizar el estado"]);
+if (!$stmt->execute()) {
+    echo json_encode([
+        "status" => "error",
+        "msg" => "No se pudo actualizar el estado"
+    ]);
+    $mysqli->close();
+    exit;
 }
+
+registrarLog(
+    $mysqli,
+    'cambiar_estado_empresa',
+    'empresas',
+    $idempresa,
+    $datosAntes,
+    $_POST
+);
+
+echo json_encode([
+    "status" => "ok"
+]);
 
 $mysqli->close();

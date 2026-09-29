@@ -30,7 +30,11 @@ $userAuth = validarTokenAPI($mysqli ?? null);
 validarPermisoEndpoint($mysqli, $userAuth);
 
 $empresa = obtenerEmpresaActual($mysqli, $userAuth);
-$mysqli = conectarBase($empresa['db_nombre']);
+$mysqli = conectarDBEmpresa(
+    $mysqli,
+    (int)$empresa['idempresa'],
+    'DATOS'
+);
 
 if (empty($_GET['id'])) {
     echo json_encode(["status" => "error", "msg" => "Falta el identificador del ticket."]);

@@ -1,39 +1,54 @@
 <?php
 
-// 1. Cargamos nuestro archivo central de rutas
+// =========================================================
+// 1. CARGAR RUTAS CENTRALES
+// =========================================================
+
 $rutas = require $_SERVER['DOCUMENT_ROOT'] . '/api/config/rutas.php';
 
-// 2. Cargamos Composer
+// =========================================================
+// 2. CARGAR COMPOSER
+// =========================================================
+
 require_once $rutas['autoload'];
 
+// =========================================================
+// 3. CARGAR .ENV
+// =========================================================
+
 try {
-    // 3. Cargamos .env
+
     $dotenv = Dotenv\Dotenv::createImmutable($rutas['env_api']);
     $dotenv->load();
+
 } catch (Exception $e) {
     // Manejo silencioso si no hay .env
 }
+
+// =========================================================
+// 4. CONEXIÓN Y AUDITORÍA
+// =========================================================
 
 require_once $rutas['conexion'];
 require_once $rutas['auditoria'];
 
 header('Content-Type: application/json');
 
-// ===============================
+// =========================================================
 // 📥 DATOS
-// ===============================
+// =========================================================
 
 $input = json_decode(file_get_contents('php://input'), true) ?? $_POST;
 
-$u = trim($input['username'] ?? '');
-$p = trim($input['password'] ?? '');
+$email = trim($input['email'] ?? '');
+$p      = trim($input['password'] ?? '');
 $empresaSlug = trim($input['empresa'] ?? '');
 
-// ===============================
+// =========================================================
 // 🔴 VALIDAR DATOS
-// ===============================
+// =========================================================
 
-if (empty($u) || empty($p)) {
+if (empty($email) || empty($p)) {
 
     registrarLog(
         $mysqli,
@@ -41,7 +56,7 @@ if (empty($u) || empty($p)) {
         'usuarios',
         null,
         null,
-        ['user_intentado' => $u]
+        ['email_intentado' => $email]
     );
 
     echo json_encode([
@@ -52,18 +67,24 @@ if (empty($u) || empty($p)) {
     exit;
 }
 
-// ===============================
-// 🔐 BUSCAR USUARIO
-// ===============================
+// =========================================================
+// 🔐 BUSCAR USUARIO POR EMAIL
+// =========================================================
 
 $sql = "
     SELECT
         u.idusuario,
+        u.username,
+        u.email,
         u.nombreapellido,
         u.password,
-        u.baja
+        u.baja,
+        u.idtiposistema,
+        uts.clave AS tipo_sistema
     FROM usuarios u
-    WHERE u.username = ?
+    INNER JOIN usuarios_tipo_sistema uts
+        ON uts.idtiposistema = u.idtiposistema
+    WHERE u.email = ?
     LIMIT 1
 ";
 
@@ -79,7 +100,7 @@ if (!$stmt) {
     exit;
 }
 
-$stmt->bind_param("s", $u);
+$stmt->bind_param("s", $email);
 $stmt->execute();
 
 $res = $stmt->get_result();
@@ -88,9 +109,9 @@ $user = $res->fetch_assoc();
 
 $stmt->close();
 
-// ===============================
+// =========================================================
 // ❌ USUARIO NO EXISTE
-// ===============================
+// =========================================================
 
 if (!$user) {
 
@@ -102,9 +123,9 @@ if (!$user) {
     exit;
 }
 
-// ===============================
+// =========================================================
 // ❌ USUARIO DADO DE BAJA
-// ===============================
+// =========================================================
 
 if ((int)$user['baja'] === 1) {
 
@@ -114,7 +135,7 @@ if ((int)$user['baja'] === 1) {
         'usuarios',
         $user['idusuario'],
         null,
-        ['user' => $u]
+        ['username' => $user['username']]
     );
 
     echo json_encode([
@@ -125,9 +146,9 @@ if ((int)$user['baja'] === 1) {
     exit;
 }
 
-// ===============================
+// =========================================================
 // ❌ PASSWORD INCORRECTA
-// ===============================
+// =========================================================
 
 if (!password_verify($p, $user['password'])) {
 
@@ -137,7 +158,7 @@ if (!password_verify($p, $user['password'])) {
         'usuarios',
         $user['idusuario'],
         null,
-        ['user' => $u]
+        ['username' => $user['username']]
     );
 
     echo json_encode([
@@ -148,125 +169,69 @@ if (!password_verify($p, $user['password'])) {
     exit;
 }
 
-// ===============================
-// 👑 DETECTAR SUPER_ADMIN
-// ===============================
+// =========================================================
+// 👑 TIPO DE USUARIO DEL SISTEMA
+// =========================================================
 
-$sqlSuperAdmin = "
-    SELECT 1
-    FROM usuarios_roles_apps ura
-    INNER JOIN tiposusuario tu
-        ON tu.idtipousuario = ura.idtipousuario
-    WHERE ura.idusuario = ?
-      AND UPPER(TRIM(tu.clave)) = 'SUPER_ADMIN'
-    LIMIT 1
-";
+$esRoot = (
+    strtoupper(trim($user['tipo_sistema'])) === 'ROOT'
+);
 
-$stmtSuperAdmin = $mysqli->prepare($sqlSuperAdmin);
-
-$esSuperAdmin = false;
-
-if ($stmtSuperAdmin) {
-
-    $stmtSuperAdmin->bind_param(
-        "i",
-        $user['idusuario']
-    );
-
-    $stmtSuperAdmin->execute();
-
-    $resSuperAdmin = $stmtSuperAdmin->get_result();
-
-    $esSuperAdmin = $resSuperAdmin->num_rows > 0;
-
-    $stmtSuperAdmin->close();
-}
-
-// ===============================
-// 🏢 OBTENER EMPRESAS DEL USUARIO
-// ===============================
-//
-// La empresa enviada por el formulario es OPCIONAL.
-//
-// - Si viene una empresa:
-//      se valida que el usuario tenga acceso.
-// - Si no viene:
-//      se buscan las empresas asignadas.
-//      1 empresa  -> se selecciona automáticamente.
-//      varias     -> se devuelven para selector.
-//      0          -> error.
-//
-// SUPER_ADMIN:
-//      puede entrar sin empresa.
-//
+// =========================================================
+// 🏢 EMPRESAS
+// =========================================================
 
 $empresaData = null;
 $idEmpresa = null;
-
-
-// ---------------------------------------------------------
-// 1. Obtener empresas asignadas al usuario
-// ---------------------------------------------------------
-
-$sqlEmpresas = "
-    SELECT
-        e.idempresa,
-        e.nombre,
-        e.razon_social,
-        e.slug
-    FROM empresas e
-    INNER JOIN usuarios_empresas ue
-        ON e.idempresa = ue.idempresa
-    WHERE ue.idusuario = ?
-      AND ue.activo = 1
-      AND e.activo = 1
-    ORDER BY e.nombre ASC
-";
-
-$stmtEmp = $mysqli->prepare($sqlEmpresas);
-
-if (!$stmtEmp) {
-
-    echo json_encode([
-        "status" => "error",
-        "msg" => "sql_error"
-    ]);
-
-    exit;
-}
-
-$stmtEmp->bind_param(
-    "i",
-    $user['idusuario']
-);
-
-$stmtEmp->execute();
-
-$resEmp = $stmtEmp->get_result();
-
 $empresas = [];
 
-while ($emp = $resEmp->fetch_assoc()) {
+// =========================================================
+// ROOT
+// =========================================================
 
-    $empresas[] = $emp;
-}
+if ($esRoot) {
 
-$stmtEmp->close();
+    // -----------------------------------------------------
+    // ROOT → TODAS LAS EMPRESAS ACTIVAS
+    // -----------------------------------------------------
 
+    $sqlEmpresas = "
+        SELECT
+            e.idempresa,
+            e.nombre,
+            e.razon_social,
+            e.slug
+        FROM empresas e
+        WHERE e.activo = 1
+        ORDER BY e.nombre ASC
+    ";
 
-// ---------------------------------------------------------
-// 2. SUPER_ADMIN
-// ---------------------------------------------------------
+    $stmtEmp = $mysqli->prepare($sqlEmpresas);
 
-if ($esSuperAdmin) {
+    if (!$stmtEmp) {
 
-    /*
-     * Si SUPER_ADMIN indicó una empresa,
-     * la validamos.
-     *
-     * Si no indicó ninguna, puede continuar
-     * sin empresa.
-     */
+        echo json_encode([
+            "status" => "error",
+            "msg" => "sql_error"
+        ]);
+
+        exit;
+    }
+
+    $stmtEmp->execute();
+
+    $resEmp = $stmtEmp->get_result();
+
+    while ($emp = $resEmp->fetch_assoc()) {
+        $empresas[] = $emp;
+    }
+
+    $stmtEmp->close();
+
+    // -----------------------------------------------------
+    // Si vino una empresa, la validamos.
+    // ROOT no está obligado a indicar empresa.
+    // -----------------------------------------------------
 
     if ($empresaSlug !== '') {
 
@@ -322,16 +287,61 @@ if ($esSuperAdmin) {
 
 }
 
-
-// ---------------------------------------------------------
-// 3. USUARIO NORMAL
-// ---------------------------------------------------------
+// =========================================================
+// USER NORMAL
+// =========================================================
 
 else {
 
-    // ---------------------------------------------
-    // No tiene empresas
-    // ---------------------------------------------
+    // -----------------------------------------------------
+    // Obtener solamente las empresas asignadas
+    // -----------------------------------------------------
+
+    $sqlEmpresas = "
+        SELECT
+            e.idempresa,
+            e.nombre,
+            e.razon_social,
+            e.slug
+        FROM empresas e
+        INNER JOIN usuarios_empresas ue
+            ON e.idempresa = ue.idempresa
+        WHERE ue.idusuario = ?
+          AND ue.activo = 1
+          AND e.activo = 1
+        ORDER BY e.nombre ASC
+    ";
+
+    $stmtEmp = $mysqli->prepare($sqlEmpresas);
+
+    if (!$stmtEmp) {
+
+        echo json_encode([
+            "status" => "error",
+            "msg" => "sql_error"
+        ]);
+
+        exit;
+    }
+
+    $stmtEmp->bind_param(
+        "i",
+        $user['idusuario']
+    );
+
+    $stmtEmp->execute();
+
+    $resEmp = $stmtEmp->get_result();
+
+    while ($emp = $resEmp->fetch_assoc()) {
+        $empresas[] = $emp;
+    }
+
+    $stmtEmp->close();
+
+    // -----------------------------------------------------
+    // Sin empresas
+    // -----------------------------------------------------
 
     if (empty($empresas)) {
 
@@ -343,10 +353,9 @@ else {
         exit;
     }
 
-
-    // ---------------------------------------------
-    // Se indicó empresa explícitamente
-    // ---------------------------------------------
+    // -----------------------------------------------------
+    // Empresa indicada
+    // -----------------------------------------------------
 
     if ($empresaSlug !== '') {
 
@@ -373,155 +382,222 @@ else {
         }
     }
 
-
-    // ---------------------------------------------
-    // No se indicó empresa
-    // ---------------------------------------------
+    // -----------------------------------------------------
+    // Sin empresa indicada
+    // -----------------------------------------------------
 
     else {
 
-        // Una sola empresa:
-        // entra directamente.
+        // Una empresa → entra directamente.
 
         if (count($empresas) === 1) {
 
             $empresaData = $empresas[0];
 
             $idEmpresa = (int)$empresaData['idempresa'];
-
         }
 
-        // Varias empresas:
-        // NO entra todavía.
-        // El frontend deberá mostrar selector.
+        // Varias → selector posterior.
 
         else {
 
-            echo json_encode([
-                "status" => "ok",
-                "seleccionar_empresa" => true,
-                "token" => null,
-                "usuario" => [
-                    "idusuario" => $user['idusuario'],
-                    "nombre" => $user['nombreapellido'],
-                    "super_admin" => false
-                ],
-                "empresas" => $empresas
-            ]);
-
-            exit;
+            $empresaData = null;
+            $idEmpresa = null;
         }
     }
 }
 
-// ===============================
-// 🚀 OBTENER APLICACIONES ASIGNADAS
-// ===============================
-
-$sqlApps = "
-    SELECT DISTINCT
-        a.idaplicacion,
-        a.nombre,
-        a.slug,
-        a.url_base
-    FROM aplicaciones a
-    INNER JOIN usuarios_roles_apps ura
-        ON a.idaplicacion = ura.idaplicacion
-    WHERE ura.idusuario = ?
-      AND a.activo = 1
-";
-
-$stmtApps = $mysqli->prepare($sqlApps);
-
-if (!$stmtApps) {
-
-    echo json_encode([
-        "status" => "error",
-        "msg" => "sql_error"
-    ]);
-
-    exit;
-}
-
-$stmtApps->bind_param(
-    "i",
-    $user['idusuario']
-);
-
-$stmtApps->execute();
-
-$resApps = $stmtApps->get_result();
+// =========================================================
+// 🚀 APLICACIONES
+// =========================================================
+//
+// ROOT:
+//     No necesita usuarios_roles_apps.
+//     Puede acceder a las aplicaciones activas.
+//
+// USER:
+//     Solamente las aplicaciones asignadas.
+//
+// =========================================================
 
 $aplicaciones = [];
 
-while ($app = $resApps->fetch_assoc()) {
-    $aplicaciones[] = $app;
-}
+if ($esRoot) {
 
-$stmtApps->close();
+    // -----------------------------------------------------
+    // ROOT → APLICACIONES ACTIVAS
+    // -----------------------------------------------------
 
-// ❌ Sin aplicaciones
-if (empty($aplicaciones)) {
+    $sqlApps = "
+        SELECT DISTINCT
+            a.idaplicacion,
+            a.nombre,
+            a.slug,
+            a.url_base
+        FROM aplicaciones a
+        WHERE a.activo = 1
+        ORDER BY a.idaplicacion
+    ";
 
-    registrarLog(
-        $mysqli,
-        'login_sin_permiso_app',
-        'usuarios_roles_apps',
-        null,
-        $user['idusuario']
-    );
+    $stmtApps = $mysqli->prepare($sqlApps);
 
-    echo json_encode([
-        "status" => "error",
-        "msg" => "sin_acceso_app"
-    ]);
+    if (!$stmtApps) {
 
-    exit;
-}
+        echo json_encode([
+            "status" => "error",
+            "msg" => "sql_error"
+        ]);
 
-// ===============================
-// 🛡 ROL Y PERMISOS SSO
-// ===============================
+        exit;
+    }
 
-$idTipoUsuarioSSO = 0;
+    $stmtApps->execute();
 
-$sqlSSO = "
-    SELECT ura.idtipousuario
-    FROM usuarios_roles_apps ura
-    INNER JOIN aplicaciones a
-        ON ura.idaplicacion = a.idaplicacion
-    WHERE ura.idusuario = ?
-      AND (
-            a.slug = 'sso_central'
-            OR a.slug = 'sso'
-            OR a.idaplicacion = 1
-          )
-    LIMIT 1
-";
+    $resApps = $stmtApps->get_result();
 
-$stmtSSO = $mysqli->prepare($sqlSSO);
+    while ($app = $resApps->fetch_assoc()) {
+        $aplicaciones[] = $app;
+    }
 
-if ($stmtSSO) {
+    $stmtApps->close();
 
-    $stmtSSO->bind_param(
+} else {
+
+    // -----------------------------------------------------
+    // USER → aplicaciones asignadas
+    // -----------------------------------------------------
+
+    $sqlApps = "
+        SELECT DISTINCT
+            a.idaplicacion,
+            a.nombre,
+            a.slug,
+            a.url_base
+        FROM aplicaciones a
+        INNER JOIN usuarios_roles_apps ura
+            ON a.idaplicacion = ura.idaplicacion
+        WHERE ura.idusuario = ?
+          AND a.activo = 1
+        ORDER BY a.idaplicacion
+    ";
+
+    $stmtApps = $mysqli->prepare($sqlApps);
+
+    if (!$stmtApps) {
+
+        echo json_encode([
+            "status" => "error",
+            "msg" => "sql_error"
+        ]);
+
+        exit;
+    }
+
+    $stmtApps->bind_param(
         "i",
         $user['idusuario']
     );
 
-    $stmtSSO->execute();
+    $stmtApps->execute();
 
-    $resSSO = $stmtSSO->get_result();
+    $resApps = $stmtApps->get_result();
 
-    if ($rowSSO = $resSSO->fetch_assoc()) {
-        $idTipoUsuarioSSO = (int)$rowSSO['idtipousuario'];
+    while ($app = $resApps->fetch_assoc()) {
+        $aplicaciones[] = $app;
     }
 
-    $stmtSSO->close();
+    $stmtApps->close();
+
+    // -----------------------------------------------------
+    // USER sin aplicaciones
+    // -----------------------------------------------------
+
+    if (empty($aplicaciones)) {
+
+        registrarLog(
+            $mysqli,
+            'login_sin_permiso_app',
+            'usuarios_roles_apps',
+            null,
+            $user['idusuario']
+        );
+
+        echo json_encode([
+            "status" => "error",
+            "msg" => "sin_acceso_app"
+        ]);
+
+        exit;
+    }
 }
 
-// ===============================
+// =========================================================
+// 🛡 ROL Y PERMISOS SSO
+// =========================================================
+
+$idTipoUsuarioSSO = 0;
+
+// =========================================================
+// ROOT
+// =========================================================
+//
+// ROOT no tiene rol en usuarios_roles_apps.
+//
+// Para el sistema central no necesitamos asignarle
+// SUPER_ADMIN mediante una aplicación.
+//
+// =========================================================
+
+if ($esRoot) {
+
+    $idTipoUsuarioSSO = 1;
+
+}
+
+// =========================================================
+// USER
+// =========================================================
+
+else {
+
+    $sqlSSO = "
+        SELECT ura.idtipousuario
+        FROM usuarios_roles_apps ura
+        INNER JOIN aplicaciones a
+            ON ura.idaplicacion = a.idaplicacion
+        WHERE ura.idusuario = ?
+          AND (
+                a.slug = 'sso_central'
+                OR a.slug = 'sso'
+                OR a.idaplicacion = 1
+              )
+        LIMIT 1
+    ";
+
+    $stmtSSO = $mysqli->prepare($sqlSSO);
+
+    if ($stmtSSO) {
+
+        $stmtSSO->bind_param(
+            "i",
+            $user['idusuario']
+        );
+
+        $stmtSSO->execute();
+
+        $resSSO = $stmtSSO->get_result();
+
+        if ($rowSSO = $resSSO->fetch_assoc()) {
+            $idTipoUsuarioSSO = (int)$rowSSO['idtipousuario'];
+        }
+
+        $stmtSSO->close();
+    }
+}
+
+// =========================================================
 // 🔑 PERMISOS SSO
-// ===============================
+// =========================================================
 
 $permisosSSO = [];
 
@@ -559,9 +635,9 @@ if ($idTipoUsuarioSSO > 0) {
     }
 }
 
-// ===============================
+// =========================================================
 // 🔐 GENERAR TOKEN
-// ===============================
+// =========================================================
 
 $token = bin2hex(random_bytes(32));
 
@@ -590,9 +666,9 @@ if ($stmtT) {
     $stmtT->close();
 }
 
-// ===============================
+// =========================================================
 // ✅ AUDITORÍA LOGIN
-// ===============================
+// =========================================================
 
 registrarLog(
     $mysqli,
@@ -602,9 +678,9 @@ registrarLog(
     $user['idusuario']
 );
 
-// ===============================
+// =========================================================
 // 📤 RESPUESTA
-// ===============================
+// =========================================================
 
 echo json_encode([
     "status" => "ok",
@@ -613,9 +689,13 @@ echo json_encode([
 
     "usuario" => [
         "idusuario" => $user['idusuario'],
+        "username" => $user['username'],
+        "email" => $user['email'],
         "nombre" => $user['nombreapellido'],
+        "idtiposistema" => (int)$user['idtiposistema'],
+        "tipo_sistema" => $user['tipo_sistema'],
         "idtipousuario" => $idTipoUsuarioSSO,
-        "super_admin" => $esSuperAdmin
+        "super_admin" => $esRoot
     ],
 
     "empresa" => $empresaData,

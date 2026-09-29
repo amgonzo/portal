@@ -33,6 +33,7 @@ $userAuth = validarTokenAPI($mysqli);
 validarPermisoEndpoint($mysqli, $userAuth);
 
 $descripcion = trim($_POST['nombre'] ?? '');
+$clave = strtoupper(trim($_POST['clave'] ?? ''));
 
 if (!$descripcion) {
     echo json_encode(["status" => "error", "msg" => "Nombre del rol requerido"]);
@@ -47,9 +48,9 @@ if ($check->get_result()->num_rows > 0) {
     exit(json_encode(["status" => "error", "msg" => "El tipo de usuario ya existe"]));
 }
 
-$sql = "INSERT INTO tiposusuario (descripcion) VALUES (?)";
+$sql = "INSERT INTO tiposusuario (descripcion, clave) VALUES (?,?)";
 $stmt = $mysqli->prepare($sql);
-$stmt->bind_param("s", $descripcion);
+$stmt->bind_param("ss", $descripcion, $clave);
 
 if ($stmt->execute()) {
     $idNuevo = $mysqli->insert_id;

@@ -39,8 +39,20 @@ $(document).ready(function() {
 
     // Eventos controlados con validación de existencia de valores
     $(document).on("change", "#select_aplicacion", function() {
+
         const idApp = $(this).val();
+
         if (idApp) {
+            cargarPermisosRol();
+        }
+    });
+
+
+    $(document).on("change", "#select_tipo_permiso", function() {
+
+        const idTipo = $(this).val();
+
+        if (idTipo) {
             cargarPermisosRol();
         }
     });
@@ -59,7 +71,7 @@ function tienePermiso(clave) {
 function cargarAplicaciones() {
     $.ajax({
         type: "GET",
-        url: API_BASE + "/sso/aplicaciones/listar_aplicaciones.php",
+        url: API_BASE + "/sso/permisos/listar_aplicaciones.php",
         headers: obtenerHeadersSSO(),
         success: function(response) {
             const res = (typeof response === 'string') ? JSON.parse(response) : response;
@@ -83,7 +95,7 @@ function cargarAplicaciones() {
 function cargarTipos() {
     $.ajax({
         type: "GET",
-        url: API_BASE + "/sso/usuarios/listar_tipos_usuario.php",
+        url: API_BASE + "/sso/permisos/listar_tipos_usuario.php",
         headers: obtenerHeadersSSO(),
         success: function(response) {
             const res = (typeof response === 'string') ? JSON.parse(response) : response;
@@ -290,28 +302,77 @@ function crearPermisoBase() {
 }
 
 function crearNuevoTipoUsuario() {
-    let nombre = $("#nuevo_rol_nombre").val();
+
+    const nombre = $("#nuevo_rol_nombre").val().trim();
+    const clave = $("#nuevo_rol_clave").val().trim().toUpperCase();
 
     if (!nombre) {
         toast("El nombre del tipo de usuario es obligatorio", "warning");
         return;
     }
 
+    if (!clave) {
+        toast("La clave del tipo de usuario es obligatoria", "warning");
+        return;
+    }
+
     $.ajax({
         type: "POST",
         url: API_BASE + "/sso/usuarios/crear_tipo_usuario.php",
-        data: { nombre: nombre },
+
+        data: {
+            nombre: nombre,
+            clave: clave
+        },
+
         headers: obtenerHeadersSSO(),
+
         success: function(response) {
-            const res = (typeof response === 'string') ? JSON.parse(response) : response;
+
+            const res = (typeof response === 'string')
+                ? JSON.parse(response)
+                : response;
+
             if (res.status === "ok") {
-                toast("Tipo de usuario creado correctamente");
+
                 $("#modalNuevoRol").modal("hide");
+
                 $("#nuevo_rol_nombre").val("");
-                cargarTipos(); 
+                $("#nuevo_rol_clave").val("");
+
+                toast("Tipo de usuario creado correctamente");
+
+                cargarTipos();
+
             } else {
-                toast("Error: " + res.msg, "error");
+
+                toast(
+                    "Error: " + (res.msg || "No se pudo crear el tipo de usuario"),
+                    "error"
+                );
             }
+        },
+
+        error: function(xhr) {
+
+            console.error(
+                "Error al crear tipo de usuario:",
+                xhr.responseText
+            );
+
+            let mensaje = "Error de conexión con el servidor";
+
+            if (xhr.responseText) {
+                try {
+                    const res = JSON.parse(xhr.responseText);
+
+                    if (res.msg) {
+                        mensaje = res.msg;
+                    }
+                } catch (e) {}
+            }
+
+            toast(mensaje, "error");
         }
     });
 }

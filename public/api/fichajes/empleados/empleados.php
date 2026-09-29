@@ -28,7 +28,11 @@ validarPermisoEndpoint($mysqli, $userAuth);
 
 // 2. Conectar a la base de datos de la empresa actual
 $empresa = obtenerEmpresaActual($mysqli, $userAuth);
-$mysqli = conectarBase($empresa['db_nombre']);
+$mysqli = conectarDBEmpresa(
+    $mysqli,
+    (int)$empresa['idempresa'],
+    'DATOS'
+);
 
 // 3. Capturar la acción de forma segura separando GET y POST
 $action = $_SERVER['REQUEST_METHOD'] === 'POST' ? ($_GET['action'] ?? $_POST['action'] ?? '') : ($_GET['action'] ?? '');
@@ -215,7 +219,185 @@ try {
             $msgAccion = $activo === 1 ? "Empleado dado de alta con éxito." : "Empleado dado de baja correctamente.";
             echo json_encode(["status" => "ok", "msg" => $msgAccion]);
             break;
-            
+        
+            // ---------------------------------------------------------------------
+            // 5. SOLICITAR CARGA DEL EMPLEADO EN EL LECTOR
+            // ---------------------------------------------------------------------
+            case 'solicitar_carga':
+
+                if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                    throw new Exception("Método no permitido.");
+                }
+
+                $idempleado = (int)($_POST['idempleado'] ?? 0);
+
+                if ($idempleado <= 0) {
+                    throw new Exception("ID de empleado inválido.");
+                }
+
+                // Verificar empleado
+                $stmt = $mysqli->prepare("
+                    SELECT
+                        idempleado,
+                        documento,
+                        nombre,
+                        apellido,
+                        tarjeta,
+                        activo
+                    FROM empleados
+                    WHERE idempleado = ?
+                    LIMIT 1
+                ");
+
+                if (!$stmt) {
+                    throw new Exception("Error al consultar el empleado.");
+                }
+
+                $stmt->bind_param("i", $idempleado);
+                $stmt->execute();
+
+                $empleado = $stmt->get_result()->fetch_assoc();
+
+                $stmt->close();
+
+                if (!$empleado) {
+                    throw new Exception("Empleado no encontrado.");
+                }
+
+                if ((int)$empleado['activo'] !== 1) {
+                    throw new Exception("El empleado está inactivo.");
+                }
+
+                // Buscar lector asignado al empleado
+                $stmt = $mysqli->prepare("
+                    SELECT
+                        el.idlector,
+                        l.nombre,
+                        l.ip,
+                        l.puerto,
+                        l.ubicacion,
+                        l.tipo_uso
+                    FROM empleados_lectores el
+                    INNER JOIN lectores l
+                        ON l.idlector = el.idlector
+                    WHERE el.idempleado = ?
+                    AND el.activo = 1
+                    AND l.activo = 1
+                    LIMIT 1
+                ");
+
+                if (!$stmt) {
+                    throw new Exception("Error al consultar el lector asignado.");
+                }
+
+                $stmt->bind_param("i", $idempleado);
+                $stmt->execute();
+
+                $lector = $stmt->get_result()->fetch_assoc();
+
+                $stmt->close();
+
+                if (!$lector) {
+                    throw new Exception(
+                        "El empleado no tiene un lector activo asignado."
+                    );
+                }
+
+                /*
+                * Datos que Node necesitará para ejecutar la operación.
+                * Se almacenan como JSON en la tarea.
+                */
+                $datosTarea = json_encode([
+                    "idempleado" => (int)$empleado['idempleado'],
+                    "documento"  => $empleado['documento'],
+                    "nombre"     => $empleado['nombre'],
+                    "apellido"   => $empleado['apellido'],
+                    "tarjeta"    => $empleado['tarjeta']
+                ], JSON_UNESCAPED_UNICODE);
+
+                if ($datosTarea === false) {
+                    throw new Exception("No se pudieron preparar los datos de la tarea.");
+                }
+
+                /*
+                * Crear tarea para Node.
+                */
+                $accion = 'cargar_empleado';
+                $estado = 'pendiente';
+                $intentos = 0;
+
+                $stmt = $mysqli->prepare("
+                    INSERT INTO tareas_agente
+                    (
+                        idlector,
+                        idempleado,
+                        accion,
+                        datos,
+                        estado,
+                        intentos
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?)
+                ");
+
+                if (!$stmt) {
+                    throw new Exception(
+                        "No se pudo preparar la creación de la tarea: " .
+                        $mysqli->error
+                    );
+                }
+
+                $idlector = (int)$lector['idlector'];
+
+                $stmt->bind_param(
+                    "iisssi",
+                    $idlector,
+                    $idempleado,
+                    $accion,
+                    $datosTarea,
+                    $estado,
+                    $intentos
+                );
+
+                if (!$stmt->execute()) {
+                    throw new Exception(
+                        "No se pudo crear la solicitud: " .
+                        $stmt->error
+                    );
+                }
+
+                $idTarea = $stmt->insert_id;
+
+                $stmt->close();
+
+                if (function_exists('registrarLog')) {
+
+                    $idUsuarioLog = $userAuth['idusuario'] ?? null;
+
+                    @registrarLog(
+                        $mysqli,
+                        'solicitar_carga_empleado_lector',
+                        'tareas_agente',
+                        $idTarea,
+                        $idUsuarioLog,
+                        null,
+                        [
+                            "idempleado" => $idempleado,
+                            "idlector"   => $idlector,
+                            "accion"     => $accion
+                        ]
+                    );
+                }
+
+                echo json_encode([
+                    "status" => "ok",
+                    "msg" => "Solicitud creada correctamente.",
+                    "idtarea" => (int)$idTarea,
+                    "idempleado" => $idempleado,
+                    "idlector" => $idlector
+                ]);
+
+                break;
+                
         default:
             throw new Exception("Acción no válida.");
     }

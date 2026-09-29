@@ -3,11 +3,12 @@ let empleadosList = [];
 
 document.addEventListener('DOMContentLoaded', () => {
     // Validación de seguridad SSO inicial requerida por el sistema
-    const token = localStorage.getItem('sso_token');
-    if (!token) {
-        window.location.href = 'index.php';
-        return;
-    }
+const token = localStorage.getItem('sso_token');
+
+if (!token) {
+    window.location.href = window.SSO_LOGIN_URL;
+    return;
+}
 
     initDataTable();
     cargarEmpleados();
@@ -88,13 +89,21 @@ async function cargarEmpleados() {
                     <i class="fas fa-user-check"></i>
                    </button>`;
 
+            const btnEnviarLector = `
+                <button
+                    class="btn btn-sm btn-warning text-dark me-1"
+                    onclick="enviarEmpleadoLector(${e.idempleado})"
+                    title="Enviar al lector">
+                    <i class="fas fa-id-card"></i>
+                </button>`;
+    
             tablaEmpleados.row.add([
                 e.documento,
                 `<strong>${e.apellido}, ${e.nombre}</strong>`,
                 badgeTarjeta,
                 e.fecha_inicio ?? '-',
                 badgeEstado,
-                `${btnEditar} ${btnEstado}`
+                `${btnEditar} ${btnEnviarLector} ${btnEstado}`
             ]);
         });
 
@@ -210,6 +219,82 @@ function cambiarEstadoEmpleado(id, nuevoEstado) {
             } catch (err) {
                 toast("Error al intentar cambiar el estado", "error");
             }
+        }
+    });
+}
+
+// ---------------------------------------------------------------------
+// 4. ENVIAR EMPLEADO AL LECTOR
+// ---------------------------------------------------------------------
+function enviarEmpleadoLector(idempleado) {
+
+    const empleado = empleadosList.find(
+        e => e.idempleado == idempleado
+    );
+
+    if (!empleado) {
+        toast("Empleado no encontrado.", "error");
+        return;
+    }
+
+    Swal.fire({
+        title: '¿Enviar empleado al lector?',
+        html: `
+            <div class="text-start">
+                <strong>Empleado:</strong>
+                ${empleado.apellido}, ${empleado.nombre}<br>
+                <strong>Documento:</strong>
+                ${empleado.documento}
+            </div>
+        `,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, enviar',
+        cancelButtonText: 'Cancelar'
+    }).then(async (result) => {
+
+        if (!result.isConfirmed) {
+            return;
+        }
+
+        try {
+
+            const formData = new FormData();
+            formData.append('idempleado', idempleado);
+
+            const res = await fetch(
+                API_BASE +
+                '/fichajes/empleados/empleados.php?action=solicitar_carga',
+                {
+                    method: 'POST',
+                    headers: obtenerHeadersSSO(),
+                    body: formData
+                }
+            );
+
+            const json = await res.json();
+
+            if (json.status !== 'ok') {
+                toast(
+                    json.msg || "No se pudo generar la solicitud.",
+                    "error"
+                );
+                return;
+            }
+
+            toast(
+                json.msg || "Solicitud enviada correctamente.",
+                "success"
+            );
+
+        } catch (err) {
+
+            console.error(err);
+
+            toast(
+                "Error de conexión al generar la solicitud.",
+                "error"
+            );
         }
     });
 }

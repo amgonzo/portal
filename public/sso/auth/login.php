@@ -221,9 +221,9 @@ $empresaSlug = trim($_GET['empresa'] ?? '');
 
                                 <label
                                     class="form-label text-secondary fw-semibold"
-                                    for="username"
+                                    for="email"
                                 >
-                                    Usuario
+                                    Email
                                 </label>
 
 
@@ -231,19 +231,19 @@ $empresaSlug = trim($_GET['empresa'] ?? '');
 
                                     <span class="input-group-text bg-light text-secondary">
 
-                                        <i class="bi bi-person"></i>
+                                        <i class="bi bi-envelope"></i>>
 
                                     </span>
 
 
                                     <input
-                                        type="text"
+                                        type="email"
                                         class="form-control"
-                                        placeholder="Ingresar usuario"
-                                        name="username"
-                                        id="username"
+                                        placeholder="Ingresar email"
+                                        name="email"
+                                        id="email"
                                         required
-                                        autocomplete="username"
+                                        autocomplete="email"
                                     >
 
                                 </div>
@@ -351,6 +351,13 @@ $empresaSlug = trim($_GET['empresa'] ?? '');
             $rutas['panel_sso_web'] ?? '/sso/admin/panel.php'
         ) ?>;
 
+        const URL_EMPRESAS = <?= json_encode(
+            $rutas['seleccionar_empresa_sso_web']
+            ?? '/sso/auth/seleccionar_empresa.php'
+        ) ?>;
+
+        const EMPRESA_URL = <?= json_encode($empresaSlug) ?>;
+
 
         // =====================================================
         // TOAST
@@ -387,7 +394,8 @@ $empresaSlug = trim($_GET['empresa'] ?? '');
                 e.preventDefault();
 
 
-                const user = $("#username").val();
+                const email = $("#email").val();
+
                 const pass = $("#password").val();
 
 
@@ -395,31 +403,19 @@ $empresaSlug = trim($_GET['empresa'] ?? '');
 
                     type: "POST",
 
-                    url: API_BASE + "/sso/auth/login.php",
+                    url:
+                        API_BASE +
+                        "/sso/auth/login.php",
 
                     dataType: "json",
 
                     data: {
 
-                        username: user,
+                        email: email,
+
                         password: pass,
-                        empresa: <?= json_encode($empresaSlug) ?> ||
-             (() => {
-                 const ultimaEmpresa = localStorage.getItem('sso_ultima_empresa');
 
-                 if (!ultimaEmpresa) {
-                     return '';
-                 }
-
-                 try {
-                     const datosEmpresa = JSON.parse(ultimaEmpresa);
-
-                     return datosEmpresa.slug || '';
-
-                 } catch (e) {
-                     return '';
-                 }
-             })()
+                        empresa: EMPRESA_URL
 
                     },
 
@@ -434,62 +430,198 @@ $empresaSlug = trim($_GET['empresa'] ?? '');
 
                         if (data.status === "ok") {
 
-                            localStorage.setItem('sso_token', data.token);
-                            localStorage.setItem('sso_aplicaciones', JSON.stringify(data.aplicaciones));
-                            localStorage.setItem('sso_empresas', JSON.stringify(data.empresas));
 
-                            if (data.empresa) {
+                            // =================================================
+                            // GUARDAR DATOS DEL LOGIN
+                            // =================================================
+
+                            localStorage.setItem(
+                                'sso_token',
+                                data.token
+                            );
+
+                            localStorage.setItem(
+                                'sso_aplicaciones',
+                                JSON.stringify(
+                                    data.aplicaciones || []
+                                )
+                            );
+
+                            localStorage.setItem(
+                                'sso_empresas',
+                                JSON.stringify(
+                                    data.empresas || []
+                                )
+                            );
+
+
+                            // =================================================
+                            // SUPER ADMIN
+                            //
+                            // El SUPER_ADMIN mantiene el comportamiento
+                            // actual: entra al panel y desde allí
+                            // selecciona la empresa.
+                            // =================================================
+
+                            const esSuperAdmin =
+                                data.rol === 'SUPER_ADMIN' ||
+                                data.super_admin === true ||
+                                data.usuario?.super_admin === true ||
+                                data.usuario?.super_admin === 1 ||
+                                data.usuario?.super_admin === "1" ||
+                                data.usuario?.super_admin === "true";
+
+                            if (esSuperAdmin) {
+
+                                // SUPER_ADMIN no selecciona empresa durante el login.
+                                // Conserva todas las empresas en sso_empresas
+                                // para poder elegirlas posteriormente desde el sistema.
+
+                                localStorage.removeItem('sso_empresa_activa');
+                                localStorage.removeItem('sso_ultima_empresa');
+
+                                window.location.href = URL_PANEL;
+
+                                return;
+                            }
+
+
+                            // =================================================
+                            // EMPRESAS DEL USUARIO
+                            // =================================================
+
+                            const empresas =
+                                data.empresas || [];
+
+
+                            // =================================================
+                            // UNA SOLA EMPRESA
+                            // =================================================
+
+                            if (empresas.length === 1) {
+
                                 localStorage.setItem(
                                     'sso_empresa_activa',
-                                    JSON.stringify(data.empresa)
+                                    JSON.stringify(
+                                        empresas[0]
+                                    )
                                 );
 
                                 localStorage.setItem(
                                     'sso_ultima_empresa',
-                                    JSON.stringify(data.empresa)
+                                    JSON.stringify(
+                                        empresas[0]
+                                    )
                                 );
+
+                                window.location.href =
+                                    URL_PANEL;
+
+                                return;
+
                             }
 
-                            window.location.href = URL_PANEL;
 
-                        } else {
+                            // =================================================
+                            // VARIAS EMPRESAS
+                            // =================================================
 
-                            let mensaje = "Usuario o contraseña incorrectos.";
+                            if (empresas.length > 1) {
+
+                                window.location.href =
+                                    URL_EMPRESAS;
+
+                                return;
+
+                            }
+
+
+                            // =================================================
+                            // SIN EMPRESAS
+                            // =================================================
+
+                            toast(
+                                "El usuario no tiene una empresa asignada.",
+                                "error"
+                            );
+
+                        }
+
+                        else {
+
+                            let mensaje =
+                                "Usuario o contraseña incorrectos.";
+
 
                             switch (data.msg) {
 
                                 case "empresa":
-                                    mensaje = "No se indicó la empresa.";
+
+                                    mensaje =
+                                        "No se indicó la empresa.";
+
                                     break;
+
 
                                 case "empresa_inexistente":
-                                    mensaje = "La empresa indicada no existe o está inactiva.";
+
+                                    mensaje =
+                                        "La empresa indicada no existe o está inactiva.";
+
                                     break;
+
 
                                 case "usuario":
-                                    mensaje = "Usuario o contraseña incorrectos.";
+
+                                    mensaje =
+                                        "Usuario o contraseña incorrectos.";
+
                                     break;
+
 
                                 case "password":
-                                    mensaje = "Usuario o contraseña incorrectos.";
+
+                                    mensaje =
+                                        "Usuario o contraseña incorrectos.";
+
                                     break;
+
 
                                 case "usuario_baja":
-                                    mensaje = "El usuario se encuentra dado de baja.";
+
+                                    mensaje =
+                                        "El usuario se encuentra dado de baja.";
+
                                     break;
+
 
                                 case "sin_empresas":
-                                    mensaje = "El usuario no tiene una empresa asignada.";
+
+                                    mensaje =
+                                        "El usuario no tiene una empresa asignada.";
+
                                     break;
+
 
                                 default:
+
                                     if (data.msg) {
-                                        mensaje = data.msg;
+
+                                        mensaje =
+                                            data.msg;
+
                                     }
+
                                     break;
+
                             }
 
-                            toast(mensaje, "error");
+
+                            toast(
+                                mensaje,
+                                "error"
+                            );
+
                         }
 
                     },

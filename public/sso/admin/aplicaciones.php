@@ -3,7 +3,7 @@
 
 <head>
     <?php include 'header.php'; ?>
-    <title>Usuarios - <?php echo $empresa; ?></title>
+    <title>Aplicaciones - <?php echo $empresa; ?></title>
 </head>
 
 <body>

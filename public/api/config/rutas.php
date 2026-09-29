@@ -31,6 +31,7 @@ return [
     'contexto'       => $publicRoot . '/api/sso/auth/empresa_context.php',
     'login'          => $publicRoot . '/api/sso/auth/login.php',
     'obtener_recibo' => $publicRoot . '/api/ctacte/reportes/obtener_nro_recibo.php',
+    'secretos' => $projectRoot . '/config/secretos.php',
 
     // Rutas web
     'login_sso_web' => '/sso/auth/login.php',
@@ -53,4 +54,8 @@ return [
     'css_main_web'    => '/css/boostrap5a4.css',
 
     'css_logo' => $publicRoot . '/logo_sistema.css',
+
+    // JS compartido
+    'js_sso'     => $publicRoot . '/api/js/sso.js',
+    'js_sso_web' => '/api/js/sso.js',
 ];

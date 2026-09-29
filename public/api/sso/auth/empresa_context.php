@@ -2,63 +2,32 @@
 // /api/sso/auth/empresa_context.php
 
 /**
- * Conecta con la base de datos de una empresa.
+ * Conecta con la base de datos de una empresa
+ * utilizando una conexión configurada en empresas_conexiones.
+ *
+ * $mysqliSso       = conexión a portal_sso
+ * $idEmpresa       = empresa seleccionada
+ * $nombreConexion  = nombre de la conexión ("Principal", "MS3", "IA", etc.)
  */
-function conectarBase($dbNombre)
-{
-    if (empty($dbNombre)) {
-        http_response_code(500);
-
-        echo json_encode([
-            "status" => "error",
-            "msg" => "Nombre de base de datos de empresa no definido"
-        ]);
-
-        exit;
-    }
-
-    $host = $_ENV['DB_HOST'] ?? 'localhost';
-    $user = $_ENV['DB_USER'] ?? '';
-    $pass = $_ENV['DB_PASS'] ?? '';
-
-    $mysqliEmpresa = new mysqli(
-        $host,
-        $user,
-        $pass,
-        $dbNombre
+/*
+function conectarBase(
+    mysqli $mysqliSso,
+    int $idEmpresa,
+    string $nombreConexion = 'Principal'
+) {
+    return conectarDBEmpresa(
+        $mysqliSso,
+        $idEmpresa,
+        $nombreConexion
     );
-
-    if ($mysqliEmpresa->connect_error) {
-
-        http_response_code(500);
-
-        echo json_encode([
-            "status" => "error",
-            "msg" => "Error al conectar con la base de datos de la empresa"
-        ]);
-
-        exit;
-    }
-
-    $mysqliEmpresa->set_charset("utf8mb4");
-
-    $mysqliEmpresa->query(
-        "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci"
-    );
-
-    $mysqliEmpresa->query(
-        "SET time_zone = '-03:00'"
-    );
-
-    return $mysqliEmpresa;
 }
-
+*/
 
 /**
  * Determina la empresa actualmente seleccionada
  * y verifica que el usuario tenga autorización.
  *
- * SUPER_ADMIN:
+ * ROOT:
  *     Puede acceder a cualquier empresa activa.
  *
  * Usuario normal:
@@ -66,7 +35,7 @@ function conectarBase($dbNombre)
  *     asignadas en usuarios_empresas.
  *
  * Si el usuario normal tiene una sola empresa asignada
- * y no hay una empresa seleccionada en sesión/header,
+ * y no hay una empresa seleccionada en header,
  * se utiliza automáticamente esa empresa.
  */
 function obtenerEmpresaActual(mysqli $mysqliSso, array $userAuth)
@@ -74,78 +43,58 @@ function obtenerEmpresaActual(mysqli $mysqliSso, array $userAuth)
     $idUsuario = intval($userAuth['idusuario']);
 
 
-    /*
-     * =========================================================
-     * 1. DETERMINAR SI ES SUPER_ADMIN
-     * =========================================================
-     *
-     * NO usamos descripcion.
-     *
-     * La clave correcta está en:
-     *
-     * tiposusuario.clave
-     *
-     * =========================================================
-     */
+    /* =========================================================
+     * 1. DETERMINAR TIPO DE SISTEMA
+     * ========================================================= */
 
-    $esSuperAdmin = false;
+    $esRoot = false;
 
-    $stmtRol = $mysqliSso->prepare("
-        SELECT 1
-        FROM usuarios_roles_apps ura
-
-        INNER JOIN tiposusuario tu
-            ON tu.idtipousuario = ura.idtipousuario
-
-        WHERE ura.idusuario = ?
-          AND UPPER(TRIM(tu.clave)) = 'SUPER_ADMIN'
-
+    $sqlTipo = "
+        SELECT uts.clave
+        FROM usuarios u
+        INNER JOIN usuarios_tipo_sistema uts
+            ON uts.idtiposistema = u.idtiposistema
+        WHERE u.idusuario = $idUsuario
+          AND u.baja = 0
         LIMIT 1
-    ");
+    ";
 
-    if ($stmtRol) {
+    $resultadoTipo = $mysqliSso->query($sqlTipo);
 
-        $stmtRol->bind_param(
-            "i",
-            $idUsuario
-        );
+    if (!$resultadoTipo) {
 
-        $stmtRol->execute();
+        http_response_code(500);
 
-        $resultadoRol = $stmtRol->get_result();
+        echo json_encode([
+            "status" => "error",
+            "msg" => "Error consultando tipo de sistema: " . $mysqliSso->error
+        ]);
 
-        $esSuperAdmin = ($resultadoRol->num_rows > 0);
+        exit;
+    }
 
-        $stmtRol->close();
+    $filaTipo = $resultadoTipo->fetch_assoc();
+
+    if ($filaTipo) {
+
+        $esRoot =
+            strtoupper(trim($filaTipo['clave'])) === 'ROOT';
     }
 
 
-    /*
-     * =========================================================
+    /* =========================================================
      * 2. EMPRESA SELECCIONADA
-     * =========================================================
-     */
-/*
-    $idEmpresa = $_SESSION['idempresa'] ?? null;
+     * ========================================================= */
 
-    if (!$idEmpresa) {
-        $idEmpresa = $_SERVER['HTTP_X_EMPRESA_ID'] ?? null;
-    }
-
-    $idEmpresa = intval($idEmpresa);
-*/
     $idEmpresa = $_SERVER['HTTP_X_EMPRESA_ID'] ?? null;
     $idEmpresa = intval($idEmpresa);
 
-    /*
-     * =========================================================
-     * 3. SUPER_ADMIN
-     * =========================================================
-     *
-     * SUPER_ADMIN necesita una empresa seleccionada.
-     */
 
-    if ($esSuperAdmin) {
+    /* =========================================================
+     * 3. ROOT
+     * ========================================================= */
+
+    if ($esRoot) {
 
         if ($idEmpresa <= 0) {
 
@@ -167,7 +116,6 @@ function obtenerEmpresaActual(mysqli $mysqliSso, array $userAuth)
                 razon_social,
                 cuit,
                 slug,
-                db_nombre,
                 activo
 
             FROM empresas
@@ -221,20 +169,9 @@ function obtenerEmpresaActual(mysqli $mysqliSso, array $userAuth)
     }
 
 
-    /*
-     * =========================================================
-     * 4. USUARIO NORMAL
-     * =========================================================
-     *
-     * Si NO hay empresa seleccionada, buscamos las empresas
-     * que tiene asignadas el usuario.
-     *
-     * Si tiene exactamente UNA empresa:
-     *     la usamos automáticamente.
-     *
-     * Si tiene más de UNA:
-     *     debe haber una seleccionada.
-     */
+    /* =========================================================
+     * 4. USUARIO NORMAL SIN EMPRESA SELECCIONADA
+     * ========================================================= */
 
     if ($idEmpresa <= 0) {
 
@@ -245,7 +182,6 @@ function obtenerEmpresaActual(mysqli $mysqliSso, array $userAuth)
                 e.razon_social,
                 e.cuit,
                 e.slug,
-                e.db_nombre,
                 e.activo
 
             FROM usuarios_empresas ue
@@ -290,9 +226,9 @@ function obtenerEmpresaActual(mysqli $mysqliSso, array $userAuth)
         $stmt->close();
 
 
-        /*
-         * Usuario sin empresas.
-         */
+        /* =====================================================
+         * Usuario sin empresas
+         * ===================================================== */
 
         if (count($empresas) === 0) {
 
@@ -307,10 +243,9 @@ function obtenerEmpresaActual(mysqli $mysqliSso, array $userAuth)
         }
 
 
-        /*
-         * Una sola empresa:
-         * la seleccionamos automáticamente.
-         */
+        /* =====================================================
+         * Una sola empresa
+         * ===================================================== */
 
         if (count($empresas) === 1) {
 
@@ -318,10 +253,9 @@ function obtenerEmpresaActual(mysqli $mysqliSso, array $userAuth)
         }
 
 
-        /*
-         * Tiene varias empresas:
-         * necesita seleccionar una.
-         */
+        /* =====================================================
+         * Varias empresas
+         * ===================================================== */
 
         http_response_code(403);
 
@@ -334,14 +268,9 @@ function obtenerEmpresaActual(mysqli $mysqliSso, array $userAuth)
     }
 
 
-    /*
-     * =========================================================
+    /* =========================================================
      * 5. USUARIO NORMAL CON EMPRESA SELECCIONADA
-     * =========================================================
-     *
-     * Verificamos que esa empresa realmente pertenezca
-     * al usuario.
-     */
+     * ========================================================= */
 
     $stmt = $mysqliSso->prepare("
         SELECT
@@ -350,7 +279,6 @@ function obtenerEmpresaActual(mysqli $mysqliSso, array $userAuth)
             e.razon_social,
             e.cuit,
             e.slug,
-            e.db_nombre,
             e.activo
 
         FROM usuarios_empresas ue

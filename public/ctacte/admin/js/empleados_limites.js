@@ -3,10 +3,11 @@ let tablaLimites = null;
 $(document).ready(function() {
     // Validación de seguridad SSO inicial requerida por el sistema
     const token = localStorage.getItem('sso_token');
-    if (!token) {
-        window.location.href = '../index.php';
-        return;
-    }
+
+if (!token) {
+    window.location.href = window.SSO_LOGIN_URL;
+    return;
+}
 
     initDataTable();
     cargarTablaLimites();

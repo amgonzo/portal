@@ -26,7 +26,11 @@ validarPermisoEndpoint($mysqli, $userAuth);
 
 // 2. Conectar a la base de datos de CTACTE_
 $empresa = obtenerEmpresaActual($mysqli, $userAuth);
-$mysqli = conectarBase($empresa['db_nombre']);
+$mysqli = conectarDBEmpresa(
+    $mysqli,
+    (int)$empresa['idempresa'],
+    'DATOS'
+);
 
 
 // Ejecutamos la consulta pasándole la conexión de ctacte
@@ -46,7 +50,11 @@ $userAuth = validarTokenAPI($mysqli ?? null);
 
 // 2. Conectar a la base de datos de CTACTE_ ANTES de usarla
 $empresa = obtenerEmpresaActual($mysqli, $userAuth);
-$mysqli = conectarBase($empresa['db_nombre']); 
+$mysqli = conectarDBEmpresa(
+    $mysqli,
+    (int)$empresa['idempresa'],
+    'DATOS'
+); 
 
 // 3. Validar permisos si corresponde y ejecutar
 validarPermisoEndpoint($mysqli, $userAuth);

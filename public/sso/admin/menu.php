@@ -150,27 +150,30 @@
     
     function cambiarEmpresaActiva(idEmpresa) {
 
-        if (!idEmpresa) {
-            localStorage.removeItem('sso_empresa_activa');
-            window.location.reload();
-            return;
-        }
+    const select = document.getElementById('selectEmpresaActiva');
 
-        const select = document.getElementById('selectEmpresaActiva');
-        const opcion = select.options[select.selectedIndex];
+    if (!idEmpresa) {
+        console.log('SIN EMPRESA -> eliminando localStorage');
 
-        const empresa = {
-            idempresa: parseInt(idEmpresa, 10),
-            nombre: opcion ? opcion.textContent : ''
-        };
-
-        localStorage.setItem(
-            'sso_empresa_activa',
-            JSON.stringify(empresa)
-        );
-
+        localStorage.removeItem('sso_empresa_activa');
         window.location.reload();
+        return;
     }
+
+    const opcion = select.options[select.selectedIndex];
+
+    const empresa = {
+        idempresa: parseInt(idEmpresa, 10),
+        nombre: opcion ? opcion.textContent : ''
+    };
+
+    localStorage.setItem(
+        'sso_empresa_activa',
+        JSON.stringify(empresa)
+    );
+
+    window.location.reload();
+}
 
     document.addEventListener("DOMContentLoaded", function() {
         // 1. Validar que exista el token
@@ -199,15 +202,15 @@
                         return Array.isArray(permisos) && permisos.includes(clave);
                     }
 
-                    // Detector flexible de SUPER_ADMIN (soporta strings o objetos)
-                    const esSuperAdmin = Array.isArray(roles) && roles.some(r => {
-                        const val = typeof r === 'string' ? r : (r.clave || r.nombre || r.rol || '');
-                        return val.toUpperCase() === 'SUPER_ADMIN' || val.toUpperCase() === 'SUPERADMIN';
-                    });
+                    // ROOT es un tipo de sistema global.
+                    // No depende de roles de aplicación.
+                    const esRoot =
+                        String(response.usuario.tipo_sistema || '').toUpperCase() === 'ROOT'
+                        || response.usuario.root === true;
 
                     //console.log("¿Es Super Admin?", esSuperAdmin); // <-- Te dirá true o false
 
-                    if (esSuperAdmin) {
+                    if (esRoot) {
                         const contenedorSelector = document.getElementById('contenedorSelectorEmpresa');
                         if (contenedorSelector) {
                             contenedorSelector.style.display = 'block';

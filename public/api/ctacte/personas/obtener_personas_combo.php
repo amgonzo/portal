@@ -25,7 +25,11 @@ validarPermisoEndpoint($mysqli, $userAuth);
 
 // 3. SOBRESCRIBIR $mysqli conectándolo a la base de datos de CTACTE_ para las consultas del módulo
 $empresa = obtenerEmpresaActual($mysqli, $userAuth);
-$mysqli = conectarBase($empresa['db_nombre']);
+$mysqli = conectarDBEmpresa(
+    $mysqli,
+    (int)$empresa['idempresa'],
+    'DATOS'
+);
 
 try {
     $incluir_todos = isset($_GET['todos']) && $_GET['todos'] == '1';

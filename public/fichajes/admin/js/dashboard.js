@@ -3,11 +3,12 @@ let modalTicketInstancia = null;
 
 $(document).ready(function() {
     // 0. VALIDACIÓN DE SEGURIDAD SSO INICIAL
-    const token = localStorage.getItem('sso_token');
-    if (!token) {
-        window.location.href = 'index.php';
-        return;
-    }
+const token = localStorage.getItem('sso_token');
+
+if (!token) {
+    window.location.href = window.SSO_LOGIN_URL;
+    return;
+}
 
     // Verificar token y permisos contra la API central del SSO
     $.ajax({
@@ -24,13 +25,13 @@ $(document).ready(function() {
                 }
             } else {
                 localStorage.clear();
-                window.location.href = 'index.php';
+                 window.location.href = window.SSO_LOGIN_URL;
             }
         },
         error: function(xhr) {
             if (xhr.status === 401 || xhr.status === 0) {
                 localStorage.clear();
-                window.location.href = 'index.php';
+                 window.location.href = window.SSO_LOGIN_URL;
             }
         }
     });
@@ -316,11 +317,12 @@ function formatearMoneda(valor, decimales = 2) {
 }
 
 $(document).ready(function() {
-    const token = localStorage.getItem('sso_token');
-    if (!token) {
-        window.location.href = 'index.php';
-        return;
-    }
+const token = localStorage.getItem('sso_token');
+
+if (!token) {
+    window.location.href = window.SSO_LOGIN_URL;
+    return;
+}
     
     // Opcional: Mostrar el nombre del usuario logueado en el menú de arriba dinámicamente
     const usuario = JSON.parse(localStorage.getItem('usuario_actual') || '{}');
@@ -333,5 +335,5 @@ function logout() {
     localStorage.removeItem('sso_token');
     localStorage.removeItem('usuario_actual');
     localStorage.removeItem('sso_app_activa');
-    window.location.href = 'index.php';
+     window.location.href = window.SSO_LOGIN_URL;
 }

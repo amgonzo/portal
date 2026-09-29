@@ -2,11 +2,12 @@
 
 $(document).ready(function() {
     // 0. VALIDACIÓN DE SEGURIDAD SSO INICIAL (Igual que en el dashboard)
-    const token = localStorage.getItem('sso_token');
-    if (!token) {
-        window.location.href = 'index.php';
-        return;
-    }
+const token = localStorage.getItem('sso_token');
+
+if (!token) {
+    window.location.href = window.SSO_LOGIN_URL;
+    return;
+}
 
     // Carga inicial automática de variables apenas está listo el DOM
     cargarConfiguracion();

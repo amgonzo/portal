@@ -6,12 +6,14 @@ let aplicacionesGlobal = [];
 
 let permisosUsuario = [];
 
+let esRoot = false;
+
+
+/* =========================================================
+   INICIO
+   ========================================================= */
 
 $(document).ready(function() {
-
-    // =====================================================
-    // 1. VALIDAR TOKEN
-    // =====================================================
 
     const token =
         localStorage.getItem('sso_token');
@@ -24,10 +26,6 @@ $(document).ready(function() {
         return;
     }
 
-
-    // =====================================================
-    // 2. OBTENER USUARIO Y PERMISOS
-    // =====================================================
 
     $.ajax({
 
@@ -51,14 +49,23 @@ $(document).ready(function() {
                     response.permisos || [];
 
 
-                // =========================================
-                // BOTÓN NUEVO USUARIO
-                // =========================================
+                /*
+                 * Detectamos SUPER_ADMIN.
+                 *
+                 * Primero usamos el dato que envía
+                 * directamente me.php.
+                 *
+                 * Se agregan algunas variantes por
+                 * compatibilidad con distintas respuestas
+                 * del backend.
+                 */
+                esRoot =
+                    String(response.usuario.tipo_sistema || '').toUpperCase() === 'ROOT'
+                    || response.usuario.root === true;
+
 
                 if (
-                    !tienePermiso(
-                        'usuarios_crear'
-                    )
+                    !tienePermiso('usuarios_crear')
                 ) {
 
                     $('#btnNuevoUsuario').hide();
@@ -68,10 +75,6 @@ $(document).ready(function() {
                     $('#btnNuevoUsuario').show();
                 }
 
-
-                // =========================================
-                // CARGAR COMBOS Y USUARIOS
-                // =========================================
 
                 cargarCombos();
 
@@ -97,9 +100,9 @@ $(document).ready(function() {
 });
 
 
-// =========================================================
-// PERMISOS
-// =========================================================
+/* =========================================================
+   PERMISOS
+   ========================================================= */
 
 function tienePermiso(clave) {
 
@@ -110,126 +113,349 @@ function tienePermiso(clave) {
 }
 
 
-// =========================================================
-// CARGAR ROLES Y APLICACIONES
-// =========================================================
-//
-// IMPORTANTE:
-// Las dos consultas son asincrónicas.
-// Esperamos a que AMBAS terminen antes de renderizar.
-//
-// =========================================================
+/* =========================================================
+   EMPRESAS DEL SUPER ADMIN
+   ========================================================= */
 
-function cargarCombos() {
+function obtenerEmpresasGuardadas() {
 
-    $.when(
+    try {
 
-        $.ajax({
+        const datos =
+            JSON.parse(
+                localStorage.getItem('sso_empresas') || '[]'
+            );
 
-            type: "GET",
-
-            url:
-                API_BASE +
-                "/sso/usuarios/listar_tipos_usuario.php",
-
-            headers:
-                obtenerHeadersSSO()
-        }),
-
-        $.ajax({
-
-            type: "GET",
-
-            url:
-                API_BASE +
-                "/sso/aplicaciones/listar_aplicaciones.php",
-
-            headers:
-                obtenerHeadersSSO()
-        })
-
-    ).done(function(
-        resRoles,
-        resApps
-    ) {
-
-        // =================================================
-        // ROLES
-        // =================================================
-
-        const respuestaRoles =
-            (
-                typeof resRoles[0] === 'string'
-            )
-                ? JSON.parse(resRoles[0])
-                : resRoles[0];
-
-
-        // =================================================
-        // APLICACIONES
-        // =================================================
-
-        const respuestaApps =
-            (
-                typeof resApps[0] === 'string'
-            )
-                ? JSON.parse(resApps[0])
-                : resApps[0];
-
-
-        // =================================================
-        // GUARDAR ROLES
-        // =================================================
-
-        if (
-            respuestaRoles.status === "ok"
-        ) {
-
-            tiposUsuariosGlobal =
-                respuestaRoles.data || [];
-
-        } else {
-
-            tiposUsuariosGlobal = [];
+        if (Array.isArray(datos)) {
+            return datos;
         }
 
+        return [];
 
-        // =================================================
-        // GUARDAR APLICACIONES
-        // =================================================
+    } catch (e) {
 
-        if (
-            respuestaApps.status === "ok"
-        ) {
-
-            aplicacionesGlobal =
-                respuestaApps.data || [];
-
-        } else {
-
-            aplicacionesGlobal = [];
-        }
-
-
-        // =================================================
-        // AHORA SÍ RENDERIZAMOS
-        // =================================================
-
-        renderizarMatrizAccesos([]);
-
-    }).fail(function() {
-
-        toast(
-            'No se pudieron cargar las aplicaciones y roles',
-            'error'
-        );
-    });
+        return [];
+    }
 }
 
 
-// =========================================================
-// RENDERIZAR APLICACIONES + ROLES
-// =========================================================
+/* =========================================================
+   EMPRESA ACTIVA GLOBAL
+   ========================================================= */
+
+function obtenerIdEmpresaGlobal() {
+
+    const empresa =
+        obtenerEmpresaActiva();
+
+    if (
+        empresa &&
+        empresa.idempresa
+    ) {
+
+        return parseInt(
+            empresa.idempresa
+        );
+    }
+
+    return 0;
+}
+
+
+/* =========================================================
+   CARGAR SELECTOR DE EMPRESA DEL MODAL
+   ========================================================= */
+
+function cargarEmpresasModal(
+    idEmpresaSeleccionada = 0
+) {
+
+    if (!esRoot) {
+
+        $('#contenedor_empresa_usuario')
+            .hide();
+
+        return;
+    }
+
+
+    const empresas =
+        obtenerEmpresasGuardadas();
+
+
+    const $select =
+        $('#selectEmpresaUsuario');
+
+
+    $select.empty();
+
+
+    $select.append(`
+        <option value="">
+            Seleccionar empresa...
+        </option>
+    `);
+
+
+    empresas.forEach(function(empresa) {
+
+        const id =
+            parseInt(
+                empresa.idempresa ||
+                empresa.id ||
+                0
+            );
+
+
+        const nombre =
+            empresa.nombre ||
+            empresa.nombreempresa ||
+            empresa.descripcion ||
+            ('Empresa ' + id);
+
+
+        if (id > 0) {
+
+            const selected =
+                parseInt(idEmpresaSeleccionada) === id
+                    ? 'selected'
+                    : '';
+
+
+            $select.append(`
+                <option
+                    value="${id}"
+                    ${selected}
+                >
+                    ${nombre}
+                </option>
+            `);
+        }
+    });
+
+
+    /*
+     * IMPORTANTE:
+     * Siempre mostramos el selector para SUPER_ADMIN.
+     */
+    $('#contenedor_empresa_usuario')
+        .show();
+}
+
+
+/* =========================================================
+   EMPRESA DEL MODAL
+   ========================================================= */
+
+function obtenerEmpresaModal() {
+
+    if (!esRoot) {
+
+        const empresa =
+            obtenerEmpresaActiva();
+
+        return empresa &&
+               empresa.idempresa
+            ? parseInt(empresa.idempresa)
+            : 0;
+    }
+
+
+    return parseInt(
+        $('#selectEmpresaUsuario').val() || 0
+    );
+}
+
+
+/* =========================================================
+   HEADERS PARA EL MODAL
+   ========================================================= */
+
+function obtenerHeadersEmpresaModal() {
+
+    const headers =
+        obtenerHeadersSSO();
+
+
+    if (esRoot) {
+
+        const idEmpresa =
+            obtenerEmpresaModal();
+
+
+        if (idEmpresa > 0) {
+
+            headers["X-EMPRESA-ID"] =
+                String(idEmpresa);
+
+        } else {
+
+            delete headers["X-EMPRESA-ID"];
+        }
+    }
+
+
+    return headers;
+}
+
+
+/* =========================================================
+   CARGAR ROLES Y APLICACIONES
+   ========================================================= */
+
+function cargarCombos() {
+
+    $.ajax({
+
+        type: "GET",
+
+        url:
+            API_BASE +
+            "/sso/usuarios/listar_tipos_usuario.php",
+
+        headers:
+            obtenerHeadersSSO(),
+
+        success: function(resRoles) {
+
+            const respuestaRoles =
+                (
+                    typeof resRoles === 'string'
+                )
+                    ? JSON.parse(resRoles)
+                    : resRoles;
+
+
+            if (
+                respuestaRoles.status === "ok"
+            ) {
+
+                tiposUsuariosGlobal =
+                    respuestaRoles.data || [];
+
+            } else {
+
+                tiposUsuariosGlobal = [];
+            }
+
+
+            /*
+             * Las aplicaciones ya NO se cargan acá.
+             *
+             * Ahora dependen de la empresa seleccionada
+             * y se cargan mediante cargarAplicaciones().
+             */
+
+            aplicacionesGlobal = [];
+
+            renderizarMatrizAccesos([]);
+
+        },
+
+        error: function() {
+
+            tiposUsuariosGlobal = [];
+
+            aplicacionesGlobal = [];
+
+            toast(
+                'No se pudieron cargar los roles',
+                'error'
+            );
+        }
+    });
+}
+
+function cargarAplicaciones(callback = null) {
+
+    const idEmpresa =
+        obtenerEmpresaModal();
+
+
+    if (idEmpresa <= 0) {
+
+        aplicacionesGlobal = [];
+
+        renderizarMatrizAccesos([]);
+
+        if (typeof callback === 'function') {
+            callback();
+        }
+
+        return;
+    }
+
+
+    $.ajax({
+
+        type: "GET",
+
+        url:
+            API_BASE +
+            "/sso/aplicaciones/listar_aplicaciones.php",
+
+        headers:
+            obtenerHeadersEmpresaModal(),
+
+        success: function(response) {
+
+            const res =
+                (
+                    typeof response === 'string'
+                )
+                    ? JSON.parse(response)
+                    : response;
+
+
+            if (
+                res.status === "ok"
+            ) {
+
+                aplicacionesGlobal =
+                    res.data || [];
+
+            } else {
+
+                aplicacionesGlobal = [];
+
+                toast(
+                    res.msg ||
+                    "No se pudieron cargar las aplicaciones",
+                    "error"
+                );
+            }
+
+
+            renderizarMatrizAccesos([]);
+
+
+            if (typeof callback === 'function') {
+                callback();
+            }
+        },
+
+        error: function(xhr) {
+
+            aplicacionesGlobal = [];
+
+            renderizarMatrizAccesos([]);
+
+            toast(
+                "No se pudieron cargar las aplicaciones",
+                "error"
+            );
+
+
+            if (typeof callback === 'function') {
+                callback();
+            }
+        }
+    });
+}
+
+/* =========================================================
+   RENDERIZAR APLICACIONES + ROLES
+   ========================================================= */
 
 function renderizarMatrizAccesos(
     permisosAsignados = []
@@ -314,11 +540,9 @@ function renderizarMatrizAccesos(
 
                 <div class="col-md-7">
 
-                    <select
-                        class="form-select form-select-sm select-rol-app"
-
+                    <select  class="form-select form-select-sm select-rol-app"
+                        data-idaplicacion="${app.idaplicacion}"
                         id="rol_app_${app.idaplicacion}"
-
                         ${disabled}
                     >
 
@@ -358,7 +582,11 @@ function renderizarMatrizAccesos(
             html += `
 
                     </select>
-
+                    <div
+                        id="permisos_rol_${app.idaplicacion}"
+                        class="mt-2"
+                        style="display:none;"
+                    ></div>
                 </div>
 
             </div>
@@ -369,39 +597,56 @@ function renderizarMatrizAccesos(
 
 
     $("#contenedor_apps").html(html);
+
+    $('.select-rol-app').each(function() {
+
+    const idTipoUsuario = $(this).val();
+
+    if (!idTipoUsuario) {
+        return;
+    }
+
+    const idAplicacion = $(this).data('idaplicacion');
+
+    cargarPermisosRol(
+        idAplicacion,
+        idTipoUsuario
+    );
+
+});
 }
 
 
-// =========================================================
-// HABILITAR / DESHABILITAR ROL
-// =========================================================
+/* =========================================================
+   HABILITAR / DESHABILITAR ROL
+   ========================================================= */
 
 function toggleRolSelect(idApp) {
+    const isChecked = $(`#app_${idApp}`).is(':checked');
+    const $select = $(`#rol_app_${idApp}`);
+    const $contenedor = $(`#permisos_rol_${idApp}`);
 
-    const isChecked =
-        $(`#app_${idApp}`).is(':checked');
-
-
-    const $select =
-        $(`#rol_app_${idApp}`);
-
-
-    $select.prop(
-        'disabled',
-        !isChecked
-    );
-
+    $select.prop('disabled', !isChecked);
 
     if (!isChecked) {
-
         $select.val('');
+        $contenedor.hide().html('');
+        return;
+    }
+
+    const idRol = $select.val();
+
+    if (idRol) {
+        cargarPermisosRol(idApp, idRol);
+    } else {
+        $contenedor.hide().html('');
     }
 }
 
 
-// =========================================================
-// LIMPIAR MODAL
-// =========================================================
+/* =========================================================
+   LIMPIAR MODAL
+   ========================================================= */
 
 function limpiarModalUsuario() {
 
@@ -435,37 +680,64 @@ function limpiarModalUsuario() {
 }
 
 
-// =========================================================
-// NUEVO USUARIO
-// =========================================================
+/* =========================================================
+   NUEVO USUARIO
+   ========================================================= */
 
 function abrirNuevo() {
 
     limpiarModalUsuario();
 
-    $("#ModalUsuario").modal("show");
+
+    if (esRoot) {
+
+        const idEmpresa =
+            obtenerIdEmpresaGlobal();
+
+
+        /*
+         * Si hay empresa global:
+         * la seleccionamos automáticamente.
+         *
+         * Si no hay:
+         * queda "Seleccionar empresa..."
+         * y será obligatorio elegirla.
+         */
+        cargarEmpresasModal(
+            idEmpresa
+        );
+        if (idEmpresa > 0) {
+            cargarAplicaciones();
+        }
+    } else {
+
+        $('#contenedor_empresa_usuario')
+            .hide();
+    }
+
+
+    $("#ModalUsuario")
+        .modal("show");
 }
 
 
-// =========================================================
-// LISTAR USUARIOS
-// =========================================================
+/* =========================================================
+   LISTAR USUARIOS
+   ========================================================= */
 
-// =========================================================
-// LISTAR USUARIOS
-// =========================================================
+/* =========================================================
+   LISTAR USUARIOS
+   ========================================================= */
 
 function cargarUsuarios() {
-
-    // Obtenemos el ID de la empresa seleccionada en el combo (si existe en el HTML)
-    //let idEmpresaFiltro = $('#selectEmpresaActiva').val() || 0;
 
     $.ajax({
 
         type: "GET",
 
         url:
-            API_BASE + "/sso/usuarios/listar_usuarios.php",//?idempresa=" + idEmpresaFiltro,
+            API_BASE +
+            "/sso/usuarios/listar_usuarios.php",
 
         headers:
             obtenerHeadersSSO(),
@@ -481,187 +753,452 @@ function cargarUsuarios() {
 
 
             if (
-                respuesta.status === "ok"
+                respuesta.status !== "ok"
             ) {
 
-                let html = "";
+                toast(
+                    respuesta.msg ||
+                    "No se pudieron cargar los usuarios",
+                    "error"
+                );
+
+                return;
+            }
+
+            /*
+             * =====================================================
+             * COLUMNA EMPRESA
+             *
+             * Solo se muestra cuando SUPER_ADMIN está viendo
+             * todas las empresas, es decir, sin empresa activa.
+             * =====================================================
+             */
+
+            const mostrarEmpresa =
+                esRoot &&
+                obtenerIdEmpresaGlobal() <= 0;
 
 
-                const puedeEditar =
-                    tienePermiso(
-                        'usuarios_editar'
-                    );
+            if (mostrarEmpresa) {
+
+                $('#thEmpresaUsuario').show();
+
+            } else {
+
+                $('#thEmpresaUsuario').hide();
+            }
 
 
-                const puedeBorrar =
-                    tienePermiso(
-                        'usuarios_borrar'
-                    );
+            let html = "";
 
 
-                respuesta.data.forEach(
-                    u => {
+            const puedeEditar =
+                tienePermiso(
+                    'usuarios_editar'
+                );
 
-                        let btnEditar =
-                            puedeEditar
 
+            const puedeBorrar =
+                tienePermiso(
+                    'usuarios_borrar'
+                );
+
+
+            respuesta.data.forEach(
+                u => {
+
+                    let btnEditar =
+                        puedeEditar
                             ? `
+
                             <button
                                 class="btn btn-sm btn-info me-1"
                                 onclick="editar(${u.idusuario})"
+                                title="Editar"
                             >
                                 <i class="fas fa-edit"></i>
                             </button>
-                            `
 
+                            `
                             : '';
 
 
-                        let btnEstado = '';
+                    let btnEstado = '';
 
 
-                        if (puedeBorrar) {
-
-                            if (
-                                u.baja == 1
-                            ) {
-
-                                btnEstado = `
-
-                                <button
-                                    class="btn btn-sm btn-success"
-                                    title="Dar de Alta"
-
-                                    onclick="
-                                        cambiarEstado(
-                                            ${u.idusuario},
-                                            'alta'
-                                        )
-                                    "
-                                >
-
-                                    <i class="fas fa-user-check"></i>
-
-                                </button>
-
-                                `;
-
-                            } else {
-
-                                btnEstado = `
-
-                                <button
-                                    class="btn btn-sm btn-danger"
-                                    title="Dar de Baja"
-
-                                    onclick="
-                                        cambiarEstado(
-                                            ${u.idusuario},
-                                            'baja'
-                                        )
-                                    "
-                                >
-
-                                    <i class="fas fa-user-slash"></i>
-
-                                </button>
-
-                                `;
-                            }
-                        }
-
-
-                        let badgesApps = "";
-
+                    if (puedeBorrar) {
 
                         if (
-                            u.accesos &&
-                            u.accesos.length > 0
+                            u.baja == 1
                         ) {
 
-                            u.accesos.forEach(
-                                acc => {
+                            btnEstado = `
 
-                                    badgesApps += `
+                            <button
+                                class="btn btn-sm btn-success"
+                                title="Dar de Alta"
 
-                                    <span
-                                        class="badge bg-primary me-1"
-                                    >
-                                        ${acc.nombre_app}:
-                                        <i>${acc.rolnombre}</i>
-                                    </span>
+                                onclick="
+                                    cambiarEstado(
+                                        ${u.idusuario},
+                                        'alta'
+                                    )
+                                "
+                            >
+                                <i class="fas fa-user-check"></i>
+                            </button>
 
-                                    `;
-                                }
-                            );
+                            `;
 
                         } else {
 
-                            badgesApps =
-                                '<span class="text-muted small">' +
-                                'Sin accesos' +
-                                '</span>';
+                            btnEstado = `
+
+                            <button
+                                class="btn btn-sm btn-danger"
+                                title="Dar de Baja"
+
+                                onclick="
+                                    cambiarEstado(
+                                        ${u.idusuario},
+                                        'baja'
+                                    )
+                                "
+                            >
+                                <i class="fas fa-user-slash"></i>
+                            </button>
+
+                            `;
                         }
+                    }
 
 
-                        html += `
+                    let badgesApps = "";
 
-                        <tr>
 
-                            <td>
-                                ${u.nombreapellido ?? '-'}
-                            </td>
+                    if (
+                        u.accesos &&
+                        u.accesos.length > 0
+                    ) {
 
-                            <td>
-                                ${u.username}
-                            </td>
+                        u.accesos.forEach(
+                            acc => {
 
-                            <td>
-                                ${badgesApps}
-                            </td>
+                                let empresaAcceso = '';
 
-                            <td class="text-center">
 
-                                ${
-                                    u.baja == 0
+                                if (
+                                    mostrarEmpresa &&
+                                    acc.nombre_empresa
+                                ) {
 
-                                    ? '<span class="badge bg-success">Activo</span>'
-
-                                    : '<span class="badge bg-danger">Baja</span>'
+                                    empresaAcceso = `
+                                        <div class="small mt-1 opacity-75">
+                                            <i class="fas fa-building me-1"></i>
+                                            ${acc.nombre_empresa}
+                                        </div>
+                                    `;
                                 }
 
-                            </td>
 
-                            <td>
+                                badgesApps += `
+
+                                <span
+                                    class="badge bg-primary me-1 mb-1"
+                                    style="display:inline-block; text-align:left;"
+                                >
+                                    ${acc.nombre_app}:
+                                    <i>${acc.rolnombre}</i>
+
+                                    ${empresaAcceso}
+
+                                </span>
+
+                                `;
+                            }
+                        );
+
+                    } else {
+
+                        badgesApps =
+                            '<span class="text-muted small">' +
+                            'Sin accesos' +
+                            '</span>';
+                    }
+
+
+                    /*
+                     * =====================================================
+                     * EMPRESAS DEL USUARIO
+                     *
+                     * En la respuesta actual las empresas vienen
+                     * asociadas a los accesos.
+                     * =====================================================
+                     */
+
+                    let empresasUsuario = '';
+
+
+                    if (
+                        mostrarEmpresa &&
+                        u.accesos &&
+                        u.accesos.length > 0
+                    ) {
+
+                        const empresasUnicas = [];
+
+
+                        u.accesos.forEach(
+                            acc => {
+
+                                if (
+                                    acc.nombre_empresa &&
+                                    !empresasUnicas.includes(
+                                        acc.nombre_empresa
+                                    )
+                                ) {
+
+                                    empresasUnicas.push(
+                                        acc.nombre_empresa
+                                    );
+                                }
+                            }
+                        );
+
+
+                        if (
+                            empresasUnicas.length > 0
+                        ) {
+
+                            empresasUsuario =
+                                empresasUnicas.join(
+                                    '<br>'
+                                );
+
+                        } else {
+
+                            empresasUsuario =
+                                '<span class="text-muted">-</span>';
+                        }
+
+                    } else {
+
+                        empresasUsuario =
+                            '<span class="text-muted">-</span>';
+                    }
+
+
+                    html += `
+
+                    <tr>
+
+                        <td>
+                            ${u.nombreapellido ?? '-'}
+                        </td>
+
+                        <td>
+                            ${u.username}
+                        </td>
+
+                        ${
+                            mostrarEmpresa
+                                ? `
+                                <td>
+                                    ${empresasUsuario}
+                                </td>
+                                `
+                                : ''
+                        }
+
+                        <td>
+                            ${badgesApps}
+                        </td>
+
+                        <td class="text-center">
+
+                            ${
+                                u.baja == 0
+
+                                ? '<span class="badge bg-success">Activo</span>'
+
+                                : '<span class="badge bg-danger">Baja</span>'
+                            }
+
+                        </td>
+
+                        <td>
+                            <div class="d-flex align-items-center gap-1">
 
                                 ${btnEditar}
 
                                 ${btnEstado}
 
-                            </td>
+                            </div>
+                        </td>
 
-                        </tr>
+                    </tr>
 
-                        `;
-                    }
-                );
+                    `;
+                }
+            );
 
 
-                $("#listaUsuarios")
-                    .html(html);
-            }
+            $("#listaUsuarios")
+                .html(html);
+
+
+            /*
+             * =====================================================
+             * AHORA QUE esRoot YA ESTÁ CORRECTAMENTE
+             * DETERMINADO, EL SELECTOR DEL MODAL FUNCIONARÁ.
+             * =====================================================
+             */
+
+        },
+
+        error: function(xhr) {
+
+            toast(
+                'No se pudieron cargar los usuarios',
+                'error'
+            );
         }
     });
 }
 
 
-// =========================================================
-// EDITAR USUARIO
-// =========================================================
+/* =========================================================
+   EDITAR USUARIO
+   ========================================================= */
 
 function editar(id) {
 
     modoUsuario = "editar";
+
+
+    let idEmpresa = 0;
+
+
+    if (esRoot) {
+
+        idEmpresa =
+            obtenerIdEmpresaGlobal();
+
+
+        cargarEmpresasModal(
+            idEmpresa
+        );
+
+    } else {
+
+        const empresaActiva =
+            obtenerEmpresaActiva();
+
+
+        if (
+            empresaActiva &&
+            empresaActiva.idempresa
+        ) {
+
+            idEmpresa =
+                parseInt(
+                    empresaActiva.idempresa
+                );
+        }
+    }
+
+
+    /*
+     * SUPER_ADMIN sin empresa global:
+     *
+     * Abrimos el modal mostrando el selector.
+     * No intentamos consultar todavía porque
+     * obtener_usuario.php necesita la empresa.
+     */
+    if (
+        esRoot &&
+        idEmpresa <= 0
+    ) {
+
+        $("#edit_user_id")
+            .val(id);
+
+
+        $("#user_nombre")
+            .val("");
+
+
+        $("#user_email")
+            .val("");
+
+
+        $("#user_login")
+            .val("");
+
+
+        $("#user_pass")
+            .val("");
+
+
+        $("#lblClaveOpcional")
+            .text(
+                "(Dejar en blanco para mantener actual)"
+            );
+
+
+        renderizarMatrizAccesos([]);
+
+
+        $(".modal-title")
+            .text(
+                "Editar Usuario"
+            );
+
+
+        $("#btnGuardar")
+            .text(
+                "Guardar Cambios"
+            );
+
+
+        $("#ModalUsuario")
+            .modal("show");
+
+
+        return;
+    }
+
+
+    /*
+     * Si ya hay empresa seleccionada,
+     * cargamos directamente el usuario.
+     */
+    cargarAplicaciones(function() {
+        cargarDatosUsuario(id);
+    });
+}
+
+
+/* =========================================================
+   CARGAR DATOS DEL USUARIO
+   ========================================================= */
+
+function cargarDatosUsuario(id) {
+
+    const idEmpresa =
+        obtenerEmpresaModal();
+
+
+    /*
+     * Evita mandar una consulta que sabemos
+     * que el backend va a rechazar.
+     */
+    if (
+        idEmpresa <= 0
+    ) {
+
+        return;
+    }
 
 
     $.ajax({
@@ -677,7 +1214,7 @@ function editar(id) {
         },
 
         headers:
-            obtenerHeadersSSO(),
+            obtenerHeadersEmpresaModal(),
 
         success: function(res) {
 
@@ -690,68 +1227,162 @@ function editar(id) {
 
 
             if (
-                respuesta.status === "ok"
+                respuesta.status !== "ok"
             ) {
 
-                const u =
-                    respuesta.data;
+                toast(
+                    respuesta.msg ||
+                    "No se pudo obtener el usuario",
+                    "error"
+                );
+
+                return;
+            }
 
 
-                $("#edit_user_id")
-                    .val(u.idusuario);
+            const u =
+                respuesta.data;
 
 
-                $("#user_nombre")
-                    .val(u.nombreapellido);
+            $("#edit_user_id")
+                .val(u.idusuario);
 
 
-                $("#user_email")
-                    .val(u.email);
+            $("#user_nombre")
+                .val(u.nombreapellido);
 
 
-                $("#user_login")
-                    .val(u.username);
+            $("#user_email")
+                .val(u.email);
 
 
-                $("#user_pass")
-                    .val("");
+            $("#user_login")
+                .val(u.username);
 
 
-                $("#lblClaveOpcional")
-                    .text(
-                        "(Dejar en blanco para mantener actual)"
-                    );
+            $("#user_pass")
+                .val("");
 
 
-                renderizarMatrizAccesos(
-                    u.accesos || []
+            $("#lblClaveOpcional")
+                .text(
+                    "(Dejar en blanco para mantener actual)"
                 );
 
 
-                $(".modal-title")
-                    .text(
-                        "Editar Usuario: " +
-                        u.nombreapellido
-                    );
+            renderizarMatrizAccesos(
+                u.accesos || []
+            );
 
 
-                $("#btnGuardar")
-                    .text(
-                        "Guardar Cambios"
-                    );
+            /*
+             * Si SUPER_ADMIN está trabajando con
+             * una empresa desde el modal, mantenemos
+             * esa empresa seleccionada.
+             */
+            if (esRoot) {
 
-
-                $("#ModalUsuario")
-                    .modal("show");
+                cargarEmpresasModal(
+                    idEmpresa
+                );
             }
+
+
+            $(".modal-title")
+                .text(
+                    "Editar Usuario: " +
+                    u.nombreapellido
+                );
+
+
+            $("#btnGuardar")
+                .text(
+                    "Guardar Cambios"
+                );
+
+
+            $("#ModalUsuario")
+                .modal("show");
+        },
+
+        error: function() {
+
+            toast(
+                "Error de conexión con el servidor",
+                "error"
+            );
         }
     });
 }
 
 
-// =========================================================
-// GUARDAR
-// =========================================================
+/* =========================================================
+   CAMBIO DE EMPRESA DENTRO DEL MODAL
+   ========================================================= */
+
+$(document).on(
+    'change',
+    '#selectEmpresaUsuario',
+    function() {
+
+        const idEmpresa =
+            parseInt(
+                $(this).val() || 0
+            );
+
+
+        /*
+         * Si estamos creando:
+         * solamente necesitamos que quede
+         * seleccionada para guardar.
+         */
+        if (modoUsuario === "nuevo") {
+
+            if (idEmpresa > 0) {
+                cargarAplicaciones();
+            } else {
+                aplicacionesGlobal = [];
+                renderizarMatrizAccesos([]);
+            }
+
+            return;
+        }
+
+
+        /*
+         * Si estamos editando y se eligió
+         * una empresa, cargamos nuevamente
+         * los datos/accesos del usuario
+         * correspondientes a esa empresa.
+         */
+        if (
+            modoUsuario === "editar" &&
+            idEmpresa > 0
+        ) {
+
+            const idUsuario =
+                parseInt(
+                    $("#edit_user_id").val() || 0
+                );
+
+            cargarAplicaciones(function() {
+
+                if (idUsuario > 0) {
+
+                    cargarDatosUsuario(
+                        idUsuario
+                    );
+                }
+
+            });
+        }
+    }
+);
+
+
+/* =========================================================
+   GUARDAR
+   ========================================================= */
 
 function guardar() {
 
@@ -785,16 +1416,34 @@ function guardar() {
     );
 
 
-    // =====================================================
-    // VALIDAR APLICACIÓN + ROL
-    // =====================================================
-
     if (
-        accesos.length === 0
+        accesos.length === 0 &&
+        !esRoot
     ) {
 
         toast(
             'Debe seleccionar al menos una aplicación con su rol correspondiente',
+            'warning'
+        );
+
+        return;
+    }
+
+
+    /*
+     * Empresa que se utilizará para guardar.
+     */
+    const idEmpresa =
+        obtenerEmpresaModal();
+
+
+    if (
+        idEmpresa <= 0 &&
+        !esRoot
+    ) {
+
+        toast(
+            'Debe seleccionar una empresa',
             'warning'
         );
 
@@ -836,10 +1485,6 @@ function guardar() {
     };
 
 
-    // =====================================================
-    // CAMPOS OBLIGATORIOS
-    // =====================================================
-
     if (
         !datos.nombre ||
         !datos.login ||
@@ -858,10 +1503,6 @@ function guardar() {
     }
 
 
-    // =====================================================
-    // GUARDAR EN BACKEND
-    // =====================================================
-
     $.ajax({
 
         url:
@@ -875,7 +1516,7 @@ function guardar() {
             datos,
 
         headers:
-            obtenerHeadersSSO(),
+            obtenerHeadersEmpresaModal(),
 
         success: function(res) {
 
@@ -932,9 +1573,9 @@ function guardar() {
 }
 
 
-// =========================================================
-// CAMBIAR ESTADO
-// =========================================================
+/* =========================================================
+   CAMBIAR ESTADO
+   ========================================================= */
 
 function cambiarEstado(
     id,
@@ -999,6 +1640,7 @@ function cambiarEstado(
                         "/sso/usuarios/baja_usuario.php",
 
                     data: {
+
                         id:
                             id,
 
@@ -1057,3 +1699,131 @@ function cambiarEstado(
         }
     );
 }
+
+function cargarPermisosRol(idAplicacion, idTipoUsuario) {
+    const contenedor = $(`#permisos_rol_${idAplicacion}`);
+
+    if (!idAplicacion || !idTipoUsuario) {
+        contenedor.hide().html('');
+        return;
+    }
+
+    contenedor
+        .show()
+        .html('<div class="small text-muted">Cargando permisos...</div>');
+
+    $.ajax({
+        type: "GET",
+        url: API_BASE + "/sso/permisos/get_permisos_rol.php",
+        data: {
+            idaplicacion: idAplicacion,
+            idtipousuario: idTipoUsuario
+        },
+        headers: obtenerHeadersSSO(),
+        success: function(response) {
+            const res = (typeof response === 'string')
+                ? JSON.parse(response)
+                : response;
+
+            if (res.status !== "ok") {
+                contenedor.html(
+                    '<div class="small text-danger">No se pudieron cargar los permisos.</div>'
+                );
+                return;
+            }
+
+            const todos = Array.isArray(res.data.todos)
+                ? res.data.todos
+                : [];
+
+            const asignados = Array.isArray(res.data.asignados)
+                ? res.data.asignados.map(Number)
+                : [];
+
+            const permisosPuede = todos.filter(p =>
+                asignados.includes(Number(p.idpermiso))
+            );
+
+            const permisosNoPuede = todos.filter(p =>
+                !asignados.includes(Number(p.idpermiso))
+            );
+
+            let html = `
+                <div class="border rounded p-2 bg-body-tertiary small">
+            `;
+
+            if (permisosPuede.length > 0) {
+                html += `
+                    <div class="fw-semibold mb-1">
+                        <i class="fas fa-check text-success me-1"></i>
+                        Puede:
+                    </div>
+                    <ul class="mb-2 ps-3">
+                `;
+
+                permisosPuede.forEach(p => {
+                    html += `
+                        <li>
+                            ${p.descripcion || p.clavepermiso}
+                        </li>
+                    `;
+                });
+
+                html += `
+                    </ul>
+                `;
+            } else {
+                html += `
+                    <div class="text-muted mb-2">
+                        Este rol no tiene permisos asignados.
+                    </div>
+                `;
+            }
+
+            if (permisosNoPuede.length > 0) {
+                html += `
+                    <div class="fw-semibold mb-1">
+                        <i class="fas fa-times text-danger me-1"></i>
+                        No puede:
+                    </div>
+                    <ul class="mb-0 ps-3">
+                `;
+
+                permisosNoPuede.forEach(p => {
+                    html += `
+                        <li>
+                            ${p.descripcion || p.clavepermiso}
+                        </li>
+                    `;
+                });
+
+                html += `
+                    </ul>
+                `;
+            }
+
+            html += `
+                </div>
+            `;
+
+            contenedor.html(html);
+        },
+        error: function() {
+            contenedor.html(
+                '<div class="small text-danger">Error al consultar los permisos del rol.</div>'
+            );
+        }
+    });
+}
+
+$(document).on('change', '.select-rol-app', function() {
+
+    const idAplicacion = $(this).data('idaplicacion');
+    const idTipoUsuario = $(this).val();
+
+    cargarPermisosRol(
+        idAplicacion,
+        idTipoUsuario
+    );
+
+});

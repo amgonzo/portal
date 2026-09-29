@@ -56,7 +56,11 @@ if (!$empresa) {
 // CONECTAR A LA BASE DE DATOS DE LA EMPRESA
 // ============================================================
 
-$mysqli = conectarBase($empresa['db_nombre']);
+$mysqli = conectarDBEmpresa(
+    $mysqli,
+    (int)$empresa['idempresa'],
+    'DATOS'
+);
 
 // ============================================================
 // CARGAR DICCIONARIO
