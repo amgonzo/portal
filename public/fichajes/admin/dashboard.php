@@ -142,33 +142,219 @@
                 </div>
             </div>
 
-            <!-- Panel Lateral de Acceso Rápido / Accesos Directos -->
+            <!-- ========================================== -->
+            <!-- PANEL LATERAL                              -->
+            <!-- INCIDENCIAS + ACCIONES RÁPIDAS             -->
+            <!-- ========================================== -->
+
             <div class="col-12 col-lg-4 mb-4">
-                <div class="card border-0 shadow-sm rounded-3 p-3 bg-white">
-                    <h5 class="fw-bold mb-1 text-dark"><i class="bi bi-lightning-charge me-2 text-warning"></i> Acciones Rápidas</h5>
-                    <p class="text-muted small mb-3">Accesos directos para la gestión diaria de fichajes.</p>
-                    
-                    <div class="d-flex flex-column gap-2">
-                        <a href="revisar_incidencias.php" class="btn btn-outline-danger text-start d-flex justify-content-between align-items-center p-3">
-                            <div>
-                                <i class="bi bi-shield-exclamation me-2"></i> Resolver Casos Ambiguos
-                            </div>
-                            <i class="bi bi-chevron-right"></i>
-                        </a>
-                        <a href="procesar_jornadas.php" class="btn btn-outline-warning text-start d-flex justify-content-between align-items-center p-3">
-                            <div>
-                                <i class="bi bi-gear me-2"></i> Procesar Jornadas Pendientes
-                            </div>
-                            <i class="bi bi-chevron-right"></i>
-                        </a>
-                        <a href="reportes_diarios.php" class="btn btn-outline-secondary text-start d-flex justify-content-between align-items-center p-3">
-                            <div>
-                                <i class="bi bi-file-earmark-text me-2"></i> Ver Reporte Completo
-                            </div>
-                            <i class="bi bi-chevron-right"></i>
-                        </a>
+
+                <!-- ====================================== -->
+                <!-- INCIDENCIAS DEL SISTEMA                -->
+                <!-- ====================================== -->
+
+                <div class="card border-0 shadow-sm rounded-3 p-3 bg-white mb-4">
+
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+
+                        <h5 class="fw-bold mb-0 text-dark">
+                            <i class="bi bi-shield-exclamation me-2 text-danger"></i>
+                            Incidencias
+                        </h5>
+
+                        <span
+                            id="badge-incidencias-total"
+                            class="badge bg-danger"
+                        >
+                            0
+                        </span>
+
                     </div>
+
+                    <p class="text-muted small mb-3">
+                        Problemas informados por los Agents.
+                    </p>
+
+
+                    <!-- ESTADO DEL AGENT -->
+
+                    <div
+                        id="estado-agent-panel"
+                        class="d-flex align-items-center justify-content-between
+                            border rounded-3 p-3 mb-3"
+                    >
+
+                        <div>
+
+                            <div class="fw-semibold">
+                                Estado del Agent
+                            </div>
+
+                            <small
+                                id="texto-estado-agent"
+                                class="text-muted"
+                            >
+                                Consultando...
+                            </small>
+
+                        </div>
+
+                        <span
+                            id="indicador-estado-agent"
+                            class="badge bg-secondary"
+                        >
+                            -
+                        </span>
+
+                    </div>
+
+
+                    <!-- RESUMEN DE INCIDENCIAS -->
+
+                    <div class="row g-2 mb-3">
+
+                        <!-- ABIERTAS -->
+
+                        <div class="col-6">
+
+                            <div
+                                class="border rounded-3 p-3 text-center"
+                            >
+
+                                <div
+                                    id="incidencias-abiertas"
+                                    class="fs-3 fw-bold text-danger"
+                                >
+                                    0
+                                </div>
+
+                                <small class="text-muted">
+                                    Abiertas
+                                </small>
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- RECONOCIDAS -->
+
+                        <div class="col-6">
+
+                            <div
+                                class="border rounded-3 p-3 text-center"
+                            >
+
+                                <div
+                                    id="incidencias-reconocidas"
+                                    class="fs-3 fw-bold text-warning"
+                                >
+                                    0
+                                </div>
+
+                                <small class="text-muted">
+                                    Reconocidas
+                                </small>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- BOTÓN -->
+
+                    <a
+                        href="incidencias.php"
+                        class="btn btn-outline-danger w-100 d-flex
+                            justify-content-between align-items-center"
+                    >
+
+                        <span>
+                            <i class="bi bi-list-check me-2"></i>
+                            Ver incidencias
+                        </span>
+
+                        <i class="bi bi-chevron-right"></i>
+
+                    </a>
+
                 </div>
+
+
+                <!-- ====================================== -->
+                <!-- ACCIONES RÁPIDAS                       -->
+                <!-- ====================================== -->
+
+                <div class="card border-0 shadow-sm rounded-3 p-3 bg-white">
+
+                    <h5 class="fw-bold mb-1 text-dark">
+                        <i class="bi bi-lightning-charge me-2 text-warning"></i>
+                        Acciones Rápidas
+                    </h5>
+
+                    <p class="text-muted small mb-3">
+                        Accesos directos para la gestión diaria de fichajes.
+                    </p>
+
+
+                    <div class="d-flex flex-column gap-2">
+
+                        <a
+                            href="revisar_incidencias.php"
+                            class="btn btn-outline-danger text-start
+                                d-flex justify-content-between
+                                align-items-center p-3"
+                        >
+
+                            <div>
+                                <i class="bi bi-shield-exclamation me-2"></i>
+                                Resolver Casos Ambiguos
+                            </div>
+
+                            <i class="bi bi-chevron-right"></i>
+
+                        </a>
+
+
+                        <a
+                            href="procesar_jornadas.php"
+                            class="btn btn-outline-warning text-start
+                                d-flex justify-content-between
+                                align-items-center p-3"
+                        >
+
+                            <div>
+                                <i class="bi bi-gear me-2"></i>
+                                Procesar Jornadas Pendientes
+                            </div>
+
+                            <i class="bi bi-chevron-right"></i>
+
+                        </a>
+
+
+                        <a
+                            href="reportes_diarios.php"
+                            class="btn btn-outline-secondary text-start
+                                d-flex justify-content-between
+                                align-items-center p-3"
+                        >
+
+                            <div>
+                                <i class="bi bi-file-earmark-text me-2"></i>
+                                Ver Reporte Completo
+                            </div>
+
+                            <i class="bi bi-chevron-right"></i>
+
+                        </a>
+
+                    </div>
+
+                </div>
+
             </div>
 
         </div>
@@ -176,7 +362,8 @@
     </div>
 
     <!-- Scripts y Modales -->
-
+    <script src="<?php echo versionar('js/dashboard.js'); ?>"></script>
+    
 </body>
 
 </html>

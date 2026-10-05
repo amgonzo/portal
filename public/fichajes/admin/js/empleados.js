@@ -1,6 +1,13 @@
 let tablaEmpleados = null;
 let empleadosList = [];
 
+let ciclosDisponibles = [];
+let ciclosEmpleadoList = [];
+let modalCicloEmpleado = null;
+
+let lectoresDisponibles = [];
+let lectoresEmpleadoAsignados = [];
+
 document.addEventListener('DOMContentLoaded', () => {
     // Validación de seguridad SSO inicial requerida por el sistema
 const token = localStorage.getItem('sso_token');
@@ -12,6 +19,21 @@ if (!token) {
 
     initDataTable();
     cargarEmpleados();
+
+    const modalElement = document.getElementById('ModalCicloEmpleado');
+
+    if (modalElement) {
+        modalCicloEmpleado = new bootstrap.Modal(modalElement);
+    }
+
+    document
+        .getElementById('formCicloEmpleado')
+        ?.addEventListener('submit', function (e) {
+            e.preventDefault();
+            guardarCicloEmpleado();
+        });
+
+    cargarCiclosDisponibles();
 });
 
 // Inicializar DataTables con idioma local (Sin CORS)
@@ -81,6 +103,14 @@ async function cargarEmpleados() {
                                  <i class="fas fa-edit"></i>
                              </button>`;
 
+            const btnCiclo = `
+                <button
+                    class="btn btn-sm btn-primary text-white me-1"
+                    onclick="asignarCicloEmpleado(${e.idempleado})"
+                    title="Asignar ciclo">
+                    <i class="fas fa-sync-alt"></i>
+                </button>`;
+
             const btnEstado = activo 
                 ? `<button class="btn btn-sm btn-danger" onclick="cambiarEstadoEmpleado(${e.idempleado}, 0)" title="Dar de baja">
                     <i class="fas fa-user-slash"></i>
@@ -96,14 +126,29 @@ async function cargarEmpleados() {
                     title="Enviar al lector">
                     <i class="fas fa-id-card"></i>
                 </button>`;
-    
+            
+            const btnHuellas = ` 
+                <button type="button" class="btn btn-sm btn-dark text-white me-1" 
+                    onclick="abrirModalHuellas(${e.idempleado})" 
+                    title="Gestionar huellas"> 
+                    <i class="fas fa-fingerprint"></i> 
+                </button>`;
+
+            const btnCalendario = `
+                <button
+                    class="btn btn-sm btn-primary text-white me-1"
+                    onclick="abrirCalendarioEmpleado(${e.idempleado})"
+                    title="Calendario del empleado">
+                    <i class="fas fa-calendar-alt"></i>
+                </button>`;
+
             tablaEmpleados.row.add([
                 e.documento,
                 `<strong>${e.apellido}, ${e.nombre}</strong>`,
                 badgeTarjeta,
                 e.fecha_inicio ?? '-',
                 badgeEstado,
-                `${btnEditar} ${btnEnviarLector} ${btnEstado}`
+                `${btnEditar} ${btnCiclo} ${btnEnviarLector} ${btnHuellas} ${btnCalendario} ${btnEstado}`
             ]);
         });
 
@@ -117,16 +162,44 @@ async function cargarEmpleados() {
 // ---------------------------------------------------------------------
 // 2. ABRIR Y GUARDAR (CREAR / EDITAR)
 // ---------------------------------------------------------------------
-function abrirNuevoEmpleado() {
+async function abrirNuevoEmpleado() {
+
     $('#formEmpleado')[0].reset();
+
     $('#edit_empleado_id').val('');
-    $('.modal-title').text('Crear Nuevo Empleado');$('#btnGuardarEmpleado').text('Guardar Empleado');
+
+    lectoresEmpleadoList = [];
+
+    $('.modal-title').text('Crear Nuevo Empleado');
+    $('#btnGuardarEmpleado').text('Guardar Empleado');
+
+    const contenedor =
+        document.getElementById('listaLectoresEmpleado');
+
+    if (contenedor) {
+        contenedor.innerHTML = `
+            <div class="text-center text-muted py-2">
+                Cargando relojes...
+            </div>
+        `;
+    }
+
     $('#ModalEmpleado').modal('show');
+
+    await cargarLectoresDisponibles();
+
+    renderizarLectoresEmpleado();
 }
 
-function editarEmpleado(id) {
-    const e = empleadosList.find(emp => emp.idempleado == id);
-    if (!e) return;
+async function editarEmpleado(id) {
+
+    const e = empleadosList.find(
+        emp => emp.idempleado == id
+    );
+
+    if (!e) {
+        return;
+    }
 
     $('#edit_empleado_id').val(e.idempleado);
     $('#emp_documento').val(e.documento);
@@ -134,48 +207,205 @@ function editarEmpleado(id) {
     $('#emp_apellido').val(e.apellido);
     $('#emp_tarjeta').val(e.tarjeta);
     $('#emp_fecha_inicio').val(e.fecha_inicio);
-    
-    $('.modal-title').text(`Editar Empleado: ${e.apellido}, ${e.nombre}`);
+
+    $('.modal-title').text(
+        `Editar Empleado: ${e.apellido}, ${e.nombre}`
+    );
+
     $('#btnGuardarEmpleado').text('Guardar Cambios');
+
+    const contenedor =
+        document.getElementById('listaLectoresEmpleado');
+
+    if (contenedor) {
+        contenedor.innerHTML = `
+            <div class="text-center text-muted py-2">
+                Cargando relojes...
+            </div>
+        `;
+    }
+
     $('#ModalEmpleado').modal('show');
+
+    // Primero todos los relojes disponibles
+    await cargarLectoresDisponibles();
+
+    // Después los asignados a este empleado
+    await cargarLectoresEmpleado(e.idempleado);
+
+    // Renderiza y marca los asignados
+    renderizarLectoresEmpleado();
 }
 
 async function guardarEmpleado() {
+
     const documento = $('#emp_documento').val().trim();
     const nombre = $('#emp_nombre').val().trim();
     const apellido = $('#emp_apellido').val().trim();
     const id = $('#edit_empleado_id').val();
 
     if (!documento || !nombre || !apellido) {
-        toast("Complete los campos requeridos (Documento, Nombre y Apellido)", "warning");
+
+        toast(
+            "Complete los campos requeridos (Documento, Nombre y Apellido)",
+            "warning"
+        );
+
         return;
     }
 
     const action = id ? 'editar' : 'crear';
-    const formData = new FormData(document.getElementById('formEmpleado'));
+
+    const formData =
+        new FormData(document.getElementById('formEmpleado'));
+
     if (id) {
         formData.append('idempleado', id);
     }
 
+    /*
+     * Tomamos los relojes seleccionados.
+     *
+     * IMPORTANTE:
+     * renderizarLectoresEmpleado() utiliza la clase
+     * .lector-checkbox, no .lector-empleado-check.
+     */
+    const lectores = [];
+
+    $('.lector-checkbox:checked').each(function () {
+        lectores.push(Number(this.value));
+    });
+
+    const btn = $('#btnGuardarEmpleado');
+
+    const textoOriginal = btn.html();
+
+    btn.prop('disabled', true);
+
     try {
-        const res = await fetch(API_BASE + `/fichajes/empleados/empleados.php?action=${action}`, {
-            method: 'POST',
-            headers: obtenerHeadersSSO(),
-            body: formData
-        });
+
+        /*
+         * Primero guardamos el empleado.
+         */
+        const res = await fetch(
+            API_BASE +
+            `/fichajes/empleados/empleados.php?action=${action}`,
+            {
+                method: 'POST',
+                headers: obtenerHeadersSSO(),
+                body: formData
+            }
+        );
+
         const json = await res.json();
 
         if (json.status !== 'ok') {
-            toast(json.msg, "error");
+
+            toast(
+                json.msg || 'No se pudo guardar el empleado.',
+                "error"
+            );
+
             return;
         }
 
-        $('#ModalEmpleado').modal('hide');
-        toast(json.msg, "success");
+        /*
+         * Determinar el ID del empleado.
+         *
+         * En edición ya lo tenemos.
+         * En creación esperamos que el backend lo devuelva.
+         */
+        const idEmpleadoGuardado =
+            Number(
+                id ||
+                json.idempleado ||
+                json.data?.idempleado ||
+                0
+            );
+
+        if (!idEmpleadoGuardado) {
+
+            toast(
+                'El empleado fue guardado, pero no se pudo obtener su ID para guardar los relojes.',
+                'error'
+            );
+
+            return;
+        }
+
+        /*
+         * Guardar asignaciones de relojes.
+         */
+        const respuestaLectores = await fetch(
+            API_BASE +
+            '/fichajes/empleados/empleados_lectores.php',
+            {
+                method: 'POST',
+                headers: {
+                    ...obtenerHeadersSSO(),
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    idempleado: idEmpleadoGuardado,
+                    lectores: lectores
+                })
+            }
+        );
+
+        const datosLectores =
+            await respuestaLectores.json();
+
+        if (
+            !respuestaLectores.ok ||
+            datosLectores.status !== 'ok'
+        ) {
+
+            toast(
+                datosLectores.message ||
+                datosLectores.msg ||
+                'El empleado se guardó, pero no se pudieron guardar los relojes.',
+                'error'
+            );
+
+            return;
+        }
+
+        /*
+         * Cerrar modal.
+         */
+        const modalElement =
+            document.getElementById('ModalEmpleado');
+
+        if (modalElement) {
+
+            const modal =
+                bootstrap.Modal.getInstance(modalElement);
+
+            if (modal) {
+                modal.hide();
+            }
+        }
+
+        toast(
+            json.msg || 'Empleado guardado correctamente.',
+            "success"
+        );
+
         cargarEmpleados();
 
     } catch (err) {
-        toast("Error al procesar la solicitud", "error");
+
+        console.error(err);
+
+        toast(
+            "Error al procesar la solicitud",
+            "error"
+        );
+
+    } finally {
+
+        btn.prop('disabled', false);
+        btn.html(textoOriginal);
     }
 }
 
@@ -275,10 +505,20 @@ function enviarEmpleadoLector(idempleado) {
             const json = await res.json();
 
             if (json.status !== 'ok') {
+
                 toast(
                     json.msg || "No se pudo generar la solicitud.",
                     "error"
                 );
+
+                if (
+                    json.msg === 'El empleado no tiene un lector activo asignado.'
+                ) {
+                    setTimeout(() => {
+                        editarEmpleado(idempleado);
+                    }, 500);
+                }
+
                 return;
             }
 
@@ -297,4 +537,1292 @@ function enviarEmpleadoLector(idempleado) {
             );
         }
     });
+}
+
+// ---------------------------------------------------------------------
+// 5. CARGAR CICLOS DISPONIBLES
+// ---------------------------------------------------------------------
+async function cargarCiclosDisponibles() {
+
+    try {
+
+        const res = await fetch(
+            API_BASE +
+            '/fichajes/empleados/ciclos_empleados.php?accion=ciclos',
+            {
+                method: 'GET',
+                headers: obtenerHeadersSSO(),
+                cache: 'no-store'
+            }
+        );
+
+        const json = await res.json();
+
+        if (json.status !== 'ok') {
+
+            toast(
+                json.message || 'Error al cargar los ciclos',
+                'error'
+            );
+
+            return;
+        }
+
+        ciclosDisponibles = json.data || [];
+
+        const select =
+            document.getElementById('ciclo_empleado_ciclo');
+
+        if (!select) {
+            return;
+        }
+
+        select.innerHTML = `
+            <option value="">
+                Seleccione un ciclo
+            </option>
+        `;
+
+        ciclosDisponibles.forEach(ciclo => {
+
+            const option = document.createElement('option');
+
+            option.value = ciclo.idciclo;
+
+            option.textContent =
+                `${ciclo.nombre} (${ciclo.cantidad_semanas} semanas)`;
+
+            select.appendChild(option);
+        });
+
+    } catch (err) {
+
+        console.error(err);
+
+        toast(
+            'Error de conexión al cargar los ciclos',
+            'error'
+        );
+    }
+}
+
+
+// ---------------------------------------------------------------------
+// 6. ABRIR ASIGNACIÓN DE CICLO
+// ---------------------------------------------------------------------
+async function asignarCicloEmpleado(idempleado) {
+
+    const empleado = empleadosList.find(
+        e => e.idempleado == idempleado
+    );
+
+    if (!empleado) {
+
+        toast(
+            'Empleado no encontrado.',
+            'error'
+        );
+
+        return;
+    }
+
+
+    document.getElementById(
+        'ciclo_empleado_id'
+    ).value = idempleado;
+
+    document.getElementById(
+        'ciclo_empleado_asignacion_id'
+    ).value = '';
+
+    document.getElementById(
+        'cicloEmpleadoNombre'
+    ).textContent =
+        `${empleado.apellido}, ${empleado.nombre}`;
+
+
+    document.getElementById(
+        'ciclo_empleado_ciclo'
+    ).value = '';
+
+    document.getElementById(
+        'ciclo_empleado_fecha_desde'
+    ).value = empleado.fecha_inicio || '';
+
+    document.getElementById(
+        'ciclo_empleado_fecha_hasta'
+    ).value = '';
+
+
+    document.getElementById(
+        'btnGuardarCicloEmpleado'
+    ).innerHTML = `
+        <i class="fas fa-save me-2"></i>
+        Guardar Ciclo
+    `;
+
+
+    if (modalCicloEmpleado) {
+        modalCicloEmpleado.show();
+    }
+
+
+    await cargarAsignacionesEmpleado(idempleado);
+}
+
+
+// ---------------------------------------------------------------------
+// 7. CARGAR HISTORIAL DEL EMPLEADO
+// ---------------------------------------------------------------------
+async function cargarAsignacionesEmpleado(idempleado) {
+
+    const tbody =
+        document.getElementById(
+            'listaCiclosEmpleado'
+        );
+
+    if (tbody) {
+
+        tbody.innerHTML = `
+            <tr>
+                <td
+                    colspan="4"
+                    class="text-center text-muted">
+                    Cargando...
+                </td>
+            </tr>
+        `;
+    }
+
+
+    try {
+
+        const res = await fetch(
+            API_BASE +
+            `/fichajes/empleados/ciclos_empleados.php?idempleado=${encodeURIComponent(idempleado)}`,
+            {
+                method: 'GET',
+                headers: obtenerHeadersSSO(),
+                cache: 'no-store'
+            }
+        );
+
+        const json = await res.json();
+
+        if (json.status !== 'ok') {
+
+            toast(
+                json.message || 'Error al cargar las asignaciones',
+                'error'
+            );
+
+            return;
+        }
+
+        ciclosEmpleadoList = json.data || [];
+
+        renderizarAsignacionesEmpleado();
+
+    } catch (err) {
+
+        console.error(err);
+
+        toast(
+            'Error de conexión al cargar las asignaciones',
+            'error'
+        );
+    }
+}
+
+
+// ---------------------------------------------------------------------
+// 8. MOSTRAR HISTORIAL DE CICLOS
+// ---------------------------------------------------------------------
+function renderizarAsignacionesEmpleado() {
+
+    const tbody =
+        document.getElementById(
+            'listaCiclosEmpleado'
+        );
+
+    if (!tbody) {
+        return;
+    }
+
+
+    tbody.innerHTML = '';
+
+
+    if (!ciclosEmpleadoList.length) {
+
+        tbody.innerHTML = `
+            <tr>
+                <td
+                    colspan="4"
+                    class="text-center text-muted">
+                    Sin asignaciones.
+                </td>
+            </tr>
+        `;
+
+        return;
+    }
+
+
+    ciclosEmpleadoList.forEach(asignacion => {
+
+        const tr =
+            document.createElement('tr');
+
+
+        const tdCiclo =
+            document.createElement('td');
+
+        tdCiclo.innerHTML =
+            `<strong>${escapeHtml(asignacion.ciclo_nombre)}</strong>`;
+
+
+        const tdDesde =
+            document.createElement('td');
+
+        tdDesde.textContent =
+            asignacion.fecha_desde || '-';
+
+
+        const tdHasta =
+            document.createElement('td');
+
+        tdHasta.textContent =
+            asignacion.fecha_hasta || 'Sin fecha';
+
+
+        const tdAccion =
+            document.createElement('td');
+
+        tdAccion.className =
+            'text-center';
+
+
+        const btnEditar =
+            document.createElement('button');
+
+        btnEditar.type = 'button';
+
+        btnEditar.className =
+            'btn btn-sm btn-info text-white';
+
+        btnEditar.title =
+            'Editar asignación';
+
+        btnEditar.innerHTML =
+            '<i class="fas fa-edit"></i>';
+
+        btnEditar.onclick = function () {
+
+            editarAsignacionCiclo(
+                asignacion.idempleado_ciclo
+            );
+        };
+
+
+        tdAccion.appendChild(btnEditar);
+
+
+        tr.appendChild(tdCiclo);
+        tr.appendChild(tdDesde);
+        tr.appendChild(tdHasta);
+        tr.appendChild(tdAccion);
+
+        tbody.appendChild(tr);
+    });
+}
+
+
+// ---------------------------------------------------------------------
+// 9. EDITAR ASIGNACIÓN
+// ---------------------------------------------------------------------
+function editarAsignacionCiclo(idempleadoCiclo) {
+
+    const asignacion =
+        ciclosEmpleadoList.find(
+            a =>
+                a.idempleado_ciclo ==
+                idempleadoCiclo
+        );
+
+    if (!asignacion) {
+        return;
+    }
+
+
+    document.getElementById(
+        'ciclo_empleado_asignacion_id'
+    ).value =
+        asignacion.idempleado_ciclo;
+
+
+    document.getElementById(
+        'ciclo_empleado_ciclo'
+    ).value =
+        asignacion.idciclo;
+
+
+    document.getElementById(
+        'ciclo_empleado_fecha_desde'
+    ).value =
+        asignacion.fecha_desde || '';
+
+
+    document.getElementById(
+        'ciclo_empleado_fecha_hasta'
+    ).value =
+        asignacion.fecha_hasta || '';
+
+
+    document.getElementById(
+        'btnGuardarCicloEmpleado'
+    ).innerHTML = `
+        <i class="fas fa-save me-2"></i>
+        Guardar Cambios
+    `;
+}
+
+
+// ---------------------------------------------------------------------
+// 10. GUARDAR ASIGNACIÓN
+// ---------------------------------------------------------------------
+async function guardarCicloEmpleado() {
+
+    const idempleado =
+        parseInt(
+            document.getElementById(
+                'ciclo_empleado_id'
+            ).value,
+            10
+        );
+
+    const idempleadoCiclo =
+        document.getElementById(
+            'ciclo_empleado_asignacion_id'
+        ).value;
+
+
+    const idciclo =
+        parseInt(
+            document.getElementById(
+                'ciclo_empleado_ciclo'
+            ).value,
+            10
+        );
+
+
+    const fechaDesde =
+        document.getElementById(
+            'ciclo_empleado_fecha_desde'
+        ).value;
+
+
+    const fechaHasta =
+        document.getElementById(
+            'ciclo_empleado_fecha_hasta'
+        ).value;
+
+
+    if (!idempleado) {
+
+        toast(
+            'Empleado inválido.',
+            'warning'
+        );
+
+        return;
+    }
+
+
+    if (!idciclo) {
+
+        toast(
+            'Seleccione un ciclo.',
+            'warning'
+        );
+
+        return;
+    }
+
+
+    if (!fechaDesde) {
+
+        toast(
+            'Indique la fecha desde.',
+            'warning'
+        );
+
+        return;
+    }
+
+
+    if (
+        fechaHasta &&
+        fechaHasta < fechaDesde
+    ) {
+
+        toast(
+            'La fecha hasta no puede ser anterior a la fecha desde.',
+            'warning'
+        );
+
+        return;
+    }
+
+
+    const btn =
+        document.getElementById(
+            'btnGuardarCicloEmpleado'
+        );
+
+
+    const textoOriginal =
+        btn.innerHTML;
+
+
+    btn.disabled = true;
+
+    btn.innerHTML = `
+        <span class="spinner-border spinner-border-sm me-2"></span>
+        Guardando...
+    `;
+
+
+    try {
+
+        const res = await fetch(
+            API_BASE +
+            '/fichajes/empleados/ciclos_empleados.php',
+            {
+                method: 'POST',
+                headers: {
+                    ...obtenerHeadersSSO(),
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    accion: 'guardar',
+                    idempleado: idempleado,
+                    idempleado_ciclo:
+                        idempleadoCiclo || '',
+                    idciclo: idciclo,
+                    fecha_desde: fechaDesde,
+                    fecha_hasta: fechaHasta || null
+                })
+            }
+        );
+
+
+        const json = await res.json();
+
+
+        if (json.status !== 'ok') {
+
+            toast(
+                json.message ||
+                'No se pudo guardar la asignación.',
+                'error'
+            );
+
+            return;
+        }
+
+
+        toast(
+            json.message ||
+            'Ciclo asignado correctamente.',
+            'success'
+        );
+
+
+        document.getElementById(
+            'ciclo_empleado_asignacion_id'
+        ).value = '';
+
+
+        document.getElementById(
+            'ciclo_empleado_ciclo'
+        ).value = '';
+
+
+        document.getElementById(
+            'ciclo_empleado_fecha_hasta'
+        ).value = '';
+
+
+        btn.innerHTML = `
+            <i class="fas fa-save me-2"></i>
+            Guardar Ciclo
+        `;
+
+
+        await cargarAsignacionesEmpleado(
+            idempleado
+        );
+
+
+    } catch (err) {
+
+        console.error(err);
+
+        toast(
+            'Error de conexión al guardar la asignación.',
+            'error'
+        );
+
+    } finally {
+
+        btn.disabled = false;
+
+        if (
+            btn.innerHTML.includes(
+                'spinner-border'
+            )
+        ) {
+            btn.innerHTML =
+                textoOriginal;
+        }
+    }
+}
+
+// ---------------------------------------------------------------------
+// RELOJES DISPONIBLES
+// ---------------------------------------------------------------------
+async function cargarLectoresDisponibles() {
+
+    try {
+
+        const res = await fetch(
+            API_BASE +
+            '/fichajes/empleados/empleados_lectores.php?accion=lectores',
+            {
+                method: 'GET',
+                headers: obtenerHeadersSSO(),
+                cache: 'no-store'
+            }
+        );
+
+        const json = await res.json();
+
+        if (json.status !== 'ok') {
+
+            toast(
+                json.message || json.msg || 'Error al cargar los relojes.',
+                'error'
+            );
+
+            lectoresDisponibles = [];
+            return false;
+        }
+
+        lectoresDisponibles = json.data || [];
+
+        return true;
+
+    } catch (err) {
+
+        console.error(err);
+
+        lectoresDisponibles = [];
+
+        toast(
+            'Error de conexión al cargar los relojes.',
+            'error'
+        );
+
+        return false;
+    }
+}
+
+
+// ---------------------------------------------------------------------
+// RELOJES ASIGNADOS AL EMPLEADO
+// ---------------------------------------------------------------------
+async function cargarLectoresEmpleado(idempleado) {
+
+    lectoresEmpleadoList = [];
+
+    try {
+
+        const res = await fetch(
+            API_BASE +
+            `/fichajes/empleados/empleados_lectores.php?accion=empleado&idempleado=${encodeURIComponent(idempleado)}`,
+            {
+                method: 'GET',
+                headers: obtenerHeadersSSO(),
+                cache: 'no-store'
+            }
+        );
+
+        const json = await res.json();
+
+        if (json.status !== 'ok') {
+
+            toast(
+                json.message || json.msg || 'Error al cargar los relojes asignados.',
+                'error'
+            );
+
+            return false;
+        }
+
+        lectoresEmpleadoList = json.data || [];
+
+        return true;
+
+    } catch (err) {
+
+        console.error(err);
+
+        toast(
+            'Error de conexión al cargar los relojes asignados.',
+            'error'
+        );
+
+        return false;
+    }
+}
+
+
+// ---------------------------------------------------------------------
+// MOSTRAR RELOJES
+// ---------------------------------------------------------------------
+function renderizarLectoresEmpleado() {
+
+    const contenedor =
+        document.getElementById('listaLectoresEmpleado');
+
+    if (!contenedor) {
+        return;
+    }
+
+    contenedor.innerHTML = '';
+
+    if (!lectoresDisponibles.length) {
+
+        contenedor.innerHTML = `
+            <div class="text-muted small">
+                No hay relojes activos disponibles.
+            </div>
+        `;
+
+        return;
+    }
+
+    lectoresDisponibles.forEach(lector => {
+
+        const asignado =
+            lectoresEmpleadoList.some(
+                id => Number(id) === Number(lector.idlector)
+            );
+
+        const div = document.createElement('div');
+
+        div.className =
+            'form-check border rounded p-2 mb-2';
+
+        div.innerHTML = `
+            <input
+                class="form-check-input ms-0 me-2 lector-checkbox"
+                type="checkbox"
+                value="${lector.idlector}"
+                id="lector_${lector.idlector}"
+                ${asignado ? 'checked' : ''}
+            >
+
+            <label
+                class="form-check-label ms-1 w-100"
+                for="lector_${lector.idlector}">
+
+                <strong>
+                    ${escapeHtml(lector.nombre)}
+                </strong>
+
+                ${
+                    Number(lector.predeterminado) === 1
+                        ? '<span class="badge bg-primary ms-2">Predeterminado</span>'
+                        : ''
+                }
+
+                <div class="small text-muted">
+                    ${escapeHtml(lector.ip)}
+                    ${
+                        lector.ubicacion
+                            ? ` · ${escapeHtml(lector.ubicacion)}`
+                            : ''
+                    }
+                </div>
+
+            </label>
+        `;
+
+        contenedor.appendChild(div);
+    });
+}
+
+// =========================================================
+// GESTIÓN DE HUELLAS
+// =========================================================
+
+async function gestionarHuellas(idempleado) {
+
+    const empleado = empleadosList.find(
+        e => Number(e.idempleado) === Number(idempleado)
+    );
+
+    if (!empleado) {
+        toast('No se encontró el empleado.', 'error');
+        return;
+    }
+
+    const nombreEmpleado =
+        `${empleado.nombre || ''} ${empleado.apellido || ''}`.trim();
+
+    Swal.fire({
+        title: 'Huellas del empleado',
+        html: `
+            <div class="text-left">
+                <div class="mb-3">
+                    <strong>${nombreEmpleado}</strong>
+                </div>
+
+                <div id="contenedorHuellasEmpleado">
+                    <div class="text-center py-3">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        Consultando huellas...
+                    </div>
+                </div>
+            </div>
+        `,
+        width: '700px',
+        showConfirmButton: false,
+        showCloseButton: true,
+        didOpen: () => {
+            cargarHuellasEmpleado(idempleado);
+        }
+    });
+}
+
+
+async function cargarHuellasEmpleado(idempleado) {
+
+    const contenedor =
+        document.getElementById('contenedorHuellasEmpleado');
+
+    if (!contenedor) return;
+
+    try {
+
+        const token =
+            localStorage.getItem('sso_token');
+
+        const respuesta = await fetch(
+            API_BASE +
+            '/fichajes/empleados/huellas.php',
+            {
+                method: 'POST',
+                headers: obtenerHeadersSSO(),
+                body: JSON.stringify({
+                    accion: 'leer_huellas',
+                    idempleado: idempleado
+                })
+            }
+        );
+
+        const datos = await respuesta.json();
+
+        if (!respuesta.ok || datos.status !== 'ok') {
+
+            throw new Error(
+                datos.msg ||
+                'No se pudieron consultar las huellas.'
+            );
+        }
+
+        contenedor.innerHTML = `
+            <div class="alert alert-info mb-3">
+                <i class="fas fa-info-circle mr-1"></i>
+                Se solicitó la lectura de las huellas al lector.
+            </div>
+
+            <div class="text-center">
+                <i class="fas fa-clock mr-1"></i>
+                Esperando respuesta del lector...
+            </div>
+        `;
+
+    } catch (error) {
+
+        contenedor.innerHTML = `
+            <div class="alert alert-danger mb-0">
+                <i class="fas fa-exclamation-triangle mr-1"></i>
+                ${error.message}
+            </div>
+        `;
+    }
+}
+
+async function abrirModalHuellas(idempleado) {
+
+    const empleado = empleadosList.find(
+        e => Number(e.idempleado) === Number(idempleado)
+    );
+
+    if (!empleado) {
+        toast('No se encontró el empleado.', 'error');
+        return;
+    }
+
+    const modalElement = document.getElementById('ModalHuellasEmpleado');
+
+    if (!modalElement) {
+        toast('No se encontró el modal de huellas.', 'error');
+        return;
+    }
+
+    const nombreEmpleado =
+        `${empleado.apellido || ''}, ${empleado.nombre || ''}`.trim();
+
+    document.getElementById('huellasIdEmpleado').value = idempleado;
+
+    document.getElementById('huellasNombreEmpleado').textContent =
+        nombreEmpleado;
+
+    const combo = document.getElementById('huella_idlector');
+
+    const estado = document.getElementById('huellasEstadoLector');
+
+    // ---------------------------------------------------------
+    // CARGAR LECTORES
+    // ---------------------------------------------------------
+
+    combo.innerHTML = `
+        <option value="">
+            Cargando lectores...
+        </option>
+    `;
+
+    combo.disabled = true;
+
+    estado.className = 'alert alert-secondary py-2 mb-3';
+    estado.innerHTML = `
+        <i class="fas fa-spinner fa-spin me-1"></i>
+        Cargando lectores disponibles...
+    `;
+
+    // Mostrar modal inmediatamente
+    const modal =
+        bootstrap.Modal.getOrCreateInstance(modalElement);
+
+    modal.show();
+
+    try {
+
+        // -----------------------------------------------------
+        // OBTENER LECTORES DISPONIBLES
+        // -----------------------------------------------------
+
+        await cargarLectoresDisponibles();
+
+        combo.innerHTML = `
+            <option value="">
+                Seleccione un lector
+            </option>
+        `;
+
+        if (
+            !Array.isArray(lectoresDisponibles) ||
+            lectoresDisponibles.length === 0
+        ) {
+
+            combo.innerHTML = `
+                <option value="">
+                    No hay lectores disponibles
+                </option>
+            `;
+
+            combo.disabled = true;
+
+            estado.className =
+                'alert alert-warning py-2 mb-3';
+
+            estado.innerHTML = `
+                <i class="fas fa-exclamation-triangle me-1"></i>
+                No hay lectores disponibles para este empleado.
+            `;
+
+            return;
+        }
+
+        // -----------------------------------------------------
+        // LLENAR SELECT
+        // -----------------------------------------------------
+
+        lectoresDisponibles.forEach(lector => {
+
+            combo.innerHTML += `
+                <option value="${lector.idlector}">
+                    ${lector.nombre}
+                </option>
+            `;
+
+        });
+
+        combo.disabled = false;
+
+        estado.className =
+            'alert alert-secondary py-2 mb-3';
+
+        estado.innerHTML = `
+            <i class="fas fa-info-circle me-1"></i>
+            Seleccione un lector para consultar las huellas.
+        `;
+
+        renderizarHuellasEmpleado([]);
+        
+    } catch (error) {
+
+        console.error(
+            'Error cargando lectores para huellas:',
+            error
+        );
+
+        combo.innerHTML = `
+            <option value="">
+                Error al cargar lectores
+            </option>
+        `;
+
+        combo.disabled = true;
+
+        estado.className =
+            'alert alert-danger py-2 mb-3';
+
+        estado.innerHTML = `
+            <i class="fas fa-exclamation-triangle me-1"></i>
+            ${error.message || 'No se pudieron cargar los lectores.'}
+        `;
+    }
+}
+
+// =========================================================
+// HUELLAS DEL EMPLEADO
+// =========================================================
+
+function renderizarHuellasEmpleado(huellas = []) {
+
+    const contenedor =
+        document.getElementById('listaHuellasEmpleado');
+
+    if (!contenedor) {
+        return;
+    }
+
+    const dedos = [
+        'Pulgar derecho',
+        'Índice derecho',
+        'Medio derecho',
+        'Anular derecho',
+        'Meñique derecho',
+        'Pulgar izquierdo',
+        'Índice izquierdo',
+        'Medio izquierdo',
+        'Anular izquierdo',
+        'Meñique izquierdo'
+    ];
+
+    contenedor.innerHTML = '';
+
+    dedos.forEach((nombreDedo, iddedo) => {
+
+        const huellaRegistrada = huellas.some(
+            huella => Number(huella.iddedo) === Number(iddedo)
+        );
+
+        const div = document.createElement('div');
+
+        div.className = 'col-md-6 mb-3';
+
+        div.innerHTML = `
+            <div class="border rounded p-3 h-100">
+
+                <div class="d-flex justify-content-between align-items-center mb-3">
+
+                    <div>
+                        <div class="fw-semibold">
+                            <i class="fas fa-fingerprint me-1"></i>
+                            ${nombreDedo}
+                        </div>
+
+                        <div class="small text-muted">
+                            Dedo ${iddedo}
+                        </div>
+                    </div>
+
+                    ${
+                        huellaRegistrada
+                            ? `
+                                <span class="badge bg-success">
+                                    Registrada
+                                </span>
+                            `
+                            : `
+                                <span class="badge bg-secondary">
+                                    Sin registrar
+                                </span>
+                            `
+                    }
+
+                </div>
+
+                <button
+                    type="button"
+                    class="btn btn-sm ${
+                        huellaRegistrada
+                            ? 'btn-warning'
+                            : 'btn-primary'
+                    } w-100"
+                    onclick="registrarHuellaEmpleado(${iddedo})">
+
+                    <i class="fas fa-fingerprint me-1"></i>
+
+                    ${
+                        huellaRegistrada
+                            ? 'Reemplazar'
+                            : 'Registrar'
+                    }
+
+                </button>
+
+            </div>
+        `;
+
+        contenedor.appendChild(div);
+    });
+}
+
+
+// =========================================================
+// REGISTRAR / REEMPLAZAR HUELLA
+// =========================================================
+
+async function registrarHuellaEmpleado(iddedo) {
+
+    const idempleado =
+        Number(
+            document.getElementById('huellasIdEmpleado').value
+        );
+
+    const idlector =
+        Number(
+            document.getElementById('huella_idlector').value
+        );
+
+    if (!idempleado) {
+
+        toast(
+            'No se encontró el empleado.',
+            'error'
+        );
+
+        return;
+    }
+
+    if (!idlector) {
+
+        toast(
+            'Seleccione un lector.',
+            'warning'
+        );
+
+        return;
+    }
+
+    const nombresDedos = [
+        'Pulgar derecho',
+        'Índice derecho',
+        'Medio derecho',
+        'Anular derecho',
+        'Meñique derecho',
+        'Pulgar izquierdo',
+        'Índice izquierdo',
+        'Medio izquierdo',
+        'Anular izquierdo',
+        'Meñique izquierdo'
+    ];
+
+    const nombreDedo =
+        nombresDedos[Number(iddedo)] ||
+        `Dedo ${iddedo}`;
+
+    const empleado =
+        empleadosList.find(
+            e => Number(e.idempleado) === idempleado
+        );
+
+    const nombreEmpleado =
+        empleado
+            ? `${empleado.apellido}, ${empleado.nombre}`
+            : '';
+
+    const confirmacion = await Swal.fire({
+
+        title: 'Registrar huella',
+
+        html: `
+            <div class="text-start">
+
+                <p class="mb-2">
+                    <strong>Empleado:</strong>
+                    ${escapeHtml(nombreEmpleado)}
+                </p>
+
+                <p class="mb-2">
+                    <strong>Dedo:</strong>
+                    ${escapeHtml(nombreDedo)}
+                </p>
+
+                <p class="mb-0">
+                    Coloque el dedo en el lector
+                    <strong>3 veces</strong>
+                    cuando sea solicitado.
+                </p>
+
+            </div>
+        `,
+
+        icon: 'question',
+
+        showCancelButton: true,
+
+        confirmButtonText: 'Registrar',
+
+        cancelButtonText: 'Cancelar'
+
+    });
+
+    if (!confirmacion.isConfirmed) {
+        return;
+    }
+
+    try {
+
+        const token =
+            localStorage.getItem('sso_token');
+
+        const respuesta =
+            await fetch(
+                API_BASE +
+                '/fichajes/empleados/huellas.php',
+                {
+                    method: 'POST',
+
+                    headers: obtenerHeadersSSO(),
+
+                    body: JSON.stringify({
+
+                        accion: 'enrolar_huella',
+
+                        idempleado:
+                            idempleado,
+
+                        idlector:
+                            idlector,
+
+                        iddedo:
+                            Number(iddedo)
+
+                    })
+                }
+            );
+
+        const datos =
+            await respuesta.json();
+
+        if (
+            !respuesta.ok ||
+            datos.status !== 'ok'
+        ) {
+
+            throw new Error(
+                datos.msg ||
+                datos.message ||
+                'No se pudo generar la solicitud.'
+            );
+        }
+
+        toast(
+            datos.msg ||
+            'Solicitud enviada al lector.',
+            'success'
+        );
+
+        const estado =
+            document.getElementById(
+                'huellasEstadoLector'
+            );
+
+        if (estado) {
+
+            estado.className =
+                'alert alert-info py-2 mb-3';
+
+            estado.innerHTML = `
+                <i class="fas fa-spinner fa-spin me-1"></i>
+                Esperando que el lector registre la huella...
+            `;
+        }
+
+    } catch (error) {
+
+        console.error(
+            'Error al registrar huella:',
+            error
+        );
+
+        Swal.fire({
+
+            icon: 'error',
+
+            title: 'Error',
+
+            text:
+                error.message ||
+                'No se pudo registrar la huella.'
+
+        });
+    }
+}
+
+function abrirCalendarioEmpleado(idempleado) {
+
+    const empleado = empleadosList.find(
+        e => Number(e.idempleado) === Number(idempleado)
+    );
+
+    if (!empleado) {
+        toast('No se encontró el empleado.', 'error');
+        return;
+    }
+
+    window.location.href =
+        'calendario_empleado.php?idempleado=' +
+        encodeURIComponent(idempleado);
+}
+
+function escapeHtml(text) {
+    if (text === null || text === undefined) {
+        return '';
+    }
+
+    return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
 }

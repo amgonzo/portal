@@ -93,6 +93,14 @@ $empresa  = $_ENV['APP_NAME'] ?? 'Mi Sistema';
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
 
+    <script>
+     $.extend(true, $.fn.dataTable.defaults, {
+     language: {
+          url: 'https://cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json'
+     }
+     });
+     </script>
+
     <!-- =====================================================
          SSO - FUNCIONES COMUNES
          Empresa, diccionario, tema, permisos, logout, etc.

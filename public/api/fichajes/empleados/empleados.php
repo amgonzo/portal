@@ -273,10 +273,13 @@ try {
                     SELECT
                         el.idlector,
                         l.nombre,
+                        l.marca,
+                        l.modelo,
                         l.ip,
                         l.puerto,
                         l.ubicacion,
-                        l.tipo_uso
+                        l.tipo_uso,
+                        l.idagente
                     FROM empleados_lectores el
                     INNER JOIN lectores l
                         ON l.idlector = el.idlector
@@ -312,7 +315,11 @@ try {
                     "documento"  => $empleado['documento'],
                     "nombre"     => $empleado['nombre'],
                     "apellido"   => $empleado['apellido'],
-                    "tarjeta"    => $empleado['tarjeta']
+                    "tarjeta"    => $empleado['tarjeta'],
+                    "marca"      => $lector['marca'],
+                    "modelo"     => $lector['modelo'],
+                    "ip"         => $lector['ip'],
+                    "puerto"     => (int)$lector['puerto']
                 ], JSON_UNESCAPED_UNICODE);
 
                 if ($datosTarea === false) {
@@ -329,6 +336,7 @@ try {
                 $stmt = $mysqli->prepare("
                     INSERT INTO tareas_agente
                     (
+                        idagente,
                         idlector,
                         idempleado,
                         accion,
@@ -336,7 +344,7 @@ try {
                         estado,
                         intentos
                     )
-                    VALUES (?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
                 ");
 
                 if (!$stmt) {
@@ -346,10 +354,12 @@ try {
                     );
                 }
 
+                $idAgente = (int)$lector['idagente'];
                 $idlector = (int)$lector['idlector'];
 
                 $stmt->bind_param(
-                    "iisssi",
+                    "iiisssi",
+                    $idAgente,
                     $idlector,
                     $idempleado,
                     $accion,

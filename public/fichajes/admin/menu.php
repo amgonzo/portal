@@ -185,6 +185,62 @@ $apiUrl = $_ENV['API_URL'] ?? '/api';
                                     Panel de Control
                                 </div>
 
+                            <!-- =========================================================
+                                HORARIOS
+                                ========================================================= -->
+
+                            <a
+                                href="horarios.php"
+                                class="dropdown-item item-permiso"
+                                data-permiso="horarios_ver"
+                                style="display: none;"
+                            >
+                                <i class="fas fa-clock"></i>
+                                Definición de Horarios
+                            </a>
+
+                            <!-- =========================================================
+                                CICLOS
+                                ========================================================= -->
+
+                            <a
+                                href="ciclos.php"
+                                class="dropdown-item item-permiso"
+                                data-permiso="ciclos_ver"
+                                style="display: none;"
+                            >
+                                <i class="fas fa-sync-alt"></i>
+                                Definición de Ciclos
+                            </a>
+
+                            <!-- =========================================================
+                                CALENDARIO MAESTRO
+                                ========================================================= -->
+
+                            <a
+                                href="calendario_maestro.php"
+                                class="dropdown-item item-permiso"
+                                data-permiso="calendario_maestro_ver"
+                                style="display: none;"
+                            >
+                                <i class="fas fa-calendar-alt"></i>
+                                Calendario Maestro
+                            </a>
+
+
+                            <!-- =========================================================
+                                TIPOS DE INASISTENCIAS
+                                ========================================================= -->
+
+                            <a
+                                href="tipos_asistencias.php"
+                                class="dropdown-item item-permiso"
+                                data-permiso="asistencias_ver"
+                                style="display: none;"
+                            >
+                                <i class="fas fa-user-clock"></i>
+                                Tipos de Asistencias
+                            </a>
 
                                 <!-- VARIABLES DEL SISTEMA -->
 

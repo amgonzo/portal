@@ -31,8 +31,9 @@ return [
     'contexto'       => $publicRoot . '/api/sso/auth/empresa_context.php',
     'login'          => $publicRoot . '/api/sso/auth/login.php',
     'obtener_recibo' => $publicRoot . '/api/ctacte/reportes/obtener_nro_recibo.php',
-    'secretos' => $projectRoot . '/config/secretos.php',
-
+    'secretos'       => $projectRoot . '/config/secretos.php',
+    'configuracion'  => $publicRoot . '/api/utils/configuracion.php',
+    
     // Rutas web
     'login_sso_web' => '/sso/auth/login.php',
     'panel_sso_web' => '/sso/admin/panel.php',

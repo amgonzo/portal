@@ -3,29 +3,11 @@ $(document).ready(function() {
     cargarCategoriasFiltro();
 });
 
-// Función auxiliar para inyectar el token en las llamadas AJAX tal como en usuarios
-function getAuthHeaders() {
-    const token = localStorage.getItem('sso_token');
-    const empresaId = localStorage.getItem('sso_empresa_activa');
-
-    const headers = {};
-
-    if (token) {
-        headers['Authorization'] = 'Bearer ' + token;
-    }
-
-    if (empresaId) {
-        headers['X-EMPRESA-ID'] = empresaId;
-    }
-
-    return headers;
-}
-
 function cargarReportes() {
     $.ajax({
         type: "GET",
         url: API_BASE + "/ctacte/reportes/listar_reportes.php",
-        headers: getAuthHeaders(),
+        headers: obtenerHeadersSSO(),
         success: function(res) {
             const respuesta = (typeof res === 'string') ? JSON.parse(res) : res;
             if(respuesta.status === "ok") {
@@ -66,7 +48,7 @@ function cargarPersonasReporte(incluirInactivos = false) {
     $.ajax({
         type: "GET",
         url: url,
-        headers: getAuthHeaders(),
+        headers: obtenerHeadersSSO(),
         success: function(res) {
             const personas = (typeof res === 'string') ? JSON.parse(res) : res;
             let options = '<option value="">-- Seleccionar Persona --</option>';
@@ -169,7 +151,7 @@ function cargarCategoriasFiltro() {
     $.ajax({
         type: "GET",
         url: API_BASE + '/ctacte/categorias/categorias.php?action=listar',
-        headers: getAuthHeaders(),
+        headers: obtenerHeadersSSO(),
         success: function(res) {
             const respuesta = (typeof res === 'string') ? JSON.parse(res) : res;
             if (respuesta.status === "ok") {
@@ -229,7 +211,7 @@ function generarPDF() {
     $.ajax({
         type: "GET",
         url: API_BASE + `/ctacte/reportes/generar_reporte.php?${queryParams}`,
-        headers: getAuthHeaders(),
+        headers: obtenerHeadersSSO(),
         dataType: "json",
         success: function(res) {
             loadingToast.close(); 
@@ -243,8 +225,38 @@ function generarPDF() {
                     confirmButtonText: 'Entendido'
                 });
             } else if (res.status === "ok") {
+
                 const urlPdf = API_BASE + `/ctacte/reportes/ver_pdf_reporte.php?${queryParams}`;
-                window.open(urlPdf, '_blank');
+
+                $.ajax({
+                    type: "GET",
+                    url: urlPdf,
+                    headers: obtenerHeadersSSO(),
+                    xhrFields: {
+                        responseType: 'blob'
+                    },
+                    success: function(blob) {
+                        loadingToast.close();
+
+                        const blobUrl = URL.createObjectURL(blob);
+                        window.open(blobUrl, '_blank');
+
+                        setTimeout(() => {
+                            URL.revokeObjectURL(blobUrl);
+                        }, 60000);
+                    },
+                    error: function(xhr) {
+                        loadingToast.close();
+
+                        console.error("Error PDF:", xhr.responseText);
+
+                        Swal.fire(
+                            'Error',
+                            'No se pudo generar el PDF.',
+                            'error'
+                        );
+                    }
+                });
             }
         },
         error: function(xhr, status, error) {
