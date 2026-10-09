@@ -16,7 +16,7 @@
                 <h2 class="fw-bold mb-1">Dashboard de Ventas</h2>
                 <p class="text-muted mb-0">Resumen de ventas, costos y rentabilidad del supermercado.</p>
             </div>
-            <div data-permiso="cajas_sincronizar">
+            <div data-permiso="dashboard_sincronizar">
                 <button type="button" id="btnSincronizar" class="btn btn-primary fw-semibold shadow-sm">
                     <i id="icono-sync" class="bi bi-arrow-clockwise me-2"></i>
                     <span id="texto-sync">Sincronizar día cerrado</span>

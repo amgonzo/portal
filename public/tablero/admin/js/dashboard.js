@@ -90,7 +90,7 @@ function cargarDatosDashboard() {
     $("#btnConsultar").prop("disabled", true);
 
     $.ajax({
-        url: API_BASE + "/dashboard/ventas/obtener_datos_dashboard.php",
+        url: API_BASE + "/tablero/dashboard/obtener_datos_dashboard.php",
         type: "GET",
         dataType: "json",
         data: {
@@ -212,7 +212,7 @@ function sincronizarVentas() {
     `);
 
     $.ajax({
-        url: API_BASE + "/dashboard/ventas/sincronizar_ventas.php",
+        url: API_BASE + "/tablero/dashboard/sincronizar_ventas.php",
         type: "POST",
         dataType: "json",
         headers: obtenerHeadersSSO(),
