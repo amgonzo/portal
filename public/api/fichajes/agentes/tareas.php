@@ -15,18 +15,42 @@ try {
 } catch (Exception $e) {}
 
 require_once $rutas['conexion'];
+require_once $rutas['biometria'];
 
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+// =====================================================
+// FUNCIÓN DE RESPUESTA HTTP
+// =====================================================
 
-    http_response_code(405);
+function responderJSON(
+    int $httpCode,
+    array $datos
+): never {
 
-    echo json_encode([
-        'status' => 'error',
-        'msg' => 'Método no permitido.'
-    ]);
+    http_response_code($httpCode);
+
+    echo json_encode(
+        $datos,
+        JSON_UNESCAPED_UNICODE
+    );
 
     exit;
 }
+
+// =====================================================
+// MÉTODO HTTP
+// =====================================================
+
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+
+    responderJSON(405, [
+        'status' => 'error',
+        'msg' => 'Método no permitido.'
+    ]);
+}
+
+// =====================================================
+// LEER ENTRADA
+// =====================================================
 
 $entrada = json_decode(
     file_get_contents('php://input'),
@@ -35,15 +59,15 @@ $entrada = json_decode(
 
 if (!is_array($entrada)) {
 
-    http_response_code(400);
-
-    echo json_encode([
+    responderJSON(400, [
         'status' => 'error',
         'msg' => 'Datos inválidos.'
     ]);
-
-    exit;
 }
+
+// =====================================================
+// DATOS DEL AGENT
+// =====================================================
 
 $agentId = trim(
     (string)($entrada['agent_id'] ?? '')
@@ -59,26 +83,18 @@ $accion = trim(
 
 if ($agentId === '' || $token === '') {
 
-    http_response_code(400);
-
-    echo json_encode([
+    responderJSON(400, [
         'status' => 'error',
         'msg' => 'Agent ID y token son obligatorios.'
     ]);
-
-    exit;
 }
 
 if ($accion === '') {
 
-    http_response_code(400);
-
-    echo json_encode([
+    responderJSON(400, [
         'status' => 'error',
         'msg' => 'Debe indicar una acción.'
     ]);
-
-    exit;
 }
 
 try {
@@ -133,26 +149,18 @@ try {
 
     if (!$agente) {
 
-        http_response_code(401);
-
-        echo json_encode([
+        responderJSON(401, [
             'status' => 'error',
             'msg' => 'Credenciales de agente inválidas.'
         ]);
-
-        exit;
     }
 
     if ((int)$agente['activo'] !== 1) {
 
-        http_response_code(403);
-
-        echo json_encode([
+        responderJSON(403, [
             'status' => 'error',
             'msg' => 'El agente está desactivado.'
         ]);
-
-        exit;
     }
 
     if (
@@ -162,21 +170,17 @@ try {
         )
     ) {
 
-        http_response_code(401);
-
-        echo json_encode([
+        responderJSON(401, [
             'status' => 'error',
             'msg' => 'Credenciales de agente inválidas.'
         ]);
-
-        exit;
     }
 
     $idAgente = (int)$agente['idagente'];
     $idEmpresa = (int)$agente['idempresa'];
 
     // =====================================================
-    // ACTUALIZAR ACTIVIDAD REAL DEL AGENT
+    // ACTUALIZAR ACTIVIDAD DEL AGENT
     // =====================================================
 
     $stmt = $mysqli->prepare("
@@ -216,7 +220,7 @@ try {
             $dbEmpresa->begin_transaction();
 
             // -------------------------------------------------
-            // BUSCAR LA TAREA DE MAYOR PRIORIDAD
+            // BUSCAR TAREA
             // -------------------------------------------------
 
             $stmt = $dbEmpresa->prepare("
@@ -283,16 +287,13 @@ try {
             if (!$tarea) {
 
                 $dbEmpresa->commit();
-
                 $dbEmpresa->close();
 
-                echo json_encode([
+                responderJSON(200, [
                     'status' => 'ok',
                     'hay_tarea' => false,
                     'tarea' => null
                 ]);
-
-                exit;
             }
 
             $idTarea = (int)$tarea['idtarea'];
@@ -342,9 +343,10 @@ try {
 
                 $stmt->close();
 
-                throw new Exception(
-                    'La tarea ya no está disponible.'
-                );
+                responderJSON(409, [
+                    'status' => 'error',
+                    'msg' => 'La tarea ya no está disponible.'
+                ]);
             }
 
             $stmt->close();
@@ -358,16 +360,13 @@ try {
                 (int)$tarea['prioridad'];
 
             $dbEmpresa->commit();
-
             $dbEmpresa->close();
 
-            echo json_encode([
+            responderJSON(200, [
                 'status' => 'ok',
                 'hay_tarea' => true,
                 'tarea' => $tarea
             ]);
-
-            exit;
 
         } catch (Exception $e) {
 
@@ -404,9 +403,10 @@ try {
 
         if ($idTarea <= 0) {
 
-            throw new Exception(
-                'ID de tarea inválido.'
-            );
+            responderJSON(400, [
+                'status' => 'error',
+                'msg' => 'ID de tarea inválido.'
+            ]);
         }
 
         if (
@@ -420,9 +420,10 @@ try {
             )
         ) {
 
-            throw new Exception(
-                'Estado de resultado inválido.'
-            );
+            responderJSON(400, [
+                'status' => 'error',
+                'msg' => 'Estado de resultado inválido.'
+            ]);
         }
 
         $dbEmpresa = conectarDBEmpresa(
@@ -433,20 +434,155 @@ try {
 
         try {
 
+            // =================================================
+            // RESPUESTA JSON
+            // =================================================
+
             if (
                 is_array($respuesta) ||
                 is_object($respuesta)
             ) {
 
-                $respuesta = json_encode(
+                $respuestaJson = json_encode(
                     $respuesta,
                     JSON_UNESCAPED_UNICODE
                 );
 
             } else {
 
-                $respuesta = (string)$respuesta;
+                $respuestaJson = (string)$respuesta;
             }
+
+            if ($respuestaJson === false) {
+
+                throw new Exception(
+                    'No se pudo convertir la respuesta de la tarea.'
+                );
+            }
+
+            // =================================================
+            // TRANSACCIÓN
+            // =================================================
+
+            $dbEmpresa->begin_transaction();
+
+            // =================================================
+            // OBTENER Y BLOQUEAR TAREA
+            // =================================================
+
+            $stmt = $dbEmpresa->prepare("
+                SELECT
+                    idtarea,
+                    idempleado,
+                    accion,
+                    estado
+                FROM tareas_agente
+                WHERE idtarea = ?
+                  AND idagente = ?
+                LIMIT 1
+                FOR UPDATE
+            ");
+
+            if (!$stmt) {
+
+                throw new Exception(
+                    'Error al preparar consulta de tarea: ' .
+                    $dbEmpresa->error
+                );
+            }
+
+            $stmt->bind_param(
+                'ii',
+                $idTarea,
+                $idAgente
+            );
+
+            if (!$stmt->execute()) {
+
+                $error = $stmt->error;
+
+                $stmt->close();
+
+                throw new Exception(
+                    'Error al consultar tarea: ' .
+                    $error
+                );
+            }
+
+            $resultadoTarea =
+                $stmt->get_result();
+
+            $tarea =
+                $resultadoTarea->fetch_assoc();
+
+            $stmt->close();
+
+            if (!$tarea) {
+
+                /*
+                 * No existe o no pertenece al Agent.
+                 */
+
+                $dbEmpresa->rollback();
+                $dbEmpresa->close();
+
+                responderJSON(404, [
+                    'status' => 'error',
+                    'msg' => 'La tarea no existe o pertenece a otro Agent.'
+                ]);
+            }
+
+            if (
+                $tarea['estado'] !== 'procesando'
+            ) {
+
+                $estadoActual =
+                    $tarea['estado'];
+
+                $dbEmpresa->rollback();
+                $dbEmpresa->close();
+
+                responderJSON(409, [
+                    'status' => 'error',
+                    'msg' =>
+                        'La tarea ya fue procesada o no está en estado procesando.',
+                    'idtarea' => $idTarea,
+                    'estado_actual' => $estadoActual
+                ]);
+            }
+
+            // =================================================
+            // PROCESAR HUELLA
+            // =================================================
+
+            $resultadoHuella = null;
+
+            if (
+                $estado === 'completada' &&
+                $tarea['accion'] === 'enrolar_huella'
+            ) {
+
+                $resultadoHuella =
+                    guardarHuellaDesdeResultado(
+                        $dbEmpresa,
+                        (int)$tarea['idempleado'],
+                        $respuestaJson
+                    );
+
+                if (
+                    !is_array($resultadoHuella) ||
+                    empty($resultadoHuella['ok'])
+                ) {
+
+                    throw new Exception(
+                        'No se pudo guardar la huella biométrica.'
+                    );
+                }
+            }
+
+            // =================================================
+            // ACTUALIZAR TAREA
+            // =================================================
 
             $stmt = $dbEmpresa->prepare("
                 UPDATE tareas_agente
@@ -470,7 +606,7 @@ try {
             $stmt->bind_param(
                 'ssii',
                 $estado,
-                $respuesta,
+                $respuestaJson,
                 $idTarea,
                 $idAgente
             );
@@ -487,37 +623,117 @@ try {
                 );
             }
 
-            $actualizada =
-                $stmt->affected_rows;
+            if ($stmt->affected_rows !== 1) {
 
-            $stmt->close();
-
-            if ($actualizada !== 1) {
+                $stmt->close();
 
                 throw new Exception(
-                    'La tarea no existe, pertenece a otro Agent o ya fue procesada.'
+                    'La tarea ya no está disponible para actualizar.'
                 );
             }
 
+            $stmt->close();
+
+            // =================================================
+            // CONFIRMAR
+            // =================================================
+
+            $dbEmpresa->commit();
             $dbEmpresa->close();
 
-            echo json_encode([
+            responderJSON(200, [
                 'status' => 'ok',
-                'msg' => 'Resultado de tarea registrado correctamente.'
+                'msg' => 'Resultado de tarea registrado correctamente.',
+                'idtarea' => $idTarea,
+                'estado' => $estado,
+                'biometria' => $resultadoHuella
             ]);
 
-            exit;
-
         } catch (Exception $e) {
+
+            /*
+             * Deshacer cualquier modificación biométrica.
+             */
 
             if (
                 isset($dbEmpresa) &&
                 $dbEmpresa instanceof mysqli
             ) {
+
+                @$dbEmpresa->rollback();
+            }
+
+            /*
+             * Si el Agent informó completada pero no pudimos
+             * guardar la huella, dejamos la tarea en error.
+             */
+
+            if (
+                isset($dbEmpresa) &&
+                $dbEmpresa instanceof mysqli
+            ) {
+
+                try {
+
+                    $mensajeError =
+                        $e->getMessage();
+
+                    $respuestaError = json_encode([
+                        'ok' => false,
+                        'error_biometria' => true,
+                        'msg' => $mensajeError,
+                        'respuesta_agent' => $respuesta
+                    ], JSON_UNESCAPED_UNICODE);
+
+                    $dbEmpresa->begin_transaction();
+
+                    $stmtError = $dbEmpresa->prepare("
+                        UPDATE tareas_agente
+                        SET
+                            estado = 'error',
+                            respuesta = ?,
+                            fecha_completada = NOW()
+                        WHERE idtarea = ?
+                          AND idagente = ?
+                          AND estado = 'procesando'
+                    ");
+
+                    if ($stmtError) {
+
+                        $stmtError->bind_param(
+                            'sii',
+                            $respuestaError,
+                            $idTarea,
+                            $idAgente
+                        );
+
+                        $stmtError->execute();
+
+                        $stmtError->close();
+                    }
+
+                    $dbEmpresa->commit();
+
+                } catch (Exception $errorActualizacion) {
+
+                    @$dbEmpresa->rollback();
+                }
+
                 @$dbEmpresa->close();
             }
 
-            throw $e;
+            /*
+             * Error interno del procesamiento.
+             *
+             * El Agent recibe 500 porque la operación solicitada
+             * no pudo completarse correctamente.
+             */
+
+            responderJSON(500, [
+                'status' => 'error',
+                'msg' => $e->getMessage(),
+                'idtarea' => $idTarea
+            ]);
         }
     }
 
@@ -525,15 +741,18 @@ try {
     // ACCIÓN NO VÁLIDA
     // =====================================================
 
-    throw new Exception(
-        'Acción de agente no válida.'
-    );
+    responderJSON(400, [
+        'status' => 'error',
+        'msg' => 'Acción de agente no válida.'
+    ]);
 
 } catch (Exception $e) {
 
-    http_response_code(500);
+    /*
+     * Cualquier excepción no controlada es un error interno.
+     */
 
-    echo json_encode([
+    responderJSON(500, [
         'status' => 'error',
         'msg' => $e->getMessage()
     ]);

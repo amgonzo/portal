@@ -109,7 +109,7 @@
 
                     <div class="modal-header bg-primary text-white">
 
-                        <h5 class="modal-title">
+                        <h5 class="modal-title" id="tituloModalReloj">
                             Crear Nuevo Reloj
                         </h5>
 
@@ -127,7 +127,7 @@
 
                         <input
                             type="hidden"
-                            id="edit_reloj_id"
+                            id="reloj_idlector"
                             name="idlector">
 
 

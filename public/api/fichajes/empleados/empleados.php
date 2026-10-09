@@ -116,7 +116,11 @@ try {
                 );
             }
 
-            echo json_encode(["status" => "ok", "msg" => "Empleado creado con éxito."]);
+            echo json_encode([
+                "status" => "ok",
+                "msg" => "Empleado creado con éxito.",
+                "idempleado" => (int)$idNuevo
+            ]);
             break;
 
         // ---------------------------------------------------------------------

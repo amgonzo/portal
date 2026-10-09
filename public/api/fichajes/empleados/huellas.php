@@ -46,14 +46,6 @@ validarPermisoEndpoint(
 // =========================================================
 // DETERMINAR EMPRESA ACTUAL
 // =========================================================
-//
-// IMPORTANTE:
-// La empresa se determina mediante obtenerEmpresaActual()
-// utilizando el contexto/header X-EMPRESA-ID.
-//
-// NO usamos $_SESSION['idempresa'].
-//
-// =========================================================
 
 $empresa = obtenerEmpresaActual(
     $mysqli,
@@ -194,8 +186,10 @@ try {
     // =========================================================
 
     $accionesPermitidas = [
+        'listar_huellas',
         'leer_huellas',
-        'enrolar_huella'
+        'enrolar_huella',
+        'estado_tarea'
     ];
 
     if (
@@ -211,6 +205,269 @@ try {
         echo json_encode([
             'status' => 'error',
             'msg' => 'Acción de huellas no válida.'
+        ]);
+
+        exit;
+    }
+
+    // =========================================================
+    // ACCIÓN: LISTAR HUELLAS REGISTRADAS
+    // =========================================================
+
+    if ($accion === 'listar_huellas') {
+
+        $stmt = $mysqli->prepare("
+            SELECT
+                idbiometrico,
+                idempleado,
+                tipo,
+                dedo AS iddedo,
+                idusuario,
+                fecha_carga,
+                activo
+            FROM empleados_datos_biometricos
+            WHERE idempleado = ?
+            AND tipo = 'huella'
+            AND activo = 1
+            ORDER BY CAST(dedo AS UNSIGNED) ASC
+        ");
+
+        if (!$stmt) {
+            throw new Exception(
+                'No se pudieron preparar las huellas registradas: ' .
+                $mysqli->error
+            );
+        }
+
+        $stmt->bind_param(
+            'i',
+            $idEmpleado
+        );
+
+        if (!$stmt->execute()) {
+
+            $error = $stmt->error;
+            $stmt->close();
+
+            throw new Exception(
+                'No se pudieron consultar las huellas registradas: ' .
+                $error
+            );
+        }
+
+        $resultadoHuellas = $stmt->get_result();
+
+        $huellas = [];
+
+        while ($huella = $resultadoHuellas->fetch_assoc()) {
+
+            $huellas[] = [
+                'idbiometrico' => (int)$huella['idbiometrico'],
+                'idempleado'   => (int)$huella['idempleado'],
+                'tipo'         => $huella['tipo'],
+                'iddedo'       => (int)$huella['iddedo'],
+                'idusuario'    => (int)$huella['idusuario'],
+                'fecha_carga'  => $huella['fecha_carga'],
+                'activo'       => (int)$huella['activo']
+            ];
+        }
+
+        $stmt->close();
+
+        echo json_encode([
+            'status' => 'ok',
+            'idempleado' => $idEmpleado,
+            'huellas' => $huellas
+        ]);
+
+        exit;
+    }
+    // =========================================================
+    // ACCIÓN: ESTADO DE TAREA
+    // =========================================================
+
+    if ($accion === 'estado_tarea') {
+
+        $idTarea = (int)(
+            $entrada['idtarea'] ?? 0
+        );
+
+        if ($idTarea <= 0) {
+
+            http_response_code(400);
+
+            echo json_encode([
+                'status' => 'error',
+                'msg' => 'ID de tarea inválido.'
+            ]);
+
+            exit;
+        }
+
+        $stmt = $mysqli->prepare("
+            SELECT
+                idtarea,
+                idagente,
+                idlector,
+                idempleado,
+                accion,
+                estado,
+                intentos,
+                respuesta,
+                fecha_creacion,
+                fecha_procesamiento,
+                fecha_completada
+            FROM tareas_agente
+            WHERE idtarea = ?
+              AND idempleado = ?
+            LIMIT 1
+        ");
+
+        if (!$stmt) {
+            throw new Exception(
+                'No se pudo preparar la consulta de estado de tarea: ' .
+                $mysqli->error
+            );
+        }
+
+        $stmt->bind_param(
+            'ii',
+            $idTarea,
+            $idEmpleado
+        );
+
+        if (!$stmt->execute()) {
+
+            $error = $stmt->error;
+            $stmt->close();
+
+            throw new Exception(
+                'No se pudo consultar el estado de la tarea: ' .
+                $error
+            );
+        }
+
+        $tarea = $stmt
+            ->get_result()
+            ->fetch_assoc();
+
+        $stmt->close();
+
+        if (!$tarea) {
+
+            http_response_code(404);
+
+            echo json_encode([
+                'status' => 'error',
+                'msg' => 'La tarea no existe o no pertenece al empleado.'
+            ]);
+
+            exit;
+        }
+
+        $respuesta = null;
+
+        if (!empty($tarea['respuesta'])) {
+
+            $respuestaDecodificada = json_decode(
+                $tarea['respuesta'],
+                true
+            );
+
+            if (json_last_error() === JSON_ERROR_NONE) {
+                $respuesta = $respuestaDecodificada;
+            } else {
+                $respuesta = $tarea['respuesta'];
+            }
+        }
+
+        // -----------------------------------------------------
+        // Si la tarea terminó correctamente, devolver huellas
+        // activas del empleado.
+        // -----------------------------------------------------
+
+        $huellas = [];
+
+        if ($tarea['estado'] === 'completada') {
+
+            $stmt = $mysqli->prepare("
+                SELECT
+                    idbiometrico,
+                    idempleado,
+                    tipo,
+                    dedo AS iddedo,
+                    idusuario,
+                    fecha_carga,
+                    activo
+                FROM empleados_datos_biometricos
+                WHERE idempleado = ?
+                  AND tipo = 'huella'
+                  AND activo = 1
+                ORDER BY CAST(dedo AS UNSIGNED) ASC
+            ");
+
+            if (!$stmt) {
+                throw new Exception(
+                    'No se pudieron consultar las huellas registradas: ' .
+                    $mysqli->error
+                );
+            }
+
+            $stmt->bind_param(
+                'i',
+                $idEmpleado
+            );
+
+            if (!$stmt->execute()) {
+
+                $error = $stmt->error;
+                $stmt->close();
+
+                throw new Exception(
+                    'No se pudieron consultar las huellas registradas: ' .
+                    $error
+                );
+            }
+
+            $resultadoHuellas = $stmt->get_result();
+
+            while ($huella = $resultadoHuellas->fetch_assoc()) {
+
+                $huella['idbiometrico'] =
+                    (int)$huella['idbiometrico'];
+
+                $huella['idempleado'] =
+                    (int)$huella['idempleado'];
+
+                $huella['iddedo'] =
+                    (int)$huella['iddedo'];
+
+                $huella['idusuario'] =
+                    (int)$huella['idusuario'];
+
+                $huella['activo'] =
+                    (int)$huella['activo'];
+
+                $huellas[] = $huella;
+            }
+
+            $stmt->close();
+        }
+
+        echo json_encode([
+            'status' => 'ok',
+            'idtarea' => (int)$tarea['idtarea'],
+            'idagente' => (int)$tarea['idagente'],
+            'idlector' => (int)$tarea['idlector'],
+            'idempleado' => (int)$tarea['idempleado'],
+            'accion' => $tarea['accion'],
+            'estado' => $tarea['estado'],
+            'intentos' => (int)$tarea['intentos'],
+            'respuesta' => $respuesta,
+            'huellas' => $huellas,
+            'fecha_creacion' => $tarea['fecha_creacion'],
+            'fecha_procesamiento' => $tarea['fecha_procesamiento'],
+            'fecha_completada' => $tarea['fecha_completada']
         ]);
 
         exit;
@@ -282,7 +539,6 @@ try {
     if (!$stmt->execute()) {
 
         $error = $stmt->error;
-
         $stmt->close();
 
         throw new Exception(
@@ -323,8 +579,7 @@ try {
          * Para enrolar utilizamos exactamente
          * el lector seleccionado en el modal.
          *
-         * Además verificamos que ese lector
-         * esté asignado al empleado.
+         * El agente pertenece al lector.
          */
 
         $stmt = $mysqli->prepare("
@@ -334,7 +589,8 @@ try {
                 l.ip,
                 l.puerto,
                 l.ubicacion,
-                l.tipo_uso
+                l.tipo_uso,
+                l.idagente
             FROM lectores l
             INNER JOIN empleados_lectores el
                 ON el.idlector = l.idlector
@@ -348,7 +604,7 @@ try {
         if (!$stmt) {
 
             throw new Exception(
-                'Error al preparar consulta de lector: ' .
+                'Error al consultar el lector seleccionado: ' .
                 $mysqli->error
             );
         }
@@ -359,11 +615,44 @@ try {
             $idEmpleado
         );
 
+        if (!$stmt->execute()) {
+
+            $error = $stmt->error;
+            $stmt->close();
+
+            throw new Exception(
+                'Error al consultar el lector seleccionado: ' .
+                $error
+            );
+        }
+
+        $lector = $stmt
+            ->get_result()
+            ->fetch_assoc();
+
+        $stmt->close();
+
+        if (!$lector) {
+
+            throw new Exception(
+                'El lector seleccionado no está activo o no está asignado al empleado.'
+            );
+        }
+
+        if (
+            (int)$lector['idagente'] <= 0
+        ) {
+
+            throw new Exception(
+                'El lector seleccionado no tiene un agente asignado.'
+            );
+        }
+
     } else {
 
         /*
-         * Para leer huellas mantenemos el comportamiento
-         * existente: utilizar el lector predeterminado.
+         * Para leer huellas utilizamos el lector
+         * predeterminado del empleado.
          */
 
         $stmt = $mysqli->prepare("
@@ -373,7 +662,8 @@ try {
                 l.ip,
                 l.puerto,
                 l.ubicacion,
-                l.tipo_uso
+                l.tipo_uso,
+                l.idagente
             FROM empleados_lectores el
             INNER JOIN lectores l
                 ON l.idlector = el.idlector
@@ -398,42 +688,37 @@ try {
             'i',
             $idEmpleado
         );
-    }
 
-    // =========================================================
-    // EJECUTAR CONSULTA DEL LECTOR
-    // =========================================================
+        if (!$stmt->execute()) {
 
-    if (!$stmt->execute()) {
+            $error = $stmt->error;
+            $stmt->close();
 
-        $error = $stmt->error;
+            throw new Exception(
+                'Error al consultar lector: ' .
+                $error
+            );
+        }
+
+        $lector = $stmt
+            ->get_result()
+            ->fetch_assoc();
 
         $stmt->close();
 
-        throw new Exception(
-            'Error al consultar lector: ' .
-            $error
-        );
-    }
-
-    $resultado = $stmt->get_result();
-
-    $lector = $resultado->fetch_assoc();
-
-    $stmt->close();
-
-    if (!$lector) {
-
-        if ($accion === 'enrolar_huella') {
-
-            throw new Exception(
-                'El lector seleccionado no está activo o no está asignado al empleado.'
-            );
-
-        } else {
+        if (!$lector) {
 
             throw new Exception(
                 'El empleado no tiene un lector activo asignado.'
+            );
+        }
+
+        if (
+            (int)$lector['idagente'] <= 0
+        ) {
+
+            throw new Exception(
+                'El lector no tiene un agente asignado.'
             );
         }
     }
@@ -457,12 +742,11 @@ try {
     // =========================================================
 
     $datos = [
-        'marca' => 'zkteco',
-        'ip' => $lector['ip'],
-        'puerto' => (int)$lector['puerto']
+        'marca'     => 'zkteco',
+        'ip'        => $lector['ip'],
+        'puerto'    => (int)$lector['puerto'],
+        'documento' => $empleado['documento']
     ];
-
-    // Para enrolamiento enviamos el dedo seleccionado.
 
     if ($accion === 'enrolar_huella') {
 
@@ -481,12 +765,16 @@ try {
         );
     }
 
+    $idAgenteReal = (int)$lector['idagente'];
+    $idLectorReal = (int)$lector['idlector'];
+
     // =========================================================
     // CREAR TAREA PARA EL AGENTE
     // =========================================================
 
     $stmt = $mysqli->prepare("
         INSERT INTO tareas_agente (
+            idagente,
             idlector,
             idempleado,
             accion,
@@ -501,6 +789,7 @@ try {
             ?,
             ?,
             ?,
+            ?,
             'pendiente',
             0,
             NULL,
@@ -511,15 +800,14 @@ try {
     if (!$stmt) {
 
         throw new Exception(
-            'Error al preparar creación de tarea: ' .
+            'No se pudo preparar la creación de la tarea: ' .
             $mysqli->error
         );
     }
 
-    $idLectorReal = (int)$lector['idlector'];
-
     $stmt->bind_param(
-        'iiss',
+        'iiiss',
+        $idAgenteReal,
         $idLectorReal,
         $idEmpleado,
         $accion,
@@ -529,7 +817,6 @@ try {
     if (!$stmt->execute()) {
 
         $error = $stmt->error;
-
         $stmt->close();
 
         throw new Exception(
@@ -573,7 +860,8 @@ try {
             'nombre' => $lector['nombre'],
             'ip' => $lector['ip'],
             'puerto' => (int)$lector['puerto']
-        ]
+        ],
+        'idagente' => $idAgenteReal
     ]);
 
     exit;

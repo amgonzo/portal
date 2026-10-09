@@ -15,12 +15,12 @@ require_once $rutas['autoload'];
 
 
 // =========================================================
-// 3. CARGAR .ENV DE FICHAJES
+// 3. CARGAR .ENV DE TABLERO
 // =========================================================
 
 try {
 
-    $dotenv = Dotenv\Dotenv::createImmutable($rutas['env_fichajes']);
+    $dotenv = Dotenv\Dotenv::createImmutable($rutas['env_tablero']);
     $dotenv->load();
 
 } catch (Exception $e) {
@@ -34,7 +34,7 @@ try {
 // 4. VARIABLES DE CONFIGURACIÓN
 // =========================================================
 
-$empresa = $_ENV['APP_NAME'] ?? 'Sistema fichajes';
+$empresa = $_ENV['APP_NAME'] ?? 'Sistema tablero';
 
 $apiUrl = $_ENV['API_URL'] ?? '/api';
 
@@ -61,10 +61,10 @@ $apiUrl = $_ENV['API_URL'] ?? '/api';
                     style="font-weight: bold; color: #337ab7; gap: 15px;"
                 >
 
-                    <?php if (file_exists($rutas['logo_fichajes'])): ?>
+                    <?php if (file_exists($rutas['logo_tablero'])): ?>
 
                         <img
-                            src="<?= htmlspecialchars($rutas['logo_fichajes_web']) ?>"
+                            src="<?= htmlspecialchars($rutas['logo_tablero_web']) ?>"
                             alt="Logo <?= htmlspecialchars($empresa) ?>"
                             class="logo-sistema"
                         >
@@ -120,37 +120,7 @@ $apiUrl = $_ENV['API_URL'] ?? '/api';
                             </a>
 
                         </li>
-
-                        <li class="nav-item">
-                            <a href="empleados.php" class="nav-link">
-                                <i class="fa fa-users"></i> <span data-diccionario="empleado_plural"></span>
-                            </a>
-                        </li>
-
-                        <li class="nav-item">
-                            <a href="relojes.php" class="nav-link">
-                                <i class="fa fa-clock"></i> Relojes
-                            </a>
-                        </li>
-
-                        <li class="nav-item">
-                            <a href="turnos.php" class="nav-link">
-                                <i class="fa fa-calendar"></i> Turnos
-                            </a>
-                        </li>
-
-                        <li class="nav-item">
-                            <a href="permisos.php" class="nav-link">
-                                <i class="fa fa-key"></i> Permisos
-                            </a>
-                        </li>
-
-                        <li class="nav-item">
-                            <a href="jornadas.php" class="nav-link">
-                                <i class="fa fa-calendar-check"></i> Jornadas
-                            </a>
-                        </li>
-
+                        
                         <li class="nav-item">
                             <a href="reportes.php" class="nav-link">
                                 <i class="fa fa-chart-bar"></i> Reportes
@@ -185,62 +155,7 @@ $apiUrl = $_ENV['API_URL'] ?? '/api';
                                     Panel de Control
                                 </div>
 
-                            <!-- =========================================================
-                                HORARIOS
-                                ========================================================= -->
-
-                            <a
-                                href="horarios.php"
-                                class="dropdown-item item-permiso"
-                                data-permiso="horarios_ver"
-                                style="display: none;"
-                            >
-                                <i class="fas fa-clock"></i>
-                                Definición de Horarios
-                            </a>
-
-                            <!-- =========================================================
-                                CICLOS
-                                ========================================================= -->
-
-                            <a
-                                href="ciclos.php"
-                                class="dropdown-item item-permiso"
-                                data-permiso="ciclos_ver"
-                                style="display: none;"
-                            >
-                                <i class="fas fa-sync-alt"></i>
-                                Definición de Ciclos
-                            </a>
-
-                            <!-- =========================================================
-                                CALENDARIO MAESTRO
-                                ========================================================= -->
-
-                            <a
-                                href="calendario_maestro.php"
-                                class="dropdown-item item-permiso"
-                                data-permiso="calendario_maestro_ver"
-                                style="display: none;"
-                            >
-                                <i class="fas fa-calendar-alt"></i>
-                                Calendario Maestro
-                            </a>
-
-
-                            <!-- =========================================================
-                                TIPOS DE INASISTENCIAS
-                                ========================================================= -->
-
-                            <a
-                                href="tipos_asistencias.php"
-                                class="dropdown-item item-permiso"
-                                data-permiso="asistencias_ver"
-                                style="display: none;"
-                            >
-                                <i class="fas fa-user-clock"></i>
-                                Tipos de Asistencias
-                            </a>
+                            
 
                                 <!-- VARIABLES DEL SISTEMA -->
 
@@ -256,46 +171,7 @@ $apiUrl = $_ENV['API_URL'] ?? '/api';
 
                                 </a>
                                                                 
-                                <!-- AGENTES -->
-
-                                <a
-                                    href="agentes.php"
-                                    class="dropdown-item item-permiso"
-                                    data-permiso="agentes_gestionar"
-                                    style="display: none;"
-                                >
-                                    <i class="fas fa-microchip"></i>
-                                    Agentes
-                                </a>
-
-                                <!-- TAREAS DEL AGENTE -->
-
-                                <a
-                                    href="tareas_agente.php"
-                                    class="dropdown-item item-permiso"
-                                    data-permiso="agentes_gestionar"
-                                    style="display: none;"
-                                >
-                                    <i class="fas fa-tasks"></i>
-                                    Tareas del agente
-                                </a>
-
-
-                                <!-- PERÍODOS -->
-
-                                <a
-                                    href="config_periodos.php"
-                                    class="dropdown-item item-permiso"
-                                    data-permiso="periodos_configurar"
-                                    style="display: none;"
-                                >
-
-                                    <i class="fas fa-calendar-alt"></i>
-                                    Reglas de Períodos
-
-                                </a>
-
-
+                             
                                 <!-- AUDITORÍA -->
 
                                 <div

@@ -1,3 +1,4 @@
+
 <?php
 
 header('Content-Type: application/json; charset=utf-8');
@@ -5,7 +6,7 @@ header('Content-Type: application/json; charset=utf-8');
 try {
 
     // =========================================================
-    // CONFIGURACIÓN GENERAL
+    // CONFIGURACIÓN
     // =========================================================
 
     $rutas = require $_SERVER['DOCUMENT_ROOT'] . '/api/config/rutas.php';
@@ -39,20 +40,23 @@ try {
     }
 
     // =========================================================
-    // AUTENTICACIÓN
+    // AUTENTICACIÓN Y EMPRESA
     // =========================================================
 
     $userAuth = validarTokenAPI($mysqli);
 
-    // =========================================================
-    // PERMISOS
-    // =========================================================
+    if (!$userAuth) {
+        http_response_code(401);
+
+        echo json_encode([
+            'status' => 'error',
+            'msg' => 'No autorizado.'
+        ], JSON_UNESCAPED_UNICODE);
+
+        exit;
+    }
 
     validarPermisoEndpoint($mysqli, $userAuth);
-
-    // =========================================================
-    // EMPRESA ACTIVA
-    // =========================================================
 
     $empresa = obtenerEmpresaActual($mysqli, $userAuth);
 
@@ -67,10 +71,6 @@ try {
         exit;
     }
 
-    // =========================================================
-    // CONEXIÓN A LA BASE DE DATOS DE LA EMPRESA
-    // =========================================================
-
     $mysqli = conectarDBEmpresa(
         $mysqli,
         (int)$empresa['idempresa'],
@@ -81,13 +81,13 @@ try {
     // 1. EMPLEADOS ACTIVOS
     // =========================================================
 
-    $sqlEmpleados = "
+    $sql = "
         SELECT COUNT(*) AS total
         FROM empleados
         WHERE activo = 1
     ";
 
-    $resultado = $mysqli->query($sqlEmpleados);
+    $resultado = $mysqli->query($sql);
 
     if (!$resultado) {
         throw new Exception(
@@ -98,56 +98,112 @@ try {
     $empleadosActivos = (int)$resultado->fetch_assoc()['total'];
 
     // =========================================================
-    // 2. MARCAS DE HOY
-    //    Se cuentan tanto las marcas del reloj como las manuales
+    // 2. MARCAS VÁLIDAS DE HOY
+    //    Reloj + manuales, excluyendo las invalidadas.
     // =========================================================
 
-    $sqlMarcasReloj = "
-        SELECT COUNT(*) AS total
-        FROM marcas_reloj
-        WHERE fecha = CURDATE()
+    $sql = "
+        SELECT
+            (
+                SELECT COUNT(*)
+                FROM marcas_reloj mr
+                WHERE mr.fecha = CURDATE()
+                  AND NOT EXISTS (
+                      SELECT 1
+                      FROM marcas_invalidaciones mi
+                      WHERE mi.idmarca_reloj = mr.idmarca
+                  )
+            )
+            +
+            (
+                SELECT COUNT(*)
+                FROM marcas_manuales mm
+                WHERE mm.fecha = CURDATE()
+                  AND NOT EXISTS (
+                      SELECT 1
+                      FROM marcas_invalidaciones mi
+                      WHERE mi.idmarca_manual = mm.idmarca_manual
+                  )
+            ) AS total
     ";
 
-    $resultado = $mysqli->query($sqlMarcasReloj);
+    $resultado = $mysqli->query($sql);
 
     if (!$resultado) {
         throw new Exception(
-            'Error al consultar marcas del reloj: ' . $mysqli->error
+            'Error al consultar marcas de hoy: ' . $mysqli->error
         );
     }
 
-    $marcasReloj = (int)$resultado->fetch_assoc()['total'];
-
-    $sqlMarcasManuales = "
-        SELECT COUNT(*) AS total
-        FROM marcas_manuales
-        WHERE fecha = CURDATE()
-    ";
-
-    $resultado = $mysqli->query($sqlMarcasManuales);
-
-    if (!$resultado) {
-        throw new Exception(
-            'Error al consultar marcas manuales: ' . $mysqli->error
-        );
-    }
-
-    $marcasManuales = (int)$resultado->fetch_assoc()['total'];
-
-    $marcasHoy = $marcasReloj + $marcasManuales;
+    $marcasHoy = (int)$resultado->fetch_assoc()['total'];
 
     // =========================================================
     // 3. JORNADAS PENDIENTES
+    //
+    // Cuenta todas las fechas con marcas válidas de empleados
+    // activos que no tengan jornada creada o cuya jornada
+    // siga pendiente.
+    //
+    // No cuenta jornadas calculadas ni jornadas que requieren
+    // revisión: estas últimas tienen su propio contador.
     // =========================================================
 
-    $sqlJornadasPendientes = "
+    $sql = "
         SELECT COUNT(*) AS total
-        FROM jornadas
-        WHERE fecha = CURDATE()
-          AND estado = 'pendiente'
+        FROM (
+            SELECT
+                m.idempleado,
+                m.fecha
+
+            FROM (
+                SELECT
+                    mr.idempleado,
+                    mr.fecha
+
+                FROM marcas_reloj mr
+
+                WHERE NOT EXISTS (
+                    SELECT 1
+                    FROM marcas_invalidaciones mi
+                    WHERE mi.idmarca_reloj = mr.idmarca
+                )
+
+                UNION ALL
+
+                SELECT
+                    mm.idempleado,
+                    mm.fecha
+
+                FROM marcas_manuales mm
+
+                WHERE NOT EXISTS (
+                    SELECT 1
+                    FROM marcas_invalidaciones mi
+                    WHERE mi.idmarca_manual = mm.idmarca_manual
+                )
+
+            ) m
+
+            INNER JOIN empleados e
+                ON e.idempleado = m.idempleado
+               AND e.activo = 1
+
+            GROUP BY
+                m.idempleado,
+                m.fecha
+
+        ) pendientes
+
+        LEFT JOIN jornadas j
+            ON j.idempleado = pendientes.idempleado
+           AND j.fecha = pendientes.fecha
+
+        WHERE
+            j.idjornada IS NULL
+            OR j.estado = 'pendiente'
     ";
 
-    $resultado = $mysqli->query($sqlJornadasPendientes);
+    $resultado = $mysqli->query($sql);
 
     if (!$resultado) {
         throw new Exception(
@@ -158,17 +214,18 @@ try {
     $jornadasPendientes = (int)$resultado->fetch_assoc()['total'];
 
     // =========================================================
-    // 4. JORNADAS CON REVISIÓN
+    // 4. JORNADAS QUE REQUIEREN REVISIÓN
+    //
+    // Todas las fechas, no solamente hoy.
     // =========================================================
 
-    $sqlJornadasRevision = "
+    $sql = "
         SELECT COUNT(*) AS total
         FROM jornadas
-        WHERE fecha = CURDATE()
-          AND estado = 'requiere_revision'
+        WHERE estado = 'requiere_revision'
     ";
 
-    $resultado = $mysqli->query($sqlJornadasRevision);
+    $resultado = $mysqli->query($sql);
 
     if (!$resultado) {
         throw new Exception(

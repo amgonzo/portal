@@ -442,18 +442,6 @@
                 </div>
 
 
-                <!-- ESTADO DEL LECTOR -->
-
-                <div
-                    id="huellasEstadoLector"
-                    class="alert alert-secondary">
-
-                    Seleccione un lector para consultar
-                    las huellas.
-
-                </div>
-
-
                 <hr>
 
 

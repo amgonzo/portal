@@ -859,6 +859,310 @@ if ($action === 'estado') {
     ]);
 }
 
+// =========================================================
+// SINCRONIZAR EMPLEADOS CON UN RELOJ
+//
+// Crea una única tarea para el Agent asociado al reloj.
+// La tarea contiene todos los empleados activos de la empresa.
+// =========================================================
+
+if ($action === 'sincronizar_empleados') {
+
+    $idLector = (int)($_POST['idlector'] ?? 0);
+
+    if ($idLector <= 0) {
+        responder([
+            'status' => 'error',
+            'message' => 'Reloj no válido.'
+        ], 400);
+    }
+
+    try {
+
+        // -------------------------------------------------
+        // OBTENER RELOJ
+        // -------------------------------------------------
+
+        $stmtLector = $mysqli->prepare("
+            SELECT
+                idlector,
+                idagente,
+                nombre,
+                marca,
+                modelo,
+                ip,
+                puerto,
+                activo
+            FROM lectores
+            WHERE idlector = ?
+            LIMIT 1
+        ");
+
+        if (!$stmtLector) {
+            responder([
+                'status' => 'error',
+                'message' => 'No se pudo preparar la consulta del reloj.',
+                'detalle' => $mysqli->error
+            ], 500);
+        }
+
+        $stmtLector->bind_param(
+            'i',
+            $idLector
+        );
+
+        if (!$stmtLector->execute()) {
+
+            $error = $stmtLector->error;
+            $stmtLector->close();
+
+            responder([
+                'status' => 'error',
+                'message' => 'No se pudo consultar el reloj.',
+                'detalle' => $error
+            ], 500);
+        }
+
+        $resultadoLector = $stmtLector->get_result();
+        $lector = $resultadoLector->fetch_assoc();
+
+        $stmtLector->close();
+
+        if (!$lector) {
+            responder([
+                'status' => 'error',
+                'message' => 'El reloj no existe.'
+            ], 404);
+        }
+
+        // -------------------------------------------------
+        // RELOJ ACTIVO
+        // -------------------------------------------------
+
+        if ((int)$lector['activo'] !== 1) {
+            responder([
+                'status' => 'error',
+                'message' => 'El reloj está inactivo.'
+            ], 400);
+        }
+
+        // -------------------------------------------------
+        // AGENT
+        // -------------------------------------------------
+
+        if (
+            $lector['idagente'] === null ||
+            (int)$lector['idagente'] <= 0
+        ) {
+            responder([
+                'status' => 'error',
+                'message' => 'El reloj no tiene un Agent asignado.'
+            ], 400);
+        }
+
+        $idAgente = (int)$lector['idagente'];
+
+        if (!isset($agentesMapa[$idAgente])) {
+            responder([
+                'status' => 'error',
+                'message' => 'El Agent asignado al reloj no pertenece a la empresa activa.'
+            ], 400);
+        }
+
+        // -------------------------------------------------
+        // EVITAR DOS SINCRONIZACIONES SIMULTÁNEAS
+        // -------------------------------------------------
+
+        $stmtPendiente = $mysqli->prepare("
+            SELECT idtarea
+            FROM tareas_agente
+            WHERE idlector = ?
+              AND accion = 'sincronizar_empleados'
+              AND estado IN ('pendiente', 'procesando')
+            ORDER BY idtarea DESC
+            LIMIT 1
+        ");
+
+        if (!$stmtPendiente) {
+            responder([
+                'status' => 'error',
+                'message' => 'No se pudo verificar si existe una sincronización en curso.',
+                'detalle' => $mysqli->error
+            ], 500);
+        }
+
+        $stmtPendiente->bind_param(
+            'i',
+            $idLector
+        );
+
+        if (!$stmtPendiente->execute()) {
+
+            $error = $stmtPendiente->error;
+            $stmtPendiente->close();
+
+            responder([
+                'status' => 'error',
+                'message' => 'No se pudo verificar la sincronización existente.',
+                'detalle' => $error
+            ], 500);
+        }
+
+        $resultadoPendiente = $stmtPendiente->get_result();
+        $tareaExistente = $resultadoPendiente->fetch_assoc();
+
+        $stmtPendiente->close();
+
+        if ($tareaExistente) {
+            responder([
+                'status' => 'error',
+                'message' => 'Ya existe una sincronización pendiente o en proceso para este reloj.',
+                'idtarea' => (int)$tareaExistente['idtarea']
+            ], 400);
+        }
+
+        // -------------------------------------------------
+        // EMPLEADOS ACTIVOS
+        // -------------------------------------------------
+
+        $resultadoEmpleados = $mysqli->query("
+            SELECT
+                idempleado,
+                documento,
+                nombre,
+                apellido,
+                tarjeta
+            FROM empleados
+            WHERE activo = 1
+            ORDER BY apellido ASC, nombre ASC
+        ");
+
+        if (!$resultadoEmpleados) {
+            responder([
+                'status' => 'error',
+                'message' => 'No se pudieron consultar los empleados activos.',
+                'detalle' => $mysqli->error
+            ], 500);
+        }
+
+        $empleados = [];
+
+        while ($empleado = $resultadoEmpleados->fetch_assoc()) {
+
+            $empleados[] = [
+                'idempleado' => (int)$empleado['idempleado'],
+                'documento'  => trim((string)$empleado['documento']),
+                'nombre'     => trim((string)$empleado['nombre']),
+                'apellido'   => trim((string)$empleado['apellido']),
+                'tarjeta'    => $empleado['tarjeta'] !== null
+                    ? trim((string)$empleado['tarjeta'])
+                    : null
+            ];
+        }
+
+        // -------------------------------------------------
+        // DATOS DE LA TAREA
+        // -------------------------------------------------
+
+        $datosTarea = [
+            'marca'      => $lector['marca'],
+            'modelo'     => $lector['modelo'],
+            'ip'         => $lector['ip'],
+            'puerto'     => (int)$lector['puerto'],
+            'idempleado' => null,
+            'empleados'  => $empleados
+        ];
+
+        $datosJSON = json_encode(
+            $datosTarea,
+            JSON_UNESCAPED_UNICODE |
+            JSON_UNESCAPED_SLASHES
+        );
+
+        if ($datosJSON === false) {
+            responder([
+                'status' => 'error',
+                'message' => 'No se pudieron preparar los datos de sincronización.'
+            ], 500);
+        }
+
+        // -------------------------------------------------
+        // CREAR TAREA
+        //
+        // idempleado queda NULL porque es una tarea masiva.
+        // -------------------------------------------------
+
+        $stmtTarea = $mysqli->prepare("
+            INSERT INTO tareas_agente
+            (
+                idagente,
+                idlector,
+                idempleado,
+                accion,
+                prioridad,
+                datos,
+                estado
+            )
+            VALUES
+            (
+                ?,
+                ?,
+                NULL,
+                'sincronizar_empleados',
+                20,
+                ?,
+                'pendiente'
+            )
+        ");
+
+        if (!$stmtTarea) {
+            responder([
+                'status' => 'error',
+                'message' => 'No se pudo preparar la tarea de sincronización.',
+                'detalle' => $mysqli->error
+            ], 500);
+        }
+
+        $stmtTarea->bind_param(
+            'iis',
+            $idAgente,
+            $idLector,
+            $datosJSON
+        );
+
+        if (!$stmtTarea->execute()) {
+
+            $error = $stmtTarea->error;
+            $stmtTarea->close();
+
+            responder([
+                'status' => 'error',
+                'message' => 'No se pudo crear la tarea de sincronización.',
+                'detalle' => $error
+            ], 500);
+        }
+
+        $idTarea = $stmtTarea->insert_id;
+
+        $stmtTarea->close();
+
+        responder([
+            'status' => 'ok',
+            'message' => 'Sincronización de empleados enviada correctamente.',
+            'idtarea' => (int)$idTarea,
+            'idlector' => $idLector,
+            'empleados' => count($empleados)
+        ]);
+
+    } catch (Throwable $e) {
+
+        responder([
+            'status' => 'error',
+            'message' => 'Error al generar la sincronización de empleados.',
+            'detalle' => $e->getMessage()
+        ], 500);
+    }
+}
 
 // =========================================================
 // ACCIÓN NO RECONOCIDA

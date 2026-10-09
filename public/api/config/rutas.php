@@ -21,6 +21,7 @@ return [
     'env_api'    => $publicRoot . '/api',
     'env_ctacte' => $publicRoot . '/ctacte',
     'env_fichajes' => $publicRoot . '/fichajes',
+    'env_tablero' => $publicRoot . '/tablero',
 
     // Archivos PHP
     'conexion'       => $publicRoot . '/api/config/conexion.php',
@@ -33,6 +34,9 @@ return [
     'obtener_recibo' => $publicRoot . '/api/ctacte/reportes/obtener_nro_recibo.php',
     'secretos'       => $projectRoot . '/config/secretos.php',
     'configuracion'  => $publicRoot . '/api/utils/configuracion.php',
+    
+     // Biometría
+    'biometria'      => $publicRoot . '/api/fichajes/biometria/biometria.php',
     
     // Rutas web
     'login_sso_web' => '/sso/auth/login.php',
@@ -47,6 +51,9 @@ return [
 
     'logo_fichajes'        => $publicRoot . '/img/logoctacte.png',
     'logo_fichajes_web'    => '/img/logoctacte.png',
+
+    'logo_tablero'        => $publicRoot . '/img/logoctacte.png',
+    'logo_tablero_web'    => '/img/logoctacte.png',
 
     'favicon'         => $publicRoot . '/favicon.ico',
     'favicon_web'     => '/favicon.ico',

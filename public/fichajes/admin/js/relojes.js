@@ -59,16 +59,18 @@ function inicializarTablaRelojes() {
 
                 render: function (data, type, row) {
 
-                    const nombre = escapeHtml(data || '');
+                    const nombre =
+                        escapeHtml(data || '');
 
-                    const estrella = Number(row.predeterminado) === 1
-                        ? `
-                            <i
-                                class="fas fa-star text-warning ms-1"
-                                title="Reloj predeterminado">
-                            </i>
-                          `
-                        : '';
+                    const estrella =
+                        Number(row.predeterminado) === 1
+                            ? `
+                                <i
+                                    class="fas fa-star text-warning ms-1"
+                                    title="Reloj predeterminado">
+                                </i>
+                              `
+                            : '';
 
                     return `
                         <strong>
@@ -171,6 +173,7 @@ function inicializarTablaRelojes() {
 
                     return `
                         <div>
+
                             <strong>
                                 ${escapeHtml(
                                     data.agente_nombre || 'Agent'
@@ -186,6 +189,7 @@ function inicializarTablaRelojes() {
                                       `
                                     : ''
                             }
+
                         </div>
                     `;
                 }
@@ -235,7 +239,11 @@ function inicializarTablaRelojes() {
 
                 render: function (data) {
 
-                    const id = Number(data.idlector);
+                    const id =
+                        Number(data.idlector);
+
+                    const activo =
+                        Number(data.activo) === 1;
 
                     return `
 
@@ -243,6 +251,7 @@ function inicializarTablaRelojes() {
                             class="btn-group btn-group-sm"
                             role="group">
 
+                            <!-- EDITAR -->
                             <button
                                 type="button"
                                 class="btn btn-outline-primary"
@@ -254,30 +263,47 @@ function inicializarTablaRelojes() {
 
                             </button>
 
+
+                            <!-- SINCRONIZAR ASOCIADOS -->
+                            ${
+                                activo
+                                    ? `
+                                        <button
+                                            type="button"
+                                            class="btn btn-outline-info"
+                                            title="Sincronizar asociados"
+                                            onclick="sincronizarEmpleadosReloj(${id})"
+                                            data-permiso="lectores_editar">
+
+                                            <i class="fas fa-users"></i>
+
+                                        </button>
+                                      `
+                                    : ''
+                            }
+
+
+                            <!-- ACTIVAR / DESACTIVAR -->
                             <button
                                 type="button"
                                 class="btn ${
-                                    Number(data.activo) === 1
+                                    activo
                                         ? 'btn-outline-warning'
                                         : 'btn-outline-success'
                                 }"
                                 title="${
-                                    Number(data.activo) === 1
+                                    activo
                                         ? 'Desactivar'
                                         : 'Activar'
                                 }"
                                 onclick="cambiarEstadoReloj(
                                     ${id},
-                                    ${
-                                        Number(data.activo) === 1
-                                            ? 0
-                                            : 1
-                                    }
+                                    ${activo ? 0 : 1}
                                 )"
                                 data-permiso="lectores_editar">
 
                                 <i class="fas ${
-                                    Number(data.activo) === 1
+                                    activo
                                         ? 'fa-power-off'
                                         : 'fa-check'
                                 }"></i>
@@ -305,7 +331,10 @@ async function cargarAgentes() {
     try {
 
         const respuesta = await fetch(
-            API_BASE + '/fichajes/lectores/lectores.php?action=agentes',
+
+            API_BASE +
+            '/fichajes/lectores/lectores.php?action=agentes',
+
             {
                 method: 'GET',
                 cache: 'no-store',
@@ -313,21 +342,25 @@ async function cargarAgentes() {
             }
         );
 
-        const data = await respuesta.json();
+        const data =
+            await respuesta.json();
 
         if (data.status !== 'ok') {
 
             toast(
-                data.mensaje || 'No se pudieron cargar los Agents.',
+                data.mensaje ||
+                'No se pudieron cargar los Agents.',
                 'error'
             );
 
             return;
         }
 
-        agentesList = data.data || [];
+        agentesList =
+            data.data || [];
 
-        const select = $('#reloj_idagente');
+        const select =
+            $('#reloj_idagente');
 
         select.empty();
 
@@ -377,7 +410,10 @@ async function cargarRelojes() {
     try {
 
         const respuesta = await fetch(
-            API_BASE + '/fichajes/lectores/lectores.php?action=listar',
+
+            API_BASE +
+            '/fichajes/lectores/lectores.php?action=listar',
+
             {
                 method: 'GET',
                 cache: 'no-store',
@@ -385,19 +421,22 @@ async function cargarRelojes() {
             }
         );
 
-        const data = await respuesta.json();
+        const data =
+            await respuesta.json();
 
         if (data.status !== 'ok') {
 
             toast(
-                data.mensaje || 'No se pudieron cargar los relojes.',
+                data.mensaje ||
+                'No se pudieron cargar los relojes.',
                 'error'
             );
 
             return;
         }
 
-        relojesList = data.data || [];
+        relojesList =
+            data.data || [];
 
         tablaRelojes.clear();
 
@@ -446,9 +485,10 @@ function abrirNuevoReloj() {
         'Nuevo Reloj'
     );
 
-    const modal = bootstrap.Modal.getOrCreateInstance(
-        document.getElementById('ModalReloj')
-    );
+    const modal =
+        bootstrap.Modal.getOrCreateInstance(
+            document.getElementById('ModalReloj')
+        );
 
     modal.show();
 
@@ -461,11 +501,13 @@ function abrirNuevoReloj() {
 
 function editarReloj(idlector) {
 
-    const reloj = relojesList.find(function (item) {
+    const reloj =
+        relojesList.find(function (item) {
 
-        return Number(item.idlector) === Number(idlector);
+            return Number(item.idlector) ===
+                Number(idlector);
 
-    });
+        });
 
     if (!reloj) {
 
@@ -524,9 +566,10 @@ function editarReloj(idlector) {
         'Editar Reloj'
     );
 
-    const modal = bootstrap.Modal.getOrCreateInstance(
-        document.getElementById('ModalReloj')
-    );
+    const modal =
+        bootstrap.Modal.getOrCreateInstance(
+            document.getElementById('ModalReloj')
+        );
 
     modal.show();
 
@@ -539,9 +582,10 @@ function editarReloj(idlector) {
 
 async function guardarReloj() {
 
-    const form = document.getElementById(
-        'formReloj'
-    );
+    const form =
+        document.getElementById(
+            'formReloj'
+        );
 
     if (!form.checkValidity()) {
 
@@ -550,22 +594,27 @@ async function guardarReloj() {
         return;
     }
 
-    const formData = new FormData(form);
+    const formData =
+        new FormData(form);
 
-    const idlector = $('#reloj_idlector').val();
+    const idlector =
+        $('#reloj_idlector').val();
 
-    const accion = idlector
-        ? 'editar'
-        : 'crear';
+    const accion =
+        idlector
+            ? 'editar'
+            : 'crear';
 
     formData.append(
         'action',
         accion
     );
 
-    const boton = $('#btnGuardarReloj');
+    const boton =
+        $('#btnGuardarReloj');
 
-    const textoOriginal = boton.html();
+    const textoOriginal =
+        boton.html();
 
     boton.prop(
         'disabled',
@@ -584,7 +633,10 @@ async function guardarReloj() {
     try {
 
         const respuesta = await fetch(
-            API_BASE + '/fichajes/lectores/lectores.php',
+
+            API_BASE +
+            '/fichajes/lectores/lectores.php',
+
             {
                 method: 'POST',
                 headers: obtenerHeadersSSO(),
@@ -592,28 +644,32 @@ async function guardarReloj() {
             }
         );
 
-        const data = await respuesta.json();
+        const data =
+            await respuesta.json();
 
         if (data.status !== 'ok') {
 
             toast(
-                data.mensaje || 'No se pudo guardar el reloj.',
+                data.mensaje ||
+                'No se pudo guardar el reloj.',
                 'error'
             );
 
             return;
         }
 
-        const modal = bootstrap.Modal.getInstance(
-            document.getElementById('ModalReloj')
-        );
+        const modal =
+            bootstrap.Modal.getInstance(
+                document.getElementById('ModalReloj')
+            );
 
         if (modal) {
             modal.hide();
         }
 
         toast(
-            data.mensaje || 'Reloj guardado correctamente.',
+            data.mensaje ||
+            'Reloj guardado correctamente.',
             'success'
         );
 
@@ -647,19 +703,18 @@ async function guardarReloj() {
 
 
 // =========================================================
-// CAMBIAR ESTADO
+// SINCRONIZAR ASOCIADOS
 // =========================================================
 
-function cambiarEstadoReloj(
-    idlector,
-    nuevoEstado
-) {
+function sincronizarEmpleadosReloj(idlector) {
 
-    const reloj = relojesList.find(function (item) {
+    const reloj =
+        relojesList.find(function (item) {
 
-        return Number(item.idlector) === Number(idlector);
+            return Number(item.idlector) ===
+                Number(idlector);
 
-    });
+        });
 
     if (!reloj) {
 
@@ -671,7 +726,193 @@ function cambiarEstadoReloj(
         return;
     }
 
-    const activar = Number(nuevoEstado) === 1;
+    if (Number(reloj.activo) !== 1) {
+
+        toast(
+            'El reloj está inactivo.',
+            'error'
+        );
+
+        return;
+    }
+
+    Swal.fire({
+
+        title: '¿Sincronizar asociados?',
+
+        html: `
+            <div class="text-start">
+
+                <p class="mb-2">
+                    Se enviarán al reloj todos los
+                    asociados activos de la empresa.
+                </p>
+
+                <strong>Reloj:</strong>
+                ${escapeHtml(reloj.nombre || '')}
+
+                <br>
+
+                <strong>IP:</strong>
+                ${escapeHtml(reloj.ip || '')}
+
+                <br>
+
+                <strong>Puerto:</strong>
+                ${escapeHtml(reloj.puerto || '')}
+
+            </div>
+        `,
+
+        icon: 'question',
+
+        showCancelButton: true,
+
+        confirmButtonText: 'Sí, sincronizar',
+
+        cancelButtonText: 'Cancelar',
+
+        reverseButtons: true
+
+    }).then(async function (resultado) {
+
+        if (!resultado.isConfirmed) {
+            return;
+        }
+
+        const boton =
+            $(
+                `button[onclick="sincronizarEmpleadosReloj(${idlector})"]`
+            );
+
+        const htmlOriginal =
+            boton.length
+                ? boton.html()
+                : null;
+
+        if (boton.length) {
+
+            boton.prop(
+                'disabled',
+                true
+            );
+
+            boton.html(`
+                <span
+                    class="spinner-border spinner-border-sm"
+                    role="status">
+                </span>
+            `);
+        }
+
+        const formData =
+            new FormData();
+
+        formData.append(
+            'action',
+            'sincronizar_empleados'
+        );
+
+        formData.append(
+            'idlector',
+            idlector
+        );
+
+        try {
+
+            const respuesta = await fetch(
+
+                API_BASE +
+                '/fichajes/lectores/lectores.php',
+
+                {
+                    method: 'POST',
+                    headers: obtenerHeadersSSO(),
+                    body: formData
+                }
+            );
+
+            const data =
+                await respuesta.json();
+
+            if (data.status !== 'ok') {
+
+                toast(
+                    data.mensaje ||
+                    'No se pudo generar la sincronización.',
+                    'error'
+                );
+
+                return;
+            }
+
+            toast(
+                data.mensaje ||
+                'Sincronización enviada correctamente.',
+                'success'
+            );
+
+        } catch (error) {
+
+            console.error(
+                'Error sincronizando asociados:',
+                error
+            );
+
+            toast(
+                'No se pudo generar la sincronización.',
+                'error'
+            );
+
+        } finally {
+
+            if (boton.length) {
+
+                boton.prop(
+                    'disabled',
+                    false
+                );
+
+                boton.html(
+                    htmlOriginal
+                );
+            }
+        }
+
+    });
+
+}
+
+
+// =========================================================
+// CAMBIAR ESTADO
+// =========================================================
+
+function cambiarEstadoReloj(
+    idlector,
+    nuevoEstado
+) {
+
+    const reloj =
+        relojesList.find(function (item) {
+
+            return Number(item.idlector) ===
+                Number(idlector);
+
+        });
+
+    if (!reloj) {
+
+        toast(
+            'No se encontró el reloj seleccionado.',
+            'error'
+        );
+
+        return;
+    }
+
+    const activar =
+        Number(nuevoEstado) === 1;
 
     Swal.fire({
 
@@ -701,7 +942,8 @@ function cambiarEstadoReloj(
             return;
         }
 
-        const formData = new FormData();
+        const formData =
+            new FormData();
 
         formData.append(
             'action',
@@ -721,7 +963,10 @@ function cambiarEstadoReloj(
         try {
 
             const respuesta = await fetch(
-                API_BASE + '/fichajes/lectores/lectores.php',
+
+                API_BASE +
+                '/fichajes/lectores/lectores.php',
+
                 {
                     method: 'POST',
                     headers: obtenerHeadersSSO(),
@@ -729,7 +974,8 @@ function cambiarEstadoReloj(
                 }
             );
 
-            const data = await respuesta.json();
+            const data =
+                await respuesta.json();
 
             if (data.status !== 'ok') {
 
@@ -774,7 +1020,10 @@ function cambiarEstadoReloj(
 
 function escapeHtml(valor) {
 
-    if (valor === null || valor === undefined) {
+    if (
+        valor === null ||
+        valor === undefined
+    ) {
         return '';
     }
 

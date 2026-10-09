@@ -61,7 +61,7 @@ $(document).ready(function () {
 
         cargarMetricasDashboard();
         cargarIncidenciasDashboard();
-
+        cargarUltimasMarcasDashboard();
 
         // -----------------------------------------------------
         // Obtener intervalo desde configuración central
@@ -93,6 +93,7 @@ $(document).ready(function () {
 
                 cargarMetricasDashboard();
                 cargarIncidenciasDashboard();
+                cargarUltimasMarcasDashboard();
 
             }, intervaloMilisegundos);
 
@@ -615,6 +616,210 @@ async function obtenerConfiguracionDashboard() {
         );
 
         return {};
+    }
+}
+
+// =========================================================
+// ÚLTIMAS MARCAS DEL DASHBOARD
+// =========================================================
+
+async function cargarUltimasMarcasDashboard() {
+
+    const tbody = document.getElementById(
+        "tabla-ultimas-marcas-body"
+    );
+
+    if (!tbody) {
+        return;
+    }
+
+    try {
+
+        const response = await fetch(
+            API_BASE +
+            "/fichajes/dashboard/obtener_ultimas_marcas.php",
+            {
+                method: "GET",
+                cache: "no-store",
+                headers: obtenerHeadersSSO()
+            }
+        );
+
+        const text = await response.text();
+
+        let res;
+
+        try {
+            res = JSON.parse(text);
+        } catch (error) {
+            console.error(
+                "Respuesta inválida al consultar últimas marcas:",
+                text
+            );
+
+            throw new Error("La respuesta del servidor no es válida.");
+        }
+
+        if (!response.ok || res.status !== "ok") {
+            throw new Error(
+                res.msg || "No se pudieron cargar las últimas marcas."
+            );
+        }
+
+        const marcas = Array.isArray(res.data)
+            ? res.data
+            : [];
+
+        tbody.replaceChildren();
+
+        if (marcas.length === 0) {
+
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="5"
+                        class="text-center py-4 text-muted">
+                        <i class="bi bi-fingerprint fs-3 d-block mb-2"></i>
+                        No hay marcas registradas.
+                    </td>
+                </tr>
+            `;
+
+            return;
+        }
+
+        // Evita interpretar los datos de la API como HTML.
+        const crearCelda = (contenido, clase = "") => {
+
+            const td = document.createElement("td");
+
+            if (clase) {
+                td.className = clase;
+            }
+
+            td.textContent = contenido;
+
+            return td;
+        };
+
+        marcas.forEach(marca => {
+
+            const tr = document.createElement("tr");
+
+            // -------------------------------------------------
+            // HORA
+            // -------------------------------------------------
+
+            tr.appendChild(
+                crearCelda(marca.hora || "--:--", "text-nowrap")
+            );
+
+            // -------------------------------------------------
+            // EMPLEADO
+            // -------------------------------------------------
+
+            const tdEmpleado = document.createElement("td");
+
+            const nombre = document.createElement("div");
+            nombre.className = "fw-semibold";
+            nombre.textContent = marca.empleado || "Sin identificar";
+
+            tdEmpleado.appendChild(nombre);
+
+            if (marca.documento) {
+
+                const documento = document.createElement("small");
+                documento.className = "text-muted";
+                documento.textContent = marca.documento;
+
+                tdEmpleado.appendChild(documento);
+            }
+
+            tr.appendChild(tdEmpleado);
+
+            // -------------------------------------------------
+            // TIPO / ORIGEN
+            // -------------------------------------------------
+
+            const tdOrigen = document.createElement("td");
+            const badge = document.createElement("span");
+
+            if (marca.origen === "reloj") {
+
+                badge.className = "badge bg-success-subtle text-success";
+                badge.textContent = "Reloj";
+
+            } else {
+
+                badge.className = "badge bg-primary-subtle text-primary";
+                badge.textContent = "Manual";
+            }
+
+            tdOrigen.appendChild(badge);
+            tr.appendChild(tdOrigen);
+
+            // -------------------------------------------------
+            // LECTOR
+            // -------------------------------------------------
+
+            let lector = "—";
+
+            if (
+                marca.origen === "reloj" &&
+                marca.idlector !== null &&
+                marca.idlector !== undefined
+            ) {
+                lector = "Lector #" + marca.idlector;
+            }
+
+            tr.appendChild(crearCelda(lector));
+
+            // -------------------------------------------------
+            // ACCIÓN
+            // -------------------------------------------------
+
+            const tdAccion = document.createElement("td");
+            tdAccion.className = "text-center";
+
+            const enlace = document.createElement("a");
+
+            enlace.className = "btn btn-sm btn-outline-secondary";
+            enlace.href =
+                "procesar_jornadas.php?idempleado=" +
+                encodeURIComponent(marca.idempleado) +
+                "&fecha=" +
+                encodeURIComponent(marca.fecha);
+
+            enlace.title = "Abrir procesamiento de la jornada";
+            enlace.setAttribute("aria-label", "Ver jornada");
+            enlace.innerHTML =
+                '<i class="bi bi-box-arrow-up-right"></i>';
+
+            tdAccion.appendChild(enlace);
+            tr.appendChild(tdAccion);
+
+            tbody.appendChild(tr);
+        });
+
+    } catch (error) {
+
+        console.error(
+            "Error al cargar últimas marcas:",
+            error
+        );
+
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="5"
+                    class="text-center py-4 text-danger">
+                    No se pudieron cargar las últimas marcas.
+                    <button type="button"
+                        class="btn btn-sm btn-outline-secondary ms-2"
+                        onclick="cargarUltimasMarcasDashboard()">
+                        Reintentar
+                    </button>
+                </td>
+            </tr>
+        `;
     }
 }
 
