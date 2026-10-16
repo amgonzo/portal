@@ -288,60 +288,111 @@ try {
         }
 
         $stmt->close();
-
-
+                
         /*
-         * =====================================================
-         * ASISTENCIAS HORARIAS
-         * =====================================================
-         *
-         * Las devolvemos separadas para no perderlas.
-         */
+        * =====================================================
+        * CALENDARIO DEL EMPLEADO
+        * =====================================================
+        *
+        * Combina:
+        * 1. Asistencia principal cargada por el operador.
+        * 2. Asistencias manuales adicionales.
+        * 3. Eventos automáticos del procesamiento vigente.
+        *
+        * Los procesamientos revertidos se conservan en la BD,
+        * pero no se muestran en el calendario actual.
+        */
 
         $stmt = $mysqli->prepare(
             "
             SELECT
-                eca.idcalendario_asistencia,
-                eca.idempleado_calendario,
+                ec.idempleado_calendario,
+                ec.idempleado,
+                ec.fecha,
+                ec.idhorario,
+                ec.idtipo_asistencia,
+                ec.idmarca_entrada,
+                ec.idmarca_salida,
+                ec.observaciones,
+
+                ta.nombre AS nombre_asistencia,
+                ta.abreviatura,
+                ta.color_fondo,
+                ta.color_texto,
+
+                'calendario' AS origen_evento,
+                NULL AS idprocesamiento,
+                NULL AS idcalendario_asistencia
+
+            FROM empleados_calendario ec
+
+            INNER JOIN tipos_asistencia ta
+                ON ta.idtipo_asistencia = ec.idtipo_asistencia
+
+            WHERE ec.idempleado = ?
+            AND ec.fecha BETWEEN ? AND ?
+            AND ec.idtipo_asistencia IS NOT NULL
+
+            UNION ALL
+
+            SELECT
+                ec.idempleado_calendario,
+                ec.idempleado,
+                ec.fecha,
+                ec.idhorario,
                 eca.idtipo_asistencia,
-                eca.hora_desde,
-                eca.hora_hasta,
+                ec.idmarca_entrada,
+                ec.idmarca_salida,
                 eca.observaciones,
 
                 ta.nombre AS nombre_asistencia,
                 ta.abreviatura,
                 ta.color_fondo,
-                ta.color_texto
+                ta.color_texto,
+
+                CASE
+                    WHEN eca.idprocesamiento IS NULL
+                        THEN 'manual'
+                    ELSE 'calculo'
+                END AS origen_evento,
+
+                eca.idprocesamiento,
+                eca.idcalendario_asistencia
 
             FROM empleados_calendario_asistencias eca
 
             INNER JOIN empleados_calendario ec
                 ON ec.idempleado_calendario =
-                   eca.idempleado_calendario
+                eca.idempleado_calendario
 
-            LEFT JOIN tipos_asistencia ta
-                ON ta.idtipo_asistencia =
-                   eca.idtipo_asistencia
+            INNER JOIN tipos_asistencia ta
+                ON ta.idtipo_asistencia = eca.idtipo_asistencia
+
+            LEFT JOIN jornadas_procesamientos jp
+                ON jp.idprocesamiento = eca.idprocesamiento
 
             WHERE ec.idempleado = ?
-              AND ec.fecha BETWEEN ? AND ?
+            AND ec.fecha BETWEEN ? AND ?
+            AND (
+                eca.idprocesamiento IS NULL
+                OR jp.estado = 'vigente'
+            )
 
-            ORDER BY
-                ec.fecha,
-                eca.hora_desde,
-                eca.idcalendario_asistencia
+            ORDER BY fecha, idtipo_asistencia
             "
         );
 
         if (!$stmt) {
             throw new Exception(
-                'Error preparando asistencias del calendario: ' .
-                $mysqli->error
+                'Error preparando calendario: ' . $mysqli->error
             );
         }
 
         $stmt->bind_param(
-            'iss',
+            'ississ',
+            $idEmpleado,
+            $fechaDesde,
+            $fechaHasta,
             $idEmpleado,
             $fechaDesde,
             $fechaHasta
@@ -351,15 +402,13 @@ try {
 
         $resultado = $stmt->get_result();
 
-        $asistencias = [];
+        $calendario = [];
 
         while ($fila = $resultado->fetch_assoc()) {
-
-            $asistencias[] = $fila;
+            $calendario[] = $fila;
         }
 
         $stmt->close();
-
 
         responder(
             'ok',
@@ -367,10 +416,10 @@ try {
             [
                 'idempleado' => $idEmpleado,
                 'anio' => $anio,
-                'calendario' => $calendario,
-                'asistencias' => $asistencias
+                'calendario' => $calendario
             ]
         );
+
     }
 
 

@@ -195,6 +195,8 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
 
+    cargarAvisoAutorizacionesCompensacion();
+
     cargarJornadasPendientes();
 });
 
@@ -737,6 +739,96 @@ function construirDetalleJornada(data) {
         </div>
     `;
 
+    /* =====================================================
+    UTILIZACIÓN DE HORAS COMPENSATORIAS
+    ===================================================== */
+
+    html += `
+        <div class="jornada-seccion">
+            <h6>
+                <i class="fas fa-hourglass-half me-1"></i>
+                Utilización de horas compensatorias
+            </h6>
+    `;
+
+    const utilizaciones = Array.isArray(data.utilizaciones_compensatorias)
+        ? data.utilizaciones_compensatorias
+        : [];
+
+    if (utilizaciones.length === 0) {
+
+        html += `
+            <div class="text-muted">
+                No hay utilizaciones de horas compensatorias
+                registradas para esta fecha.
+            </div>
+        `;
+
+    } else {
+
+        utilizaciones.forEach(function (item) {
+
+            const estado = String(item.estado || '').toLowerCase();
+
+            let claseEstado = 'bg-secondary';
+
+            if (estado === 'autorizada') {
+                claseEstado = 'bg-success';
+            } else if (estado === 'pendiente') {
+                claseEstado = 'bg-warning text-dark';
+            } else if (estado === 'rechazada') {
+                claseEstado = 'bg-danger';
+            }
+
+            const minutos = Number(item.minutos_autorizados || 0);
+            const horas = Math.floor(minutos / 60);
+            const restoMinutos = minutos % 60;
+
+            const duracion = horas > 0
+                ? `${horas} h ${restoMinutos} min`
+                : `${restoMinutos} minutos`;
+
+            html += `
+                <div class="jornada-tramo jornada-permiso">
+
+                    <div class="d-flex justify-content-between
+                                align-items-center flex-wrap gap-2">
+
+                        <strong>
+                            ${escapeHtml(duracion)}
+                        </strong>
+
+                        <span class="badge ${claseEstado}">
+                            ${escapeHtml(estado.charAt(0).toUpperCase() +
+                                estado.slice(1))}
+                        </span>
+
+                    </div>
+
+                    ${
+                        item.motivo
+                            ? `<div class="text-muted mt-1">
+                                ${escapeHtml(item.motivo)}
+                            </div>`
+                            : ''
+                    }
+
+                    ${
+                        item.observaciones
+                            ? `<div class="mt-1">
+                                ${escapeHtml(item.observaciones)}
+                            </div>`
+                            : ''
+                    }
+
+                </div>
+            `;
+        });
+    }
+
+    html += `
+        </div>
+    `;
 
     /* =====================================================
        EXTRA PROGRAMADA
@@ -952,18 +1044,44 @@ async function guardarMarcaManual() {
 
 function abrirModalCalcular() {
 
-    const input =
-        document.getElementById(
-            'jornada_fecha_calculo'
-        );
+    const select = document.getElementById('jornada_fecha_calculo');
 
-    input.value = '';
+    // Las fechas disponibles salen exclusivamente de la tabla de pendientes.
+    const filas = tablaJornadasPendientes
+        .rows()
+        .data()
+        .toArray();
+
+    const fechas = [...new Set(
+        filas
+            .map(fila => fila.fecha)
+            .filter(fecha => /^\d{4}-\d{2}-\d{2}$/.test(fecha))
+    )].sort((a, b) => b.localeCompare(a));
+
+    select.innerHTML = '';
+
+    const opcionInicial = document.createElement('option');
+    opcionInicial.value = '';
+    opcionInicial.textContent = 'Seleccione una fecha pendiente';
+    select.appendChild(opcionInicial);
+
+    fechas.forEach(fecha => {
+        const opcion = document.createElement('option');
+        opcion.value = fecha;
+        opcion.textContent = formatearFecha(fecha);
+        select.appendChild(opcion);
+    });
+
+    if (fechas.length === 0) {
+        toast('No hay fechas con jornadas pendientes para procesar.', 'warning');
+        return;
+    }
+
+    select.value = '';
 
     modalCalcularJornadas.show();
 
-    setTimeout(function () {
-        input.focus();
-    }, 300);
+    setTimeout(() => select.focus(), 300);
 }
 
 
@@ -971,36 +1089,186 @@ function abrirModalCalcular() {
    CALCULAR
 ========================================================= */
 
-function ejecutarCalculo() {
 
-    const fecha =
-        document.getElementById(
-            'jornada_fecha_calculo'
-        ).value;
+async function ejecutarCalculo() {
+
+    const input = document.getElementById(
+        'jornada_fecha_calculo'
+    );
+
+    const fecha = input.value;
 
     if (!fecha) {
-
-        toast(
-            'Seleccione la fecha a procesar.',
-            'error'
-        );
-
+        toast('Seleccione la fecha a procesar.', 'error');
+        input.focus();
         return;
     }
 
-    /*
-     * El cálculo todavía no se ejecuta.
-     * Esta parte queda preparada para el siguiente paso.
-     */
+    const boton = document.getElementById('btnEjecutarCalculo');
 
-    modalCalcularJornadas.hide();
+    if (boton.disabled) {
+        return;
+    }
 
-    toast(
-        'La pantalla de cálculo quedó preparada para procesar la fecha seleccionada.',
-        'success'
-    );
+    const textoOriginal = boton.innerHTML;
+
+    boton.disabled = true;
+    boton.innerHTML = `
+        <i class="fas fa-spinner fa-spin me-1"></i>
+        Procesando...
+    `;
+
+    try {
+        const response = await fetch(
+            API_BASE + '/fichajes/jornadas/calcular_jornadas.php',
+            {
+                method: 'POST',
+                headers: {
+                    ...obtenerHeadersSSO(),
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    accion: 'calcular',
+                    fecha: fecha
+                })
+            }
+        );
+
+        const res = await response.json();
+
+        if (!response.ok || res.status !== 'ok') {
+            toast(
+                res.msg || 'No se pudieron calcular las jornadas.',
+                'error'
+            );
+            return;
+        }
+
+        modalCalcularJornadas.hide();
+
+        
+        const data = res.data || {};
+
+        await cargarJornadasPendientes();
+
+        const calculadas = Number(data.jornadas_calculadas || 0);
+        const revision = Number(data.jornadas_revision || 0);
+        const omitidas = Number(data.jornadas_omitidas || 0);
+        const errores = Array.isArray(data.errores)
+            ? data.errores.length
+            : 0;
+
+        if (errores > 0) {
+            toast(
+                `Proceso finalizado con errores. Calculadas: ${calculadas}; requieren revisión: ${revision}; omitidas por estar procesadas: ${omitidas}; errores: ${errores}.`,
+                'warning'
+            );
+
+        } else if (omitidas > 0 && calculadas === 0 && revision === 0) {
+            toast(
+                `No se procesaron jornadas nuevas. Se omitieron ${omitidas} jornadas que ya estaban procesadas para esa fecha.`,
+                'warning'
+            );
+
+        } else if (omitidas > 0) {
+            toast(
+                `Cálculo finalizado. Calculadas: ${calculadas}; requieren revisión: ${revision}; omitidas porque ya estaban procesadas: ${omitidas}.`,
+                'warning'
+            );
+
+        } else {
+            toast(
+                `Cálculo finalizado. Calculadas: ${calculadas}; requieren revisión: ${revision}.`,
+                'success'
+            );
+        }
+
+    } catch (error) {
+        console.error(error);
+
+        toast(
+            'Error de comunicación al calcular las jornadas.',
+            'error'
+        );
+
+    } finally {
+        boton.disabled = false;
+        boton.innerHTML = textoOriginal;
+    }
 }
 
+/* =========================================================
+   AVISO DE AUTORIZACIONES PENDIENTES
+========================================================= */
+
+async function cargarAvisoAutorizacionesCompensacion() {
+    const aviso = document.getElementById(
+        'avisoAutorizacionesCompensacion'
+    );
+
+    const texto = document.getElementById(
+        'textoAvisoAutorizacionesCompensacion'
+    );
+
+    // Si los elementos no existen, no continuar.
+    if (!aviso || !texto) {
+        return;
+    }
+
+    try {
+        const response = await fetch(
+            API_BASE +
+            '/fichajes/compensacion/horas_compensatorias.php?accion=autorizaciones',
+            {
+                method: 'GET',
+                cache: 'no-store',
+                headers: obtenerHeadersSSO()
+            }
+        );
+
+        const res = await response.json();
+
+        if (!response.ok || res.status !== 'ok') {
+            throw new Error(
+                res.msg || 'No se pudieron consultar las autorizaciones.'
+            );
+        }
+
+        const autorizaciones = Array.isArray(res.data)
+            ? res.data
+            : [];
+
+        const pendientes = autorizaciones.filter(
+            a => String(a.estado || '').toLowerCase() === 'pendiente'
+        );
+
+        // No hay autorizaciones pendientes.
+        if (pendientes.length === 0) {
+            aviso.classList.add('d-none');
+            return;
+        }
+
+        // Mostrar cantidad de autorizaciones pendientes.
+        const cantidad = pendientes.length;
+
+        texto.textContent = cantidad === 1
+            ? 'Hay 1 autorización de horas compensatorias pendiente de revisión.'
+            : `Hay ${cantidad} autorizaciones de horas compensatorias pendientes de revisión.`;
+
+        // Mostrar el aviso.
+        aviso.classList.remove('d-none');
+
+    } catch (error) {
+        console.error(
+            'Error al cargar el aviso de autorizaciones pendientes:',
+            error
+        );
+
+        // Ante un error, ocultar el aviso para no mostrar
+        // información desactualizada como si fuera actual.
+        aviso.classList.add('d-none');
+    }
+}
 
 /* =========================================================
    ESCAPAR HTML

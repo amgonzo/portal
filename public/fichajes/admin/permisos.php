@@ -211,6 +211,27 @@ include 'menu.php';
 
                         </div>
 
+                        <!-- TIPO DE PERMISO -->
+                        <div class="col-12">
+                            <label for="permiso_tipo" class="form-label">Tipo de permiso</label>
+                            <select id="permiso_tipo" class="form-select">
+                                <option value="normal">Permiso de salida normal</option>
+                                <option value="compensacion" id="opcionPermisoCompensacion" hidden>
+                                    Salida anticipada con horas compensatorias
+                                </option>
+                            </select>
+                        </div>
+
+                        <!-- DURACIÓN COMPENSATORIA -->
+                        <div class="col-12 d-none" id="bloquePermisoCompensacion">
+                            <div class="alert alert-info mb-0">
+                                <strong>Salida anticipada con horas compensatorias</strong>
+                                <p class="mb-0">
+                                    La solicitud quedará pendiente de autorización. Las horas
+                                    disponibles solo se descontarán si otro usuario la aprueba.
+                                </p>
+                            </div>
+                        </div>
 
                         <!-- MOTIVO -->
 

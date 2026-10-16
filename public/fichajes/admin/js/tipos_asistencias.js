@@ -240,43 +240,42 @@ function renderizarTiposAsistencia(lista) {
 
         }
 
+        if (modificable) {
+            if (activo) {
+                acciones += `
 
-        if (activo) {
+                    <button
+                        type="button"
+                        class="btn btn-sm btn-outline-danger"
+                        title="Desactivar tipo de asistencia"
+                        data-permiso="tipos_asistencia_gestionar"
+                        onclick="cambiarEstadoTipoAsistencia(${id}, 0)">
 
-            acciones += `
+                        <i class="fas fa-toggle-off"></i>
 
-                <button
-                    type="button"
-                    class="btn btn-sm btn-outline-danger"
-                    title="Desactivar tipo de asistencia"
-                    data-permiso="tipos_asistencia_gestionar"
-                    onclick="cambiarEstadoTipoAsistencia(${id}, 0)">
+                    </button>
 
-                    <i class="fas fa-toggle-off"></i>
+                `;
 
-                </button>
+            } else {
 
-            `;
+                acciones += `
 
-        } else {
+                    <button
+                        type="button"
+                        class="btn btn-sm btn-outline-success"
+                        title="Activar tipo de asistencia"
+                        data-permiso="tipos_asistencia_gestionar"
+                        onclick="cambiarEstadoTipoAsistencia(${id}, 1)">
 
-            acciones += `
+                        <i class="fas fa-toggle-on"></i>
 
-                <button
-                    type="button"
-                    class="btn btn-sm btn-outline-success"
-                    title="Activar tipo de asistencia"
-                    data-permiso="tipos_asistencia_gestionar"
-                    onclick="cambiarEstadoTipoAsistencia(${id}, 1)">
+                    </button>
 
-                    <i class="fas fa-toggle-on"></i>
+                `;
 
-                </button>
-
-            `;
-
+            }
         }
-
 
         acciones += '</div>';
 

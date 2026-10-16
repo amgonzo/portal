@@ -33,7 +33,29 @@ include 'menu.php';
             </button>
         </div>
     </div>
+    <!-- Aviso de autorizaciones pendientes de horas compensatorias -->
+    <div
+        id="avisoAutorizacionesCompensacion"
+        class="alert alert-warning d-none mb-3"
+        role="alert"
+        aria-live="polite"
+    >
+        <div class="d-flex align-items-start">
+            <i class="fas fa-exclamation-triangle me-2 mt-1"></i>
 
+            <div>
+                <strong>Hay horas compensatorias pendientes de autorización.</strong>
+
+                <div id="textoAvisoAutorizacionesCompensacion" class="mt-1">
+                    Hay solicitudes que deben revisarse.
+                </div>
+
+                <small>
+                    Revisá las autorizaciones antes de calcular las jornadas.
+                </small>
+            </div>
+        </div>
+    </div>
     <div class="card shadow-sm">
         <div class="card-body">
 
@@ -108,10 +130,11 @@ include 'menu.php';
                         Fecha a procesar
                     </label>
 
-                    <input
-                        type="date"
-                        class="form-control"
+                    <select
+                        class="form-select"
                         id="jornada_fecha_calculo">
+                        <option value="">Seleccione una fecha pendiente</option>
+                    </select>
                 </div>
 
             </div>

@@ -56,7 +56,7 @@ document.addEventListener('DOMContentLoaded', function () {
     );
 
     inicializarTabla();
-
+    cargarEstadoHorasCompensatorias();
     cargarDatosIniciales();
 
     document
@@ -200,6 +200,7 @@ async function cargarDatosIniciales() {
 
         cargarPermisos();
 
+        console.log('Configuración recibida:', res.data.compensacion_activa);
     } catch (error) {
 
         console.error(error);
@@ -330,6 +331,11 @@ function nuevoPermiso() {
         'permiso_motivo'
     ).value = '';
 
+    document.getElementById(
+        'permiso_tipo'
+    ).value = 'normal';
+    actualizarTipoPermiso();
+
     modalPermiso.show();
 
 }
@@ -398,6 +404,11 @@ async function editarPermiso(id) {
         document.getElementById(
             'permiso_motivo'
         ).value = permiso.motivo || '';
+
+        document.getElementById(
+            'permiso_tipo'
+        ).value = 'normal';
+        actualizarTipoPermiso();
 
         modalPermiso.show();
 
@@ -535,158 +546,126 @@ function normalizarHora(valor) {
 // ============================================================
 
 async function guardarPermiso(event) {
-
     event.preventDefault();
 
-    const horaDesde =
-        normalizarHora(
-            document.getElementById(
-                'permiso_hora_desde'
-            ).value
-        );
+    const tipoPermiso = document.getElementById('permiso_tipo').value;
 
-    const horaHasta =
-        normalizarHora(
-            document.getElementById(
-                'permiso_hora_hasta'
-            ).value
-        );
+    const horaDesde = normalizarHora(
+        document.getElementById('permiso_hora_desde').value
+    );
 
+    const horaHasta = normalizarHora(
+        document.getElementById('permiso_hora_hasta').value
+    );
 
-    /*
-     * Si se informa una hora, deben informarse las dos.
-     */
-
-    const tieneDesde =
-        horaDesde !== null;
-
-    const tieneHasta =
-        horaHasta !== null;
+    const tieneDesde = horaDesde !== null;
+    const tieneHasta = horaHasta !== null;
 
     if (tieneDesde !== tieneHasta) {
-
         toast(
             'Debe indicar las dos horas del permiso o dejar ambas vacías.',
             'warning'
         );
-
         return;
     }
 
-
-    /*
-     * Si hay intervalo, validar que no sea cero
-     * ni esté invertido.
-     */
-
-    if (tieneDesde && tieneHasta) {
-
-        if (horaDesde === horaHasta) {
-
+    if (tipoPermiso === 'compensacion') {
+        if (!tieneDesde || !tieneHasta) {
             toast(
-                'La hora desde y la hora hasta no pueden ser iguales.',
+                'Para solicitar una salida anticipada debe indicar la hora desde y hasta.',
                 'warning'
             );
-
             return;
         }
 
-        if (horaHasta < horaDesde) {
-
+        if (horaHasta <= horaDesde) {
             toast(
-                'La hora hasta no puede ser anterior a la hora desde.',
+                'La hora hasta debe ser posterior a la hora desde.',
                 'warning'
             );
-
             return;
         }
-
+    } else if (tieneDesde && tieneHasta) {
+        if (horaDesde === horaHasta || horaHasta < horaDesde) {
+            toast(
+                'El intervalo horario indicado no es válido.',
+                'warning'
+            );
+            return;
+        }
     }
 
-
     const datos = {
-
-        accion: 'guardar',
+        accion: tipoPermiso === 'compensacion'
+            ? 'solicitar_utilizacion'
+            : 'guardar',
 
         idpermiso: Number(
-            document.getElementById(
-                'edit_permiso_id'
-            ).value
+            document.getElementById('edit_permiso_id').value
         ),
 
         idempleado: Number(
-            document.getElementById(
-                'permiso_idempleado'
-            ).value
+            document.getElementById('permiso_idempleado').value
         ),
 
-        fecha:
-            document.getElementById(
-                'permiso_fecha'
-            ).value,
-
+        fecha: document.getElementById('permiso_fecha').value,
         hora_desde: horaDesde,
-
         hora_hasta: horaHasta,
 
-        motivo:
-            document.getElementById(
-                'permiso_motivo'
-            ).value.trim()
-
+        motivo: document.getElementById('permiso_motivo').value.trim()
     };
 
+    if (!datos.idempleado || !datos.fecha) {
+        toast('Debe seleccionar un empleado y una fecha.', 'warning');
+        return;
+    }
+
+    const endpoint = tipoPermiso === 'compensacion'
+        ? '/fichajes/compensacion/horas_compensatorias.php'
+        : '/fichajes/permisos/permisos.php';
 
     try {
-
-        const response = await fetch(
-            API_BASE +
-            '/fichajes/permisos/permisos.php',
-            {
-                method: 'POST',
-
-                headers: {
-                    ...obtenerHeadersSSO(),
-                    'Content-Type': 'application/json'
-                },
-
-                body: JSON.stringify(datos)
-            }
-        );
+        const response = await fetch(API_BASE + endpoint, {
+            method: 'POST',
+            headers: {
+                ...obtenerHeadersSSO(),
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(datos)
+        });
 
         const res = await response.json();
 
         if (!response.ok || res.status !== 'ok') {
-
             toast(
-                res.msg || 'No se pudo guardar el permiso.',
+                res.msg || 'No se pudo guardar la solicitud.',
                 'error'
             );
-
             return;
         }
 
         modalPermiso.hide();
 
-        toast(
-            res.msg || 'Permiso guardado correctamente.',
-            'success'
-        );
+        if (tipoPermiso === 'compensacion') {
+            toast(
+                res.data?.mensaje ||
+                'Solicitud enviada para autorización.',
+                'success'
+            );
+        } else {
+            toast(
+                res.msg || res.data?.mensaje ||
+                'Permiso guardado correctamente.',
+                'success'
+            );
 
-        cargarPermisos();
-
+            cargarPermisos();
+        }
     } catch (error) {
-
         console.error(error);
-
-        toast(
-            'Error al guardar el permiso.',
-            'error'
-        );
+        toast('Error al guardar la solicitud.', 'error');
     }
-
 }
-
 
 // ============================================================
 // CAMBIAR ESTADO
@@ -775,4 +754,88 @@ async function cambiarEstadoPermiso(id, estado) {
         );
     }
 
+}
+
+// ============================================================
+// TIPO DE PERMISO
+// ============================================================
+
+function actualizarTipoPermiso() {
+    const selector = document.getElementById('permiso_tipo');
+    const bloque = document.getElementById('bloquePermisoCompensacion');
+
+    if (!selector || !bloque) {
+        return;
+    }
+
+    bloque.classList.toggle(
+        'd-none',
+        selector.value !== 'compensacion'
+    );
+}
+
+function configurarPermisoCompensacion(configuracion) {
+    const opcion = document.getElementById('opcionPermisoCompensacion');
+    const selector = document.getElementById('permiso_tipo');
+
+    if (!opcion || !selector) {
+        return;
+    }
+
+    // Acepta tanto el valor de configuración como el booleano de la API.
+    const activa =
+        configuracion === true ||
+        configuracion === 1 ||
+        configuracion === '1' ||
+        configuracion === 'compensacion';
+
+    opcion.hidden = !activa;
+
+    if (!activa && selector.value === 'compensacion') {
+        selector.value = 'normal';
+    }
+
+    actualizarTipoPermiso();
+}
+
+document.getElementById('permiso_tipo').addEventListener(
+    'change',
+    actualizarTipoPermiso
+);
+
+async function cargarEstadoHorasCompensatorias() {
+    const opcion = document.getElementById('opcionPermisoCompensacion');
+
+    // Mantener oculta la opción hasta confirmar la configuración.
+    opcion.hidden = true;
+
+    try {
+        const response = await fetch(
+            API_BASE + '/fichajes/configuracion/estado_horas_compensatorias.php',
+            {
+                method: 'GET',
+                headers: obtenerHeadersSSO()
+            }
+        );
+
+        const res = await response.json();
+
+        if (!response.ok || res.status !== 'ok') {
+            configurarPermisoCompensacion(false);
+            return;
+        }
+
+        const tratamiento = res.data?.tratamiento_horas_extra;
+
+        // Únicamente "compensacion". "pago" y "ninguna" no habilitan la opción.
+        configurarPermisoCompensacion(
+            tratamiento === 'compensacion'
+        );
+
+        console.log('Tratamiento de horas extra:', tratamiento);
+
+    } catch (error) {
+        console.error('Error al consultar la configuración compensatoria:', error);
+        configurarPermisoCompensacion(false);
+    }
 }

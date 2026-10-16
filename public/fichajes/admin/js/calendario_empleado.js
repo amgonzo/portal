@@ -413,7 +413,6 @@ async function cargarCalendarioMaestro() {
 async function cargarCalendarioEmpleado() {
 
     const response = await fetch(
-
         API_BASE +
         '/fichajes/calendario_empleado/calendario_empleado.php' +
         '?accion=calendario' +
@@ -421,88 +420,52 @@ async function cargarCalendarioEmpleado() {
         encodeURIComponent(idEmpleado) +
         '&anio=' +
         encodeURIComponent(anioActual),
-
         {
             method: 'GET',
             headers: obtenerHeadersSSO()
         }
-
     );
-
 
     const data = await response.json();
 
-
-    if (
-        !response.ok ||
-        data.status !== 'ok'
-    ) {
-
+    if (!response.ok || data.status !== 'ok') {
         throw new Error(
             data.mensaje ||
             data.msg ||
             'No se pudo cargar el calendario del empleado.'
         );
-
     }
-
 
     calendarioEmpleado = {};
 
-
+    // Agrupar todos los registros por fecha en un array
     (data.calendario || []).forEach(
         function (registro) {
-
-            calendarioEmpleado[
-                registro.fecha
-            ] = registro;
-
+            if (!calendarioEmpleado[registro.fecha]) {
+                calendarioEmpleado[registro.fecha] = [];
+            }
+            calendarioEmpleado[registro.fecha].push(registro);
         }
     );
-
 }
-
 
 // =========================================================
 // OBTENER ASISTENCIA FINAL DEL DÍA
 // =========================================================
 
 function obtenerRegistroFecha(fecha) {
-
-    /*
-     * Si existe registro del empleado:
-     *
-     * - con tipo -> gana el empleado
-     * - con tipo NULL -> vuelve al maestro
-     */
-
     if (
         Object.prototype.hasOwnProperty.call(
             calendarioEmpleado,
             fecha
         )
     ) {
-
-        const empleadoRegistro =
-            calendarioEmpleado[fecha];
-
-
-        if (
-            empleadoRegistro &&
-            empleadoRegistro.idtipo_asistencia
-        ) {
-
-            return empleadoRegistro;
-
+        const registrosEmpleado = calendarioEmpleado[fecha];
+        if (registrosEmpleado && registrosEmpleado.length > 0) {
+            // Retornamos el array de registros del empleado para ese día
+            return registrosEmpleado;
         }
-
     }
-
-
-    /*
-     * Si no hay asistencia específica
-     * del empleado, usamos maestro.
-     */
 
     if (
         Object.prototype.hasOwnProperty.call(
@@ -510,16 +473,12 @@ function obtenerRegistroFecha(fecha) {
             fecha
         )
     ) {
-
-        return calendarioMaestro[fecha];
-
+        // Si es maestro, lo devolvemos como un array de un solo elemento para unificar
+        return [calendarioMaestro[fecha]];
     }
 
-
     return null;
-
 }
-
 
 // =========================================================
 // CONSTRUIR CALENDARIO
@@ -793,131 +752,67 @@ function construirFecha(
 // APLICAR DATOS
 // =========================================================
 
-function aplicarDatosCalendario() {
+// =========================================================
+// PINTAR CELDA
+// =========================================================
 
+function aplicarDatosCalendario() {
     document
         .querySelectorAll(
             '.celda-dia[data-fecha]'
         )
         .forEach(
             function (celda) {
+                const fecha = celda.dataset.fecha;
+                const registros = obtenerRegistroFecha(fecha);
 
-                const fecha =
-                    celda.dataset.fecha;
-
-
-                const registro =
-                    obtenerRegistroFecha(
-                        fecha
-                    );
-
-
-                if (!registro) {
-
-                    limpiarCeldaVisual(
-                        celda
-                    );
-
+                if (!registros || registros.length === 0) {
+                    limpiarCeldaVisual(celda);
                     return;
-
                 }
 
-
-                pintarCelda(
-                    celda,
-                    registro
-                );
-
+                pintarCelda(celda, registros);
             }
         );
-
 }
 
-
-// =========================================================
-// PINTAR CELDA
-// =========================================================
-
-function pintarCelda(
-    celda,
-    registro
-) {
-
+function pintarCelda(celda, registros) {
     celda.textContent = '';
-
     celda.style.backgroundColor = '';
     celda.style.color = '';
 
+    // Convertir a array por si viene un objeto único (como el maestro)
+    const listaRegistros = Array.isArray(registros) ? registros : [registros];
 
-    if (
-        !registro ||
-        !registro.idtipo_asistencia
-    ) {
-
+    const validos = listaRegistros.filter(r => r && r.idtipo_asistencia);
+    if (validos.length === 0) {
         return;
-
     }
 
+    let abreviaturas = [];
+    let primerTipo = null;
 
-    const tipo =
-        tiposAsistencia.find(
-            function (item) {
-
-                return Number(
-                    item.idtipo_asistencia
-                ) === Number(
-                    registro.idtipo_asistencia
-                );
-
-            }
+    validos.forEach(reg => {
+        const tipo = tiposAsistencia.find(
+            item => Number(item.idtipo_asistencia) === Number(reg.idtipo_asistencia)
         );
 
-
-    if (!tipo) {
-
-        /*
-         * También puede venir desde maestro.
-         * En ese caso usamos directamente los
-         * datos que trae el registro.
-         */
-
-        if (registro.abreviatura) {
-
-            celda.textContent =
-                registro.abreviatura;
-
-            celda.style.backgroundColor =
-                registro.color_fondo || '';
-
-            celda.style.color =
-                registro.color_texto || '';
-
+        if (tipo) {
+            if (!primerTipo) primerTipo = tipo;
+            if (tipo.abreviatura) abreviaturas.push(tipo.abreviatura);
+        } else if (reg.abreviatura) {
+            // Soporte directo si viene con abreviatura desde la base (ej: maestro)
+            if (!primerTipo) primerTipo = reg;
+            abreviaturas.push(reg.abreviatura);
         }
+    });
 
-        return;
-
+    if (primerTipo) {
+        celda.style.backgroundColor = primerTipo.color_fondo || '';
+        celda.style.color = primerTipo.color_texto || '';
     }
 
-
-    celda.textContent =
-        tipo.abreviatura || '';
-
-
-    celda.style.backgroundColor =
-        tipo.color_fondo || '';
-
-
-    celda.style.color =
-        tipo.color_texto || '';
-
-
-    celda.dataset.idtipoAsistencia =
-        tipo.idtipo_asistencia;
-
-
-    celda.dataset.nombreTipo =
-        tipo.nombre;
-
+    celda.textContent = abreviaturas.join(' / ');
 }
 
 
@@ -960,6 +855,36 @@ function mostrarMenuAsistencia(
 
 
     opciones.innerHTML = '';
+
+    
+    // =====================================================
+    // DESHACER CÁLCULO DEL DÍA
+    // =====================================================
+
+    const botonDeshacer = document.createElement('button');
+
+    botonDeshacer.type = 'button';
+    botonDeshacer.className = 'opcion-asistencia text-danger';
+
+    botonDeshacer.innerHTML =
+        '<span class="opcion-color" ' +
+        'style="background-color:#fff3cd;' +
+        'color:#dc3545;border:1px solid #dc3545;">' +
+        '<i class="fas fa-undo"></i>' +
+        '</span>' +
+        '<span class="opcion-nombre">' +
+        'Deshacer cálculo del día' +
+        '</span>';
+
+    botonDeshacer.addEventListener('click', async function () {
+        await deshacerCalculoDia();
+    });
+
+    opciones.appendChild(botonDeshacer);
+
+    const separadorDeshacer = document.createElement('div');
+    separadorDeshacer.className = 'menu-separador';
+    opciones.appendChild(separadorDeshacer);
 
 
     /*
@@ -1243,26 +1168,8 @@ async function aplicarTipoAsistencia(
          * pasa a tener prioridad sobre maestro.
          */
 
-        calendarioEmpleado[fecha] =
-            data.calendario;
-
-
-        const celda =
-            document.querySelector(
-                '.celda-dia[data-fecha="' +
-                fecha +
-                '"]'
-            );
-
-
-        if (celda) {
-
-            pintarCelda(
-                celda,
-                data.calendario
-            );
-
-        }
+        await cargarCalendarioEmpleado();
+        aplicarDatosCalendario();
 
 
         toast(
@@ -1393,43 +1300,8 @@ async function quitarAsistencia() {
          * automáticamente vuelve a mostrarse.
          */
 
-        delete calendarioEmpleado[
-            fecha
-        ];
-
-
-        const celda =
-            document.querySelector(
-                '.celda-dia[data-fecha="' +
-                fecha +
-                '"]'
-            );
-
-
-        if (celda) {
-
-            const registro =
-                obtenerRegistroFecha(
-                    fecha
-                );
-
-
-            if (registro) {
-
-                pintarCelda(
-                    celda,
-                    registro
-                );
-
-            } else {
-
-                limpiarCeldaVisual(
-                    celda
-                );
-
-            }
-
-        }
+        await cargarCalendarioEmpleado();
+        aplicarDatosCalendario();
 
 
         toast(
@@ -1596,6 +1468,105 @@ function escapeHtml(valor) {
 
 }
 
+
+async function deshacerCalculoDia() {
+    if (!fechaSeleccionada || !idEmpleado) {
+        return;
+    }
+
+    const fecha = fechaSeleccionada;
+
+    ocultarMenuAsistencia();
+
+    const resultado = await Swal.fire({
+        icon: 'warning',
+        title: 'Deshacer cálculo',
+        html:
+            '¿Desea deshacer el cálculo de este empleado para el día ' +
+            '<strong>' + escapeHtml(fecha) + '</strong>?' +
+            '<br><br>Se eliminarán las asistencias automáticas ' +
+            'generadas por ese procesamiento. Las marcas y las ' +
+            'asistencias manuales se conservarán.' +
+            '<br><br>' +
+            '<label for="motivo_anulacion" ' +
+            'style="display:block;text-align:left;font-weight:600;margin-bottom:6px;">' +
+            'Motivo de la anulación <span style="color:#dc3545;">*</span>' +
+            '</label>' +
+            '<textarea id="motivo_anulacion" ' +
+            'class="swal2-textarea" ' +
+            'placeholder="Ingrese el motivo por el que deshace el cálculo..." ' +
+            'maxlength="1000" ' +
+            'style="width:100%;box-sizing:border-box;margin:0;min-height:100px;">' +
+            '</textarea>',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, deshacer cálculo',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#dc3545',
+        focusConfirm: false,
+        preConfirm: () => {
+            const campo = document.getElementById('motivo_anulacion');
+            const motivo = campo ? campo.value.trim() : '';
+
+            if (!motivo) {
+                Swal.showValidationMessage(
+                    'Debe ingresar el motivo de la anulación.'
+                );
+                return false;
+            }
+
+            return motivo;
+        }
+    });
+
+    if (!resultado.isConfirmed) {
+        return;
+    }
+
+    const motivoAnulacion = resultado.value;
+
+    try {
+        const response = await fetch(
+            API_BASE + '/fichajes/calendario_empleado/deshacer_calculo.php',
+            {
+                method: 'POST',
+                headers: {
+                    ...obtenerHeadersSSO(),
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    idempleado: idEmpleado,
+                    fecha: fecha,
+                    motivo_anulacion: motivoAnulacion
+                })
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok || data.status !== 'ok') {
+            throw new Error(
+                data.mensaje ||
+                data.msg ||
+                'No se pudo deshacer el cálculo.'
+            );
+        }
+
+        await cargarCalendarioCompleto();
+
+        toast(
+            data.mensaje || 'Cálculo deshecho correctamente.',
+            'success'
+        );
+
+    } catch (error) {
+        console.error(error);
+
+        toast(
+            error.message || 'No se pudo deshacer el cálculo.',
+            'error'
+        );
+    }
+}
 
 // =========================================================
 // ESCAPE ATRIBUTO

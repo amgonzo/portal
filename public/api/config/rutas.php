@@ -38,6 +38,9 @@ return [
      // Biometría
     'biometria'      => $publicRoot . '/api/fichajes/biometria/biometria.php',
     
+    //compensacion horas
+    'compensacion_horas' => $publicRoot . '/api/fichajes/jornadas/compensacion_horas.php',
+
     // Rutas web
     'login_sso_web' => '/sso/auth/login.php',
     'panel_sso_web' => '/sso/admin/panel.php',

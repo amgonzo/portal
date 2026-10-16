@@ -1,3 +1,63 @@
+<style>
+    /* =====================================================
+   NAVBAR - MANTENER ELEMENTOS ALINEADOS
+   ===================================================== */
+
+#ftco-navbar .container-fluid {
+    min-width: 0;
+}
+
+#ftco-navbar .navbar-brand {
+    flex: 0 0 auto;
+    margin-right: 12px;
+    gap: 8px !important;
+}
+
+#ftco-navbar .navbar-collapse {
+    min-width: 0;
+}
+
+#ftco-navbar .navbar-nav {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 0;
+}
+
+#ftco-navbar .navbar-nav > .nav-item {
+    flex: 0 0 auto;
+}
+
+#ftco-navbar .navbar-nav .nav-link {
+    white-space: nowrap;
+    padding: 10px 6px;
+    text-align: center;
+}
+
+/* Horas compensatorias: permitir un texto más compacto */
+#menuHorasCompensatorias .nav-link {
+    white-space: nowrap;
+    padding-left: 5px;
+    padding-right: 5px;
+}
+
+/* Usuario y configuración nunca deben bajar de línea */
+#ftco-navbar .menu-config,
+#ftco-navbar #dropUser {
+    flex-shrink: 0;
+}
+
+/* En pantallas pequeñas, utilizar el menú colapsable */
+@media (max-width: 1199.98px) {
+    #ftco-navbar .navbar-nav {
+        align-items: stretch;
+    }
+
+    #ftco-navbar .navbar-nav .nav-link {
+        text-align: left;
+    }
+}
+</style>
 <?php
 
 // =========================================================
@@ -58,7 +118,7 @@ $apiUrl = $_ENV['API_URL'] ?? '/api';
                 <a
                     class="navbar-brand d-flex align-items-center"
                     href="dashboard.php"
-                    style="font-weight: bold; color: #337ab7; gap: 15px;"
+                    style="font-weight: bold; color: #337ab7; gap: 8px; margin-right: 10px; padding-right: 0;"
                 >
 
                     <?php if (file_exists($rutas['logo_fichajes'])): ?>
@@ -128,12 +188,6 @@ $apiUrl = $_ENV['API_URL'] ?? '/api';
                         </li>
 
                         <li class="nav-item">
-                            <a href="relojes.php" class="nav-link">
-                                <i class="fa fa-clock"></i> Relojes
-                            </a>
-                        </li>
-
-                        <li class="nav-item">
                             <a href="turnos.php" class="nav-link">
                                 <i class="fa fa-calendar"></i> Turnos
                             </a>
@@ -142,6 +196,15 @@ $apiUrl = $_ENV['API_URL'] ?? '/api';
                         <li class="nav-item">
                             <a href="permisos.php" class="nav-link">
                                 <i class="fa fa-key"></i> Permisos
+                            </a>
+                        </li>
+
+                        <li class="nav-item" id="menuHorasCompensatorias" style="display: none;">
+                            <a href="horas_compensatorias.php"
+                            class="nav-link menu-item-permiso"
+                            data-permiso="horas_compensatorias_ver">
+                                <i class="fas fa-business-time"></i>
+                                Horas
                             </a>
                         </li>
 
@@ -268,6 +331,18 @@ $apiUrl = $_ENV['API_URL'] ?? '/api';
                                     Agentes
                                 </a>
 
+                                <!-- RELOJES -->
+
+                                <a
+                                    href="relojes.php"
+                                    class="dropdown-item item-permiso"
+                                    data-permiso="relojes_ver"
+                                    style="display: none;"
+                                >
+                                    <i class="fas fa-clock"></i>
+                                    Relojes
+                                </a>
+
                                 <!-- TAREAS DEL AGENTE -->
 
                                 <a
@@ -281,18 +356,12 @@ $apiUrl = $_ENV['API_URL'] ?? '/api';
                                 </a>
 
 
-                                <!-- PERÍODOS -->
-
-                                <a
-                                    href="config_periodos.php"
+                                <a href="configuracion_horas_compensatorias.php"
                                     class="dropdown-item item-permiso"
-                                    data-permiso="periodos_configurar"
-                                    style="display: none;"
-                                >
-
-                                    <i class="fas fa-calendar-alt"></i>
-                                    Reglas de Períodos
-
+                                    data-permiso="horas_compensatorias_configuracion"
+                                    style="display: none;">
+                                        <i class="fas fa-sliders-h"></i>
+                                        Horas Compensatorias
                                 </a>
 
 
@@ -664,6 +733,78 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         }
 
+        // =====================================================
+        // MENÚ HORAS COMPENSATORIAS
+        // =====================================================
+
+        async function actualizarMenuHorasCompensatorias() {
+            const contenedor = document.getElementById(
+                'menuHorasCompensatorias'
+            );
+
+            if (!contenedor) {
+                return;
+            }
+
+            // Ocultar por defecto
+            contenedor.style.display = 'none';
+
+            // El usuario debe tener el permiso
+            if (!tienePermisoAPI('horas_compensatorias_ver')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(
+                    API_BASE + '/fichajes/configuracion/estado_horas_compensatorias.php',
+                    {
+                        method: 'GET',
+                        cache: 'no-store',
+                        headers: obtenerHeadersSSO()
+                    }
+                );
+
+                const resultado = await response.json();
+
+                if (!response.ok || resultado.status !== 'ok') {
+                    throw new Error(
+                        resultado.msg ||
+                        'No se pudo comprobar la configuración de horas compensatorias.'
+                    );
+                }
+
+                const tratamiento =
+                    resultado.data?.tratamiento_horas_extra;
+
+                const habilitado = [
+                    'compensacion',
+                    'pago_compensacion'
+                ].includes(tratamiento);
+
+                if (habilitado) {
+                    contenedor.style.display = '';
+
+                    const enlace = contenedor.querySelector(
+                        '[data-permiso="horas_compensatorias_ver"]'
+                    );
+
+                    if (enlace) {
+                        enlace.style.display = 'block';
+                    }
+                }
+
+            } catch (error) {
+                console.error(
+                    'Error al comprobar horas compensatorias:',
+                    error
+                );
+
+                contenedor.style.display = 'none';
+            }
+        }
+
+        // Comprobar configuración y permiso al cargar el menú
+        await actualizarMenuHorasCompensatorias();
 
         // =====================================================
         // ADMINISTRADOR

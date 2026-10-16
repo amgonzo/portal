@@ -155,7 +155,7 @@
         <!-- Se ubican antes de las tablas para         -->
         <!-- facilitar el acceso en pantallas chicas.  -->
         <!-- ========================================== -->
-
+        <!--
         <div class="card border-0 shadow-sm rounded-3 p-3 p-md-4 bg-white mb-4">
 
             <div class="d-flex align-items-center gap-2 mb-1">
@@ -167,9 +167,10 @@
                 Accesos directos para la gestión diaria de fichajes.
             </p>
 
-            <div class="row g-2">
+            <div class="row g-2">-->
 
                 <!-- Resolver incidencias -->
+                <!--
                 <div class="col-12 col-sm-6 col-xl-4">
                     <a
                         href="revisar_incidencias.php"
@@ -185,9 +186,10 @@
 
                         <i class="bi bi-chevron-right"></i>
                     </a>
-                </div>
+                </div>-->
 
                 <!-- Procesar jornadas -->
+                <!--
                 <div class="col-12 col-sm-6 col-xl-4">
                     <a
                         href="procesar_jornadas.php"
@@ -203,9 +205,10 @@
 
                         <i class="bi bi-chevron-right"></i>
                     </a>
-                </div>
+                </div>-->
 
                 <!-- Reportes -->
+                <!--
                 <div class="col-12 col-sm-6 col-xl-4">
                     <a
                         href="reportes_diarios.php"
@@ -224,7 +227,7 @@
                 </div>
 
             </div>
-        </div>
+        </div>-->
 
 
         <!-- ========================================== -->

@@ -94,7 +94,7 @@
                             <h3 id="card-tickets" class="fw-bold text-dark mb-0">0</h3>
                         </div>
                         <div class="bg-info-subtle text-info rounded-3 p-3">
-                            <i class="bi bi-receipt" style="font-size:2rem;display:block;line-height:1"></i>
+                            <i class="fa-solid fa-receipt" style="font-size:2rem;display:block;line-height:1"></i>
                         </div>
                     </div>
                     <div class="mt-2"><small class="text-muted">Cantidad de operaciones</small></div>

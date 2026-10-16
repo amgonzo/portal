@@ -920,6 +920,87 @@ if (
         ];
     }
 
+
+    $stmt->close();
+
+
+    /* =====================================================
+    UTILIZACIONES DE HORAS COMPENSATORIAS
+    ===================================================== */
+
+    $utilizacionesCompensatorias = [];
+
+    $sqlUtilizaciones = "
+        SELECT
+            idautorizacion,
+            tipo_operacion,
+            fecha_operacion,
+            minutos_autorizados,
+            estado,
+            motivo,
+            observaciones
+        FROM horas_compensacion_autorizaciones
+        WHERE idempleado = ?
+        AND fecha_operacion = ?
+        AND tipo_operacion = 'utilizacion'
+        AND estado = 'autorizada'
+        ORDER BY idautorizacion ASC
+    ";
+
+    $stmt = $mysqli->prepare($sqlUtilizaciones);
+
+    if (!$stmt) {
+        responderJornada(
+            'error',
+            'Error preparando utilizaciones compensatorias: ' .
+            $mysqli->error
+        );
+    }
+
+    $stmt->bind_param(
+        'is',
+        $idempleado,
+        $fecha
+    );
+
+    if (!$stmt->execute()) {
+        $error = $stmt->error;
+        $stmt->close();
+
+        responderJornada(
+            'error',
+            'Error consultando utilizaciones compensatorias: ' .
+            $error
+        );
+    }
+
+    $result = $stmt->get_result();
+
+    while ($row = $result->fetch_assoc()) {
+        $utilizacionesCompensatorias[] = [
+            'idautorizacion' =>
+                (int)$row['idautorizacion'],
+
+            'tipo_operacion' =>
+                $row['tipo_operacion'],
+
+            'fecha_operacion' =>
+                $row['fecha_operacion'],
+
+            'minutos_autorizados' =>
+                (int)$row['minutos_autorizados'],
+
+            'estado' =>
+                $row['estado'],
+
+            'motivo' =>
+                $row['motivo'],
+
+            'observaciones' =>
+                $row['observaciones']
+        ];
+    }
+
     $stmt->close();
 
 
@@ -1020,6 +1101,9 @@ if (
             'permisos' =>
                 $permisos,
 
+            'utilizaciones_compensatorias' =>
+                $utilizacionesCompensatorias,
+                
             'extras' =>
                 $extras
         ]
