@@ -189,7 +189,9 @@ try {
         'listar_huellas',
         'leer_huellas',
         'enrolar_huella',
-        'estado_tarea'
+        'estado_tarea',
+        'sincronizar_empleado',
+        'eliminar_empleado'
     ];
 
     if (
@@ -205,6 +207,596 @@ try {
         echo json_encode([
             'status' => 'error',
             'msg' => 'Acción de huellas no válida.'
+        ]);
+
+        exit;
+    }
+
+    
+    // =========================================================
+    // SINCRONIZAR UN EMPLEADO EN TODOS SUS LECTORES
+    // =========================================================
+
+    if ($accion === 'sincronizar_empleado') {
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            throw new Exception('Método no permitido.');
+        }
+
+        // -----------------------------------------------------
+        // DATOS DEL EMPLEADO
+        // -----------------------------------------------------
+
+        $stmt = $mysqli->prepare("
+            SELECT
+                idempleado,
+                documento,
+                nombre,
+                apellido,
+                tarjeta,
+                activo
+            FROM empleados
+            WHERE idempleado = ?
+            LIMIT 1
+        ");
+
+        if (!$stmt) {
+            throw new Exception(
+                'No se pudo preparar la consulta del empleado: ' .
+                $mysqli->error
+            );
+        }
+
+        $stmt->bind_param('i', $idEmpleado);
+        $stmt->execute();
+
+        $empleado = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+
+        if (!$empleado) {
+            throw new Exception('El empleado no existe.');
+        }
+
+        if ((int)$empleado['activo'] !== 1) {
+            throw new Exception('El empleado está inactivo.');
+        }
+
+        if (trim((string)$empleado['documento']) === '') {
+            throw new Exception('El empleado no tiene documento.');
+        }
+
+        // -----------------------------------------------------
+        // TODAS LAS HUELLAS ACTIVAS GUARDADAS
+        // -----------------------------------------------------
+
+        $stmt = $mysqli->prepare("
+            SELECT
+                dedo AS iddedo,
+                datos
+            FROM empleados_datos_biometricos
+            WHERE idempleado = ?
+              AND tipo = 'huella'
+              AND activo = 1
+            ORDER BY CAST(dedo AS UNSIGNED) ASC
+        ");
+
+        if (!$stmt) {
+            throw new Exception(
+                'No se pudo preparar la consulta de huellas: ' .
+                $mysqli->error
+            );
+        }
+
+        $stmt->bind_param('i', $idEmpleado);
+        $stmt->execute();
+
+        $resultadoHuellas = $stmt->get_result();
+        $huellas = [];
+
+        while ($huella = $resultadoHuellas->fetch_assoc()) {
+
+            $plantilla = trim((string)$huella['datos']);
+            $dedo = (int)$huella['iddedo'];
+
+            if ($plantilla === '') {
+                continue;
+            }
+
+            if ($dedo < 0 || $dedo > 9) {
+                continue;
+            }
+
+            $huellas[] = [
+                'iddedo' => $dedo,
+                'datos'  => $plantilla
+            ];
+        }
+
+        $stmt->close();
+
+        // -----------------------------------------------------
+        // TODOS LOS LECTORES ACTIVOS ASIGNADOS
+        // -----------------------------------------------------
+
+        $stmt = $mysqli->prepare("
+            SELECT
+                l.idlector,
+                l.nombre,
+                l.marca,
+                l.modelo,
+                l.ip,
+                l.puerto,
+                l.idagente
+            FROM empleados_lectores el
+            INNER JOIN lectores l
+                ON l.idlector = el.idlector
+            WHERE el.idempleado = ?
+              AND el.activo = 1
+              AND l.activo = 1
+            ORDER BY
+                l.predeterminado DESC,
+                l.idlector ASC
+        ");
+
+        if (!$stmt) {
+            throw new Exception(
+                'No se pudo preparar la consulta de lectores: ' .
+                $mysqli->error
+            );
+        }
+
+        $stmt->bind_param('i', $idEmpleado);
+        $stmt->execute();
+
+        $resultadoLectores = $stmt->get_result();
+        $lectores = [];
+
+        while ($lector = $resultadoLectores->fetch_assoc()) {
+            $lectores[] = $lector;
+        }
+
+        $stmt->close();
+
+        if (!$lectores) {
+            throw new Exception(
+                'El empleado no tiene lectores activos asignados.'
+            );
+        }
+
+        // -----------------------------------------------------
+        // CREAR UNA TAREA POR CADA LECTOR
+        // -----------------------------------------------------
+
+        $tareasCreadas = [];
+        $tareasExistentes = [];
+
+        $mysqli->begin_transaction();
+
+        try {
+
+            foreach ($lectores as $lector) {
+
+                $idLectorActual = (int)$lector['idlector'];
+                $idAgente = (int)$lector['idagente'];
+
+                if ($idAgente <= 0) {
+                    throw new Exception(
+                        'El lector "' . $lector['nombre'] .
+                        '" no tiene un agente asignado.'
+                    );
+                }
+
+                if (
+                    empty($lector['ip']) ||
+                    empty($lector['puerto'])
+                ) {
+                    throw new Exception(
+                        'El lector "' . $lector['nombre'] .
+                        '" no tiene IP o puerto configurado.'
+                    );
+                }
+
+                // Evitar tareas duplicadas en el mismo lector.
+                $stmtPendiente = $mysqli->prepare("
+                    SELECT idtarea
+                    FROM tareas_agente
+                    WHERE idlector = ?
+                      AND idempleado = ?
+                      AND accion = 'sincronizar_empleado'
+                      AND estado IN ('pendiente', 'procesando')
+                    ORDER BY idtarea DESC
+                    LIMIT 1
+                ");
+
+                if (!$stmtPendiente) {
+                    throw new Exception(
+                        'No se pudo comprobar si existe una tarea pendiente: ' .
+                        $mysqli->error
+                    );
+                }
+
+                $stmtPendiente->bind_param(
+                    'ii',
+                    $idLectorActual,
+                    $idEmpleado
+                );
+
+                $stmtPendiente->execute();
+
+                $tareaExistente = $stmtPendiente
+                    ->get_result()
+                    ->fetch_assoc();
+
+                $stmtPendiente->close();
+
+                if ($tareaExistente) {
+                    $tareasExistentes[] = [
+                        'idlector' => $idLectorActual,
+                        'idtarea'  => (int)$tareaExistente['idtarea'],
+                        'lector'   => $lector['nombre']
+                    ];
+
+                    continue;
+                }
+
+                // El Worker recibe los datos del usuario y
+                // todas las plantillas guardadas.
+                $datosTarea = [
+                    'marca'      => $lector['marca'],
+                    'modelo'     => $lector['modelo'],
+                    'ip'         => $lector['ip'],
+                    'puerto'     => (int)$lector['puerto'],
+                    'idempleado' => $idEmpleado,
+                    'documento'  => trim((string)$empleado['documento']),
+                    'nombre'     => $empleado['nombre'],
+                    'apellido'   => $empleado['apellido'],
+                    'tarjeta'    => $empleado['tarjeta'],
+                    'huellas'    => $huellas
+                ];
+
+                $datosJSON = json_encode(
+                    $datosTarea,
+                    JSON_UNESCAPED_UNICODE |
+                    JSON_UNESCAPED_SLASHES
+                );
+
+                if ($datosJSON === false) {
+                    throw new Exception(
+                        'No se pudieron preparar los datos para el lector "' .
+                        $lector['nombre'] . '".'
+                    );
+                }
+
+                $stmtTarea = $mysqli->prepare("
+                    INSERT INTO tareas_agente (
+                        idagente,
+                        idlector,
+                        idempleado,
+                        accion,
+                        datos,
+                        estado,
+                        intentos,
+                        respuesta,
+                        fecha_creacion
+                    )
+                    VALUES (
+                        ?, ?, ?,
+                        'sincronizar_empleado',
+                        ?,
+                        'pendiente',
+                        0,
+                        NULL,
+                        NOW()
+                    )
+                ");
+
+                if (!$stmtTarea) {
+                    throw new Exception(
+                        'No se pudo preparar la tarea para "' .
+                        $lector['nombre'] . '": ' . $mysqli->error
+                    );
+                }
+
+                $stmtTarea->bind_param(
+                    'iiis',
+                    $idAgente,
+                    $idLectorActual,
+                    $idEmpleado,
+                    $datosJSON
+                );
+
+                if (!$stmtTarea->execute()) {
+                    $error = $stmtTarea->error;
+                    $stmtTarea->close();
+
+                    throw new Exception(
+                        'No se pudo crear la tarea para "' .
+                        $lector['nombre'] . '": ' . $error
+                    );
+                }
+
+                $idTarea = (int)$stmtTarea->insert_id;
+                $stmtTarea->close();
+
+                $tareasCreadas[] = [
+                    'idtarea' => $idTarea,
+                    'idlector' => $idLectorActual,
+                    'lector' => $lector['nombre'],
+                    'huellas' => count($huellas)
+                ];
+            }
+
+            $mysqli->commit();
+
+        } catch (Throwable $e) {
+
+            $mysqli->rollback();
+            throw $e;
+        }
+
+        echo json_encode([
+            'status' => 'ok',
+            'msg' => 'Sincronización individual solicitada.',
+            'idempleado' => $idEmpleado,
+            'lectores_asignados' => count($lectores),
+            'huellas_enviadas' => count($huellas),
+            'tareas_creadas' => count($tareasCreadas),
+            'tareas_existentes' => count($tareasExistentes),
+            'tareas' => $tareasCreadas,
+            'pendientes_previas' => $tareasExistentes
+        ]);
+
+        exit;
+    }
+
+    
+    // =========================================================
+    // ELIMINAR EMPLEADO DE TODOS SUS LECTORES ACTIVOS
+    // =========================================================
+
+    if ($accion === 'eliminar_empleado') {
+
+        // Obtener el empleado aunque ya esté dado de baja.
+        $stmt = $mysqli->prepare("
+            SELECT
+                idempleado,
+                documento
+            FROM empleados
+            WHERE idempleado = ?
+            LIMIT 1
+        ");
+
+        if (!$stmt) {
+            throw new Exception(
+                'No se pudo preparar la consulta del empleado: ' .
+                $mysqli->error
+            );
+        }
+
+        $stmt->bind_param('i', $idEmpleado);
+        $stmt->execute();
+
+        $empleado = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+
+        if (!$empleado) {
+            throw new Exception('El empleado no existe.');
+        }
+
+        $documento = trim((string)$empleado['documento']);
+
+        if ($documento === '') {
+            throw new Exception('El empleado no tiene documento.');
+        }
+
+        // Obtener todos los lectores activos asignados.
+        $stmt = $mysqli->prepare("
+            SELECT
+                l.idlector,
+                l.nombre,
+                l.marca,
+                l.modelo,
+                l.ip,
+                l.puerto,
+                l.idagente
+            FROM empleados_lectores el
+            INNER JOIN lectores l
+                ON l.idlector = el.idlector
+            WHERE el.idempleado = ?
+              AND el.activo = 1
+              AND l.activo = 1
+            ORDER BY l.idlector ASC
+        ");
+
+        if (!$stmt) {
+            throw new Exception(
+                'No se pudo preparar la consulta de lectores: ' .
+                $mysqli->error
+            );
+        }
+
+        $stmt->bind_param('i', $idEmpleado);
+        $stmt->execute();
+
+        $resultado = $stmt->get_result();
+        $lectores = [];
+
+        while ($lector = $resultado->fetch_assoc()) {
+            $lectores[] = $lector;
+        }
+
+        $stmt->close();
+
+        if (!$lectores) {
+            throw new Exception(
+                'El empleado no tiene lectores activos asignados.'
+            );
+        }
+
+        $tareasCreadas = [];
+        $tareasExistentes = [];
+
+        $mysqli->begin_transaction();
+
+        try {
+
+            foreach ($lectores as $lector) {
+
+                $idLectorActual = (int)$lector['idlector'];
+                $idAgente = (int)$lector['idagente'];
+
+                if ($idAgente <= 0) {
+                    throw new Exception(
+                        'El lector "' . $lector['nombre'] .
+                        '" no tiene un agente asignado.'
+                    );
+                }
+
+                if (empty($lector['ip']) || empty($lector['puerto'])) {
+                    throw new Exception(
+                        'El lector "' . $lector['nombre'] .
+                        '" no tiene IP o puerto configurado.'
+                    );
+                }
+
+                // Evitar solicitudes duplicadas pendientes.
+                $stmtPendiente = $mysqli->prepare("
+                    SELECT idtarea
+                    FROM tareas_agente
+                    WHERE idlector = ?
+                      AND idempleado = ?
+                      AND accion = 'eliminar_empleado'
+                      AND estado IN ('pendiente', 'procesando')
+                    ORDER BY idtarea DESC
+                    LIMIT 1
+                ");
+
+                if (!$stmtPendiente) {
+                    throw new Exception(
+                        'No se pudo comprobar si existe una tarea pendiente: ' .
+                        $mysqli->error
+                    );
+                }
+
+                $stmtPendiente->bind_param(
+                    'ii',
+                    $idLectorActual,
+                    $idEmpleado
+                );
+
+                $stmtPendiente->execute();
+
+                $existente = $stmtPendiente
+                    ->get_result()
+                    ->fetch_assoc();
+
+                $stmtPendiente->close();
+
+                if ($existente) {
+                    $tareasExistentes[] = [
+                        'idtarea' => (int)$existente['idtarea'],
+                        'idlector' => $idLectorActual,
+                        'lector' => $lector['nombre']
+                    ];
+
+                    continue;
+                }
+
+                $datosTarea = [
+                    'marca' => $lector['marca'],
+                    'modelo' => $lector['modelo'],
+                    'ip' => $lector['ip'],
+                    'puerto' => (int)$lector['puerto'],
+                    'idempleado' => $idEmpleado,
+                    'documento' => $documento
+                ];
+
+                $datosJSON = json_encode(
+                    $datosTarea,
+                    JSON_UNESCAPED_UNICODE |
+                    JSON_UNESCAPED_SLASHES
+                );
+
+                if ($datosJSON === false) {
+                    throw new Exception(
+                        'No se pudieron preparar los datos para el lector "' .
+                        $lector['nombre'] . '".'
+                    );
+                }
+
+                $stmtTarea = $mysqli->prepare("
+                    INSERT INTO tareas_agente (
+                        idagente,
+                        idlector,
+                        idempleado,
+                        accion,
+                        datos,
+                        estado,
+                        intentos,
+                        respuesta,
+                        fecha_creacion
+                    )
+                    VALUES (
+                        ?, ?, ?,
+                        'eliminar_empleado',
+                        ?,
+                        'pendiente',
+                        0,
+                        NULL,
+                        NOW()
+                    )
+                ");
+
+                if (!$stmtTarea) {
+                    throw new Exception(
+                        'No se pudo preparar la tarea para "' .
+                        $lector['nombre'] . '": ' . $mysqli->error
+                    );
+                }
+
+                $stmtTarea->bind_param(
+                    'iiis',
+                    $idAgente,
+                    $idLectorActual,
+                    $idEmpleado,
+                    $datosJSON
+                );
+
+                if (!$stmtTarea->execute()) {
+                    $error = $stmtTarea->error;
+                    $stmtTarea->close();
+
+                    throw new Exception(
+                        'No se pudo crear la tarea para "' .
+                        $lector['nombre'] . '": ' . $error
+                    );
+                }
+
+                $tareasCreadas[] = [
+                    'idtarea' => (int)$stmtTarea->insert_id,
+                    'idlector' => $idLectorActual,
+                    'lector' => $lector['nombre']
+                ];
+
+                $stmtTarea->close();
+            }
+
+            $mysqli->commit();
+
+        } catch (Throwable $e) {
+            $mysqli->rollback();
+            throw $e;
+        }
+
+        echo json_encode([
+            'status' => 'ok',
+            'msg' => 'Solicitud de eliminación en lectores creada.',
+            'idempleado' => $idEmpleado,
+            'lectores_asignados' => count($lectores),
+            'tareas_creadas' => count($tareasCreadas),
+            'tareas_existentes' => count($tareasExistentes),
+            'tareas' => $tareasCreadas,
+            'pendientes_previas' => $tareasExistentes
         ]);
 
         exit;

@@ -243,7 +243,7 @@ async function cargarEmpleados() {
                     class="btn btn-sm btn-primary text-white me-1"
                     onclick="asignarCicloEmpleado(${e.idempleado})"
                     title="Asignar ciclo">
-                    <i class="fas fa-sync-alt"></i>
+                    <i class="fas fa-list-ol"></i>
                 </button>
             `;
 
@@ -275,6 +275,14 @@ async function cargarEmpleados() {
                 </button>
             `;
 
+            const btnSincronizarEmpleado = `
+                <button
+                    class="btn btn-sm btn-success text-white me-1"
+                    onclick="sincronizarEmpleado(${e.idempleado})"
+                    title="Sincronizar empleado y huellas en todos sus lectores">
+                    <i class="fas fa-sync-alt"></i>
+                </button>
+            `;
             const btnHuellas = `
                 <button
                     type="button"
@@ -311,6 +319,7 @@ async function cargarEmpleados() {
                 `${btnEditar}
                  ${btnCiclo}
                  ${btnEnviarLector}
+                 ${btnSincronizarEmpleado}
                  ${btnHuellas}
                  ${btnCalendario}
                  ${btnEstado}`
@@ -652,10 +661,7 @@ async function guardarEmpleado() {
 // 3. CAMBIAR ESTADO
 // ---------------------------------------------------------------------
 
-function cambiarEstadoEmpleado(
-    id,
-    nuevoEstado
-) {
+function cambiarEstadoEmpleado(id, nuevoEstado) {
 
     const accionTexto =
         nuevoEstado === 1
@@ -663,95 +669,125 @@ function cambiarEstadoEmpleado(
             : 'dar de baja';
 
     Swal.fire({
-
         title: '¿Está seguro?',
-
-        text:
-            `¿Desea ${accionTexto} a este empleado?`,
-
+        text: `¿Desea ${accionTexto} a este empleado?`,
         icon: 'question',
-
         showCancelButton: true,
-
         confirmButtonColor:
-            nuevoEstado === 1
-                ? '#28a745'
-                : '#d33',
+            nuevoEstado === 1 ? '#28a745' : '#d33',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Sí, confirmar',
+        cancelButtonText: 'Cancelar'
 
-        cancelButtonColor:
-            '#6c757d',
+    }).then(async (result) => {
 
-        confirmButtonText:
-            'Sí, confirmar',
+        if (!result.isConfirmed) {
+            return;
+        }
 
-        cancelButtonText:
-            'Cancelar'
+        let sincronizarLectores = false;
 
-    }).then(
-        async (result) => {
+        // Preguntar qué hacer con los lectores
+        if (nuevoEstado === 0) {
 
-            if (!result.isConfirmed) {
+            const confirmacionLectores = await Swal.fire({
+                title: '¿Eliminar también de los lectores?',
+                text: 'Se solicitará eliminar al empleado de todos sus lectores activos asignados, incluidas sus huellas registradas en ellos.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Sí, eliminar de lectores',
+                cancelButtonText: 'No, solo dar de baja'
+            });
+
+            sincronizarLectores = confirmacionLectores.isConfirmed;
+
+        } else {
+
+            const confirmacionLectores = await Swal.fire({
+                title: '¿Enviar también a los lectores?',
+                text: 'Se enviarán los datos y las huellas guardadas del empleado a todos sus lectores activos asignados.',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#28a745',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Sí, enviar a lectores',
+                cancelButtonText: 'No, solo dar de alta'
+            });
+
+            sincronizarLectores = confirmacionLectores.isConfirmed;
+        }
+
+        const formData = new FormData();
+        formData.append('idempleado', id);
+        formData.append('activo', nuevoEstado);
+
+        try {
+
+            // Primero cambiar el estado del empleado
+            const res = await fetch(
+                API_BASE + '/fichajes/empleados/empleados.php?action=estado',
+                {
+                    method: 'POST',
+                    headers: obtenerHeadersSSO(),
+                    body: formData
+                }
+            );
+
+            const json = await res.json();
+
+            if (json.status !== 'ok') {
+                toast(json.msg, 'error');
                 return;
             }
 
-            const formData =
-                new FormData();
+            toast(json.msg, 'success');
 
-            formData.append(
-                'idempleado',
-                id
-            );
+            cargarEmpleados();
 
-            formData.append(
-                'activo',
-                nuevoEstado
-            );
+            // Si confirmó, solicitar la operación en los lectores
+            if (sincronizarLectores) {
 
-            try {
+                const resLectores = await fetch(
+                    API_BASE + '/fichajes/empleados/huellas.php',
+                    {
+                        method: 'POST',
+                        headers: {
+                            ...obtenerHeadersSSO(),
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            accion: nuevoEstado === 1
+                                ? 'sincronizar_empleado'
+                                : 'eliminar_empleado',
+                            idempleado: id
+                        })
+                    }
+                );
 
-                const res =
-                    await fetch(
-                        API_BASE +
-                        '/fichajes/empleados/empleados.php?action=estado',
-                        {
-                            method: 'POST',
-                            headers:
-                                obtenerHeadersSSO(),
-                            body: formData
-                        }
-                    );
+                const jsonLectores = await resLectores.json();
 
-                const json =
-                    await res.json();
-
-                if (
-                    json.status !== 'ok'
-                ) {
-
+                if (jsonLectores.status !== 'ok') {
                     toast(
-                        json.msg,
-                        "error"
+                        jsonLectores.msg || 'No se pudo solicitar la operación en los lectores.',
+                        'error'
                     );
-
-                    return;
+                } else {
+                    toast(
+                        nuevoEstado === 1
+                            ? 'Sincronización con lectores solicitada.'
+                            : 'Eliminación de lectores solicitada.',
+                        'success'
+                    );
                 }
-
-                toast(
-                    json.msg,
-                    "success"
-                );
-
-                cargarEmpleados();
-
-            } catch (err) {
-
-                toast(
-                    "Error al intentar cambiar el estado",
-                    "error"
-                );
             }
+
+        } catch (err) {
+            console.error(err);
+            toast('Error al intentar cambiar el estado del empleado.', 'error');
         }
-    );
+    });
 }
 
 
@@ -889,6 +925,67 @@ function enviarEmpleadoLector(
     );
 }
 
+async function sincronizarEmpleado(idempleado) {
+    const empleado = empleadosList.find(
+        e => Number(e.idempleado) === Number(idempleado)
+    );
+
+    if (!empleado) {
+        toast('Empleado no encontrado.', 'error');
+        return;
+    }
+
+    const confirmacion = await Swal.fire({
+        title: '¿Sincronizar empleado?',
+        html: `Se enviarán los datos y las huellas guardadas de
+               <strong>${escapeHtml(empleado.apellido)}, ${escapeHtml(empleado.nombre)}</strong>
+               a todos sus lectores asignados activos.`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, sincronizar',
+        cancelButtonText: 'Cancelar'
+    });
+
+    if (!confirmacion.isConfirmed) return;
+
+    try {
+        const res = await fetch(
+            API_BASE + '/fichajes/empleados/huellas.php',
+            {
+                method: 'POST',
+                headers: {
+                    ...obtenerHeadersSSO(),
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    accion: 'sincronizar_empleado',
+                    idempleado: Number(idempleado)
+                })
+            }
+        );
+
+        const json = await res.json();
+
+        if (!res.ok || json.status !== 'ok') {
+            toast(
+                json.msg || 'No se pudo sincronizar el empleado.',
+                'error'
+            );
+            return;
+        }
+
+        toast(
+            `${json.msg} Tareas creadas: ${json.tareas_creadas}. ` +
+            `Omitidas: ${json.tareas_omitidas}. ` +
+            `Huellas: ${json.huellas}.`,
+            'success'
+        );
+
+    } catch (err) {
+        console.error(err);
+        toast('Error de conexión al sincronizar el empleado.', 'error');
+    }
+}
 
 // ---------------------------------------------------------------------
 // 5. CARGAR CICLOS DISPONIBLES

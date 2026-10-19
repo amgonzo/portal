@@ -1045,18 +1045,70 @@ if ($action === 'sincronizar_empleados') {
             ], 500);
         }
 
+        /*
+         * -------------------------------------------------
+         * HUELLAS BIOMÉTRICAS ACTIVAS
+         *
+         * Se adjuntan a cada empleado para que el Agent
+         * pueda intentar cargarlas en el reloj.
+         * No registrar estos datos biométricos en logs.
+         * -------------------------------------------------
+         */
+
+        $huellasPorEmpleado = [];
+
+        $resultadoHuellas = $mysqli->query("
+            SELECT
+                idbiometrico,
+                idempleado,
+                dedo AS iddedo,
+                datos
+            FROM empleados_datos_biometricos
+            WHERE tipo = 'huella'
+              AND activo = 1
+            ORDER BY
+                idempleado ASC,
+                CAST(dedo AS UNSIGNED) ASC
+        ");
+
+        if (!$resultadoHuellas) {
+            responder([
+                'status' => 'error',
+                'message' => 'No se pudieron consultar las huellas biométricas activas.',
+                'detalle' => $mysqli->error
+            ], 500);
+        }
+
+        while ($huella = $resultadoHuellas->fetch_assoc()) {
+
+            $idEmpleadoHuella = (int)$huella['idempleado'];
+
+            if (!isset($huellasPorEmpleado[$idEmpleadoHuella])) {
+                $huellasPorEmpleado[$idEmpleadoHuella] = [];
+            }
+
+            $huellasPorEmpleado[$idEmpleadoHuella][] = [
+                'idbiometrico' => (int)$huella['idbiometrico'],
+                'iddedo' => (int)$huella['iddedo'],
+                'datos' => (string)$huella['datos']
+            ];
+        }
+
         $empleados = [];
 
         while ($empleado = $resultadoEmpleados->fetch_assoc()) {
 
+            $idEmpleadoActual = (int)$empleado['idempleado'];
+
             $empleados[] = [
-                'idempleado' => (int)$empleado['idempleado'],
+                'idempleado' => $idEmpleadoActual,
                 'documento'  => trim((string)$empleado['documento']),
                 'nombre'     => trim((string)$empleado['nombre']),
                 'apellido'   => trim((string)$empleado['apellido']),
                 'tarjeta'    => $empleado['tarjeta'] !== null
                     ? trim((string)$empleado['tarjeta'])
-                    : null
+                    : null,
+                'huellas' => $huellasPorEmpleado[$idEmpleadoActual] ?? []
             ];
         }
 
@@ -1151,7 +1203,19 @@ if ($action === 'sincronizar_empleados') {
             'message' => 'Sincronización de empleados enviada correctamente.',
             'idtarea' => (int)$idTarea,
             'idlector' => $idLector,
-            'empleados' => count($empleados)
+            'empleados' => count($empleados),
+            'empleados_con_huellas' => count(array_filter(
+                $empleados,
+                static function ($empleado) {
+                    return !empty($empleado['huellas']);
+                }
+            )),
+            'huellas' => array_sum(array_map(
+                static function ($empleado) {
+                    return count($empleado['huellas']);
+                },
+                $empleados
+            ))
         ]);
 
     } catch (Throwable $e) {

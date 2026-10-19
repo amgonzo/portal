@@ -114,7 +114,6 @@
 
                     <div class="mt-2">
                         <small class="text-warning fw-semibold">
-                            <i class="bi bi-clock me-1"></i>
                             Necesitan procesamiento
                         </small>
                     </div>
@@ -140,7 +139,6 @@
 
                     <div class="mt-2">
                         <small class="text-danger fw-semibold">
-                            <i class="bi bi-exclamation-triangle me-1"></i>
                             Requieren revisión
                         </small>
                     </div>
