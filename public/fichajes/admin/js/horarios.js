@@ -265,6 +265,8 @@ function nuevoHorario() {
 
     document.getElementById('minutos_trabajo').value = 0;
 
+    document.getElementById('cruza_medianoche').checked = false;
+
     tramos = [];
 
     descansos = [];
@@ -325,6 +327,9 @@ async function editarHorario(idhorario) {
         document.getElementById('tolerancia_minutos').value =
             Number(horario.tolerancia_minutos || 0);
 
+        document.getElementById('cruza_medianoche').checked =
+            Number(horario.cruza_medianoche || 0) === 1;
+            
         tramos =
             Array.isArray(horario.tramos)
                 ? horario.tramos.map(function (tramo, indice) {
@@ -1144,17 +1149,19 @@ async function guardarHorario() {
                 ? Number(idhorario)
                 : null,
 
-        nombre:
-            nombre,
+        nombre: nombre,
 
         tolerancia_minutos:
             Math.max(0, tolerancia),
 
-        tramos:
-            tramosEnviar,
+        cruza_medianoche:
+            document.getElementById('cruza_medianoche').checked
+                ? 1
+                : 0,
 
-        descansos:
-            descansosEnviar
+        tramos: tramosEnviar,
+
+        descansos: descansosEnviar
 
     };
 

@@ -16,7 +16,6 @@
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
         <div>
             <h2 class="fw-bold mb-1">
-                <i class="fas fa-tasks me-2"></i>
                 Tareas del agente
             </h2>
 

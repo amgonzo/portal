@@ -27,7 +27,6 @@
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
             <div>
                 <h2 class="fw-bold mb-0">
-                    <i class="bi bi-clock-history me-2 text-primary"></i>
                     Configuración de horas compensatorias
                 </h2>
 

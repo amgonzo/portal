@@ -11,12 +11,19 @@ let calendarioEmpleado = {};
 let celdaSeleccionada = null;
 let fechaSeleccionada = null;
 
+let modalDetalleJornada = null;
+let detalleJornadaEmpleado = null;
+let detalleJornadaFecha = null;
 
 // =========================================================
 // INICIO
 // =========================================================
 
 document.addEventListener('DOMContentLoaded', async function () {
+
+    modalDetalleJornada = new bootstrap.Modal(
+        document.getElementById('modalDetalleJornada')
+    );
 
     const params = new URLSearchParams(
         window.location.search
@@ -688,6 +695,10 @@ function construirCalendario() {
 
             }
 
+            // Clic izquierdo: abrir detalle de la jornada
+            td.addEventListener('click', function () {
+                abrirDetalleJornada(idEmpleado, fecha);
+            });
 
             // Menú derecho
 
@@ -1567,6 +1578,316 @@ async function deshacerCalculoDia() {
         );
     }
 }
+
+
+async function abrirDetalleJornada(idempleado, fecha) {
+    try {
+        const response = await fetch(
+            API_BASE +
+            '/fichajes/jornadas/jornada_detalle.php' +
+            '?idempleado=' + encodeURIComponent(idempleado) +
+            '&fecha=' + encodeURIComponent(fecha),
+            {
+                method: 'GET',
+                headers: obtenerHeadersSSO()
+            }
+        );
+
+        const res = await response.json();
+
+        if (!response.ok || res.status !== 'ok') {
+            toast(
+                res.msg || 'No se pudo cargar el detalle de la jornada.',
+                'error'
+            );
+            return;
+        }
+
+        detalleJornadaEmpleado = Number(idempleado);
+        detalleJornadaFecha = fecha;
+
+        mostrarDetalleJornadaCalendario(res.data);
+
+    } catch (error) {
+        console.error('Error al consultar el detalle:', error);
+        toast('Error al consultar el detalle de la jornada.', 'error');
+    }
+}
+
+
+
+function mostrarDetalleJornadaCalendario(data) {
+    const contenido = document.getElementById('contenidoDetalleJornada');
+
+    const esc = valor => String(valor ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+
+    const minutos = valor => {
+        const total = Number(valor || 0);
+        return `${Math.floor(total / 60)} h ${total % 60} min`;
+    };
+
+    const tabla = (columnas, filas, vacio = 'Sin registros') => `
+        <div class="table-responsive">
+            <table class="table table-sm table-bordered align-middle">
+                <thead>
+                    <tr>${columnas.map(c => `<th>${esc(c.titulo)}</th>`).join('')}</tr>
+                </thead>
+                <tbody>
+                    ${filas.length
+                        ? filas.map(f => `<tr>${f.map(v => `<td>${esc(v)}</td>`).join('')}</tr>`).join('')
+                        : `<tr><td colspan="${columnas.length}" class="text-center text-muted">${esc(vacio)}</td></tr>`
+                    }
+                </tbody>
+            </table>
+        </div>
+    `;
+
+    const seccion = (titulo, cuerpo, color) => `
+        <div class="card mb-3 border-0 shadow-sm">
+            <div class="card-header fw-bold"
+                style="background-color:${color}; color:#fff; border-left:5px solid rgba(0,0,0,.2);">
+                ${esc(titulo)}
+            </div>
+            <div class="card-body border border-top-0">
+                ${cuerpo}
+            </div>
+        </div>
+    `;
+
+    const empleado = data.empleado || {};
+    const jornada = data.jornada || {};
+    const horario = data.horario || {};
+
+    const fecha = esc(data.fecha);
+    const nombre = esc(`${empleado.apellido || ''}, ${empleado.nombre || ''}`);
+    const estado = jornada.estado || 'Sin cálculo guardado';
+
+    // RESUMEN DEL CÁLCULO GUARDADO
+    const resumen = jornada.idjornada
+        ? `
+            <div class="row g-2 mb-3">
+                <div class="col-md-4"><div class="border rounded p-2">
+                    <small class="text-muted">Trabajado</small>
+                    <div class="fw-bold">${esc(minutos(jornada.minutos_trabajados))}</div>
+                </div></div>
+                <div class="col-md-4"><div class="border rounded p-2">
+                    <small class="text-muted">Descanso real</small>
+                    <div class="fw-bold">${esc(minutos(jornada.minutos_descanso))}</div>
+                </div></div>
+                <div class="col-md-4"><div class="border rounded p-2">
+                    <small class="text-muted">Exceso de descanso</small>
+                    <div class="fw-bold">${esc(minutos(jornada.minutos_descanso_exceso))}</div>
+                </div></div>
+                <div class="col-md-4"><div class="border rounded p-2">
+                    <small class="text-muted">Atraso</small>
+                    <div class="fw-bold">${esc(minutos(jornada.minutos_atraso))}</div>
+                </div></div>
+                <div class="col-md-4"><div class="border rounded p-2">
+                    <small class="text-muted">Salida anticipada</small>
+                    <div class="fw-bold">${esc(minutos(jornada.minutos_salida_anticipada))}</div>
+                </div></div>
+                <div class="col-md-4"><div class="border rounded p-2">
+                    <small class="text-muted">Horas extra calculadas</small>
+                    <div class="fw-bold">${esc(minutos(jornada.minutos_extra))}</div>
+                </div></div>
+            </div>
+            <p>
+                <strong>Estado:</strong> ${esc(estado)}
+                &nbsp; <strong>Último cálculo:</strong> ${esc(jornada.fecha_calculo || '—')}
+            </p>
+        `
+        : '<p class="text-muted">No hay un cálculo guardado para esta fecha.</p>';
+
+    // HORARIO ASIGNADO
+    const horarioHtml = horario.idhorario
+        ? `
+            <p><strong>${esc(horario.nombre)}</strong></p>
+            <p>
+                Tolerancia: ${esc(horario.tolerancia_minutos ?? 0)} minutos
+                &nbsp; | &nbsp;
+                Cruza medianoche: ${Number(horario.cruza_medianoche) === 1 ? 'Sí' : 'No'}
+            </p>
+            ${tabla(
+                [
+                    { titulo: 'Tramo' },
+                    { titulo: 'Desde' },
+                    { titulo: 'Hasta' },
+                    { titulo: 'Minutos teóricos' }
+                ],
+                (horario.tramos || []).map(t => [
+                    t.orden, t.hora_desde, t.hora_hasta, t.minutos_teoricos
+                ])
+            )}
+            <h6 class="mt-3">Descansos previstos</h6>
+            ${tabla(
+                [
+                    { titulo: 'Orden' },
+                    { titulo: 'Minutos permitidos' }
+                ],
+                (horario.descansos || []).map(d => [
+                    d.orden, d.minutos_permitidos
+                ])
+            )}
+        `
+        : '<p class="text-muted">No se encontró un horario asociado al cálculo guardado.</p>';
+
+    // TRAMOS REALES CALCULADOS
+    const tramosHtml = tabla(
+        [
+            { titulo: 'Orden' },
+            { titulo: 'Tipo' },
+            { titulo: 'Entrada' },
+            { titulo: 'Salida' },
+            { titulo: 'Tiempo trabajado' }
+        ],
+        (data.tramos || []).map(t => [
+            t.orden,
+            t.tipo_tramo,
+            t.fecha_hora_entrada || t.hora_entrada,
+            t.fecha_hora_salida || t.hora_salida,
+            minutos(t.minutos_trabajados)
+        ])
+    );
+
+    // DESCANSOS REALES
+    const descansosHtml = tabla(
+        [
+            { titulo: 'Orden' },
+            { titulo: 'Desde' },
+            { titulo: 'Hasta' },
+            { titulo: 'Real' },
+            { titulo: 'Permitido' },
+            { titulo: 'Exceso' }
+        ],
+        (data.descansos || []).map(d => [
+            d.orden,
+            d.hora_desde,
+            d.hora_hasta,
+            minutos(d.minutos_reales),
+            minutos(d.minutos_permitidos),
+            minutos(d.minutos_exceso)
+        ])
+    );
+
+    // TODAS LAS MARCAS REGISTRADAS, INCLUYE INVALIDADAS
+    const marcasHtml = tabla(
+        [
+            { titulo: 'Fecha' },
+            { titulo: 'Hora' },
+            { titulo: 'Origen' },
+            { titulo: 'Lector' },
+            { titulo: 'Estado' },
+            { titulo: 'Motivo de invalidación' }
+        ],
+        (data.marcas_registradas || []).map(m => [
+            m.fecha,
+            m.hora,
+            m.origen,
+            m.idlector ?? '—',
+            Number(m.invalidada) === 1 ? 'INVALIDADA' : 'Válida',
+            m.motivo || '—'
+        ])
+    );
+
+    // MARCAS QUE EFECTIVAMENTE UTILIZÓ EL CÁLCULO
+    const utilizadasHtml = tabla(
+        [
+            { titulo: 'Orden' },
+            { titulo: 'Tipo' },
+            { titulo: 'Origen' },
+            { titulo: 'Fecha' },
+            { titulo: 'Hora' },
+            { titulo: 'ID marca reloj' },
+            { titulo: 'ID marca manual' }
+        ],
+        (data.marcas_utilizadas || []).map(m => [
+            m.orden,
+            m.tipo,
+            m.origen,
+            m.fecha,
+            m.hora,
+            m.idmarca_reloj ?? '—',
+            m.idmarca_manual ?? '—'
+        ])
+    );
+
+    // PERMISOS DE SALIDA
+    const permisosHtml = tabla(
+        [
+            { titulo: 'ID' },
+            { titulo: 'Desde' },
+            { titulo: 'Hasta' },
+            { titulo: 'Motivo' }
+        ],
+        (data.permisos || []).map(p => [
+            p.idpermiso,
+            p.hora_desde,
+            p.hora_hasta,
+            p.motivo
+        ])
+    );
+
+    // HORAS EXTRA PROGRAMADAS
+    const extrasHtml = tabla(
+        [
+            { titulo: 'Fecha' },
+            { titulo: 'Desde' },
+            { titulo: 'Hasta' },
+            { titulo: 'Observaciones' }
+        ],
+        (data.extras || []).map(e => [
+            e.fecha,
+            e.hora_desde,
+            e.hora_hasta,
+            e.observaciones || '—'
+        ])
+    );
+
+    // USO AUTORIZADO DE HORAS COMPENSATORIAS
+    const compensatoriasHtml = tabla(
+        [
+            { titulo: 'Autorización' },
+            { titulo: 'Operación' },
+            { titulo: 'Fecha' },
+            { titulo: 'Minutos autorizados' },
+            { titulo: 'Estado' },
+            { titulo: 'Motivo' },
+            { titulo: 'Observaciones' }
+        ],
+        (data.utilizaciones_compensatorias || []).map(c => [
+            c.idautorizacion,
+            c.tipo_operacion,
+            c.fecha_operacion,
+            c.minutos_autorizados,
+            c.estado,
+            c.motivo || '—',
+            c.observaciones || '—'
+        ])
+    );
+
+    contenido.innerHTML = `
+        <h5>${nombre}</h5>
+        <p class="text-muted">Documento: ${esc(empleado.documento || '—')} | Fecha: ${fecha}</p>
+
+        ${seccion('Resumen del cálculo guardado', resumen, '#2c3e50')}
+        ${seccion('Horario asignado y tramos previstos', horarioHtml, '#34495e')}
+        ${seccion('Tramos reales calculados', tramosHtml, '#18bc9c')}
+        ${seccion('Descansos calculados', descansosHtml, '#3498db')}
+        ${seccion('Todas las marcas registradas', marcasHtml, '#6c757d')}
+        ${seccion('Marcas utilizadas por el cálculo', utilizadasHtml, '#2980b9')}
+        ${seccion('Permisos de salida', permisosHtml, '#0dcaf0')}
+        ${seccion('Horas extra programadas', extrasHtml, '#f39c12')}
+        ${seccion('Utilizaciones compensatorias autorizadas', compensatoriasHtml, '#8e44ad')}
+    `;
+
+    modalDetalleJornada.show();
+}
+
 
 // =========================================================
 // ESCAPE ATRIBUTO

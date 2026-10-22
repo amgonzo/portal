@@ -401,51 +401,73 @@ if ($metodo === 'POST') {
        VALIDAR DETALLE
     ----------------------------------------------------- */
 
+    
     $detalleNormalizado = [];
+    $diasIncompletos = [];
 
-    foreach ($detalle as $fila) {
+    for ($semana = 1; $semana <= $cantidadSemanas; $semana++) {
 
-        $semana = isset($fila['semana'])
-            ? (int)$fila['semana']
-            : 0;
+        for ($diaSemana = 1; $diaSemana <= 7; $diaSemana++) {
 
-        $diaSemana = isset($fila['dia_semana'])
-            ? (int)$fila['dia_semana']
-            : 0;
+            $clave = $semana . '-' . $diaSemana;
 
-        $idhorario = array_key_exists(
-            'idhorario',
-            $fila
-        ) && $fila['idhorario'] !== null &&
-          $fila['idhorario'] !== ''
-            ? (int)$fila['idhorario']
-            : null;
+            // Buscar el día correspondiente en los datos recibidos.
+            $fila = null;
 
+            foreach ($detalle as $item) {
+                if (
+                    isset($item['semana'], $item['dia_semana']) &&
+                    (int)$item['semana'] === $semana &&
+                    (int)$item['dia_semana'] === $diaSemana
+                ) {
+                    $fila = $item;
+                    break;
+                }
+            }
 
-        if (
-            $semana < 1 ||
-            $semana > $cantidadSemanas
-        ) {
-            continue;
+            $idhorario = $fila !== null &&
+                isset($fila['idhorario']) &&
+                $fila['idhorario'] !== ''
+                    ? (int)$fila['idhorario']
+                    : null;
+
+            if ($idhorario === null || $idhorario <= 0) {
+                $dias = [
+                    1 => 'lunes',
+                    2 => 'martes',
+                    3 => 'miércoles',
+                    4 => 'jueves',
+                    5 => 'viernes',
+                    6 => 'sábado',
+                    7 => 'domingo'
+                ];
+
+                $diasIncompletos[] =
+                    'Semana ' . $semana . ', ' . $dias[$diaSemana];
+
+                continue;
+            }
+
+            $detalleNormalizado[$clave] = [
+                'semana' => $semana,
+                'dia_semana' => $diaSemana,
+                'idhorario' => $idhorario
+            ];
         }
-
-
-        if (
-            $diaSemana < 1 ||
-            $diaSemana > 7
-        ) {
-            continue;
-        }
-
-
-        $clave = $semana . '-' . $diaSemana;
-
-        $detalleNormalizado[$clave] = [
-            'semana' => $semana,
-            'dia_semana' => $diaSemana,
-            'idhorario' => $idhorario
-        ];
     }
+
+    if (!empty($diasIncompletos)) {
+        http_response_code(400);
+
+        echo json_encode([
+            'status' => 'error',
+            'message' => 'No se puede guardar el ciclo. Debés asignar un horario a todos los días.',
+            'dias_incompletos' => $diasIncompletos
+        ], JSON_UNESCAPED_UNICODE);
+
+        exit;
+    }
+
 
 
     $mysqli->begin_transaction();

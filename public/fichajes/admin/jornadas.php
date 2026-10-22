@@ -7,7 +7,7 @@ include 'menu.php';
 
     <div class="d-flex justify-content-between align-items-center mb-3">
         <div>
-            <h3 class="mb-1">Jornadas</h3>
+            <h2 class="fw-bold mb-1">Jornadas</h2>
             <div class="text-muted">
                 Jornadas pendientes de procesamiento.
             </div>
@@ -219,17 +219,15 @@ include 'menu.php';
                 </div>
 
                 <div class="mb-3">
-
-                    <label class="form-label">
+                    <label for="marca_manual_fecha_mostrar" class="form-label">
                         Fecha
                     </label>
 
                     <input
-                        type="text"
+                        type="date"
                         class="form-control"
                         id="marca_manual_fecha_mostrar"
-                        readonly>
-
+                        required>
                 </div>
 
                 <div class="mb-3">
@@ -279,96 +277,5 @@ include 'menu.php';
 
     </div>
 </div>
-
-
-<style>
-
-.jornada-detalle {
-    padding: 15px 20px;
-    background: #f8f9fa;
-    border-top: 1px solid #dee2e6;
-}
-
-.jornada-detalle-titulo {
-    font-weight: 600;
-    font-size: 15px;
-    margin-bottom: 12px;
-}
-
-.jornada-seccion {
-    background: #fff;
-    border: 1px solid #dee2e6;
-    border-radius: 6px;
-    padding: 12px;
-    margin-bottom: 12px;
-}
-
-.jornada-seccion h6 {
-    font-size: 14px;
-    font-weight: 600;
-    margin-bottom: 10px;
-}
-
-.jornada-ficha {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 6px 0;
-    border-bottom: 1px solid #eee;
-}
-
-.jornada-ficha:last-child {
-    border-bottom: 0;
-}
-
-.jornada-hora {
-    width: 60px;
-    font-weight: 600;
-    font-family: monospace;
-    font-size: 14px;
-}
-
-.jornada-origen {
-    min-width: 110px;
-}
-
-.jornada-info {
-    font-size: 13px;
-    color: #6c757d;
-}
-
-.jornada-tramo {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 5px 8px;
-    margin: 2px 4px 2px 0;
-    border-radius: 5px;
-    background: #f1f3f5;
-    font-size: 13px;
-}
-
-.jornada-extra {
-    border-left: 3px solid #ffc107;
-}
-
-.jornada-permiso {
-    border-left: 3px solid #0dcaf0;
-}
-
-.jornada-sin-horario {
-    color: #dc3545;
-}
-
-.btn-expandir-jornada {
-    width: 28px;
-    height: 28px;
-    padding: 0;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-}
-
-</style>
 
 <script src="js/jornadas.js?v=<?php echo time(); ?>"></script>

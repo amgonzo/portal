@@ -477,6 +477,7 @@ function resolverHorarioCalculo(
             ehi.idhorario,
             h.nombre,
             h.tolerancia_minutos,
+            h.cruza_medianoche,
             'Horario especial' AS origen,
             'Horario especial asignado para esta fecha' AS detalle_origen
 
@@ -555,7 +556,8 @@ function resolverHorarioCalculo(
             SELECT
                 h.idhorario,
                 h.nombre,
-                h.tolerancia_minutos
+                h.tolerancia_minutos,
+                h.cruza_medianoche
 
             FROM ciclo_detalle cd
 
@@ -587,6 +589,7 @@ function resolverHorarioCalculo(
             'nombre' => $horarioCiclo['nombre'],
             'tolerancia_minutos' => $horarioCiclo['tolerancia_minutos'],
             'origen' => 'Ciclo',
+            'cruza_medianoche' => (int)$horarioCiclo['cruza_medianoche'],
             'detalle_origen' =>
                 'Ciclo: ' . $ciclo['ciclo_nombre'] .
                 ' — Semana ' . $semana
@@ -640,15 +643,41 @@ function resolverHorarioCalculo(
     $horario['tramos'] = [];
     $horario['descansos'] = $descansos;
 
-    foreach ($tramos as $tramo) {
-        $desde = minutosHora($tramo['hora_desde']);
-        $hasta = minutosHora($tramo['hora_hasta']);
+    $offsetDia = 0;
+    $ultimoDesde = null;
 
-        if (
-            $desde === null ||
-            $hasta === null ||
-            $hasta <= $desde
-        ) {
+    foreach ($tramos as $tramo) {
+        $desdeOriginal = minutosHora($tramo['hora_desde']);
+        $hastaOriginal = minutosHora($tramo['hora_hasta']);
+
+        if ($desdeOriginal === null || $hastaOriginal === null) {
+            $horario['tramos_invalidos'] = true;
+            continue;
+        }
+
+        $desde = $desdeOriginal + $offsetDia;
+        $hasta = $hastaOriginal + $offsetDia;
+
+        if (!empty($horario['cruza_medianoche'])) {
+            /*
+            * Si el inicio retrocede respecto del tramo anterior,
+            * pertenece al día siguiente.
+            */
+            if ($ultimoDesde !== null && $desde < $ultimoDesde) {
+                $offsetDia += 1440;
+
+                $desde = $desdeOriginal + $offsetDia;
+                $hasta = $hastaOriginal + $offsetDia;
+            }
+
+            /*
+            * Si este tramo cruza medianoche, extender su final.
+            */
+            if ($hasta <= $desde) {
+                $hasta += 1440;
+            }
+        } elseif ($hasta <= $desde) {
+            // Los horarios normales no pueden cruzar medianoche.
             $horario['tramos_invalidos'] = true;
             continue;
         }
@@ -662,12 +691,16 @@ function resolverHorarioCalculo(
             'hora_hasta' => $tramo['hora_hasta'],
             'minutos_teoricos' => (int)$tramo['minutos_teoricos']
         ];
+
+        $ultimoDesde = $desde;
     }
 
     usort(
         $horario['tramos'],
         fn($a, $b) => $a['desde'] <=> $b['desde']
     );
+
+    $horario['cruza_medianoche'] = (int)($horario['cruza_medianoche'] ?? 0);
 
     return $horario;
 }
@@ -773,6 +806,146 @@ function obtenerMarcasCalculo(
     return $resultado;
 }
 
+/*********************************** */
+
+
+function obtenerMarcasNocturnasCalculo(
+    mysqli $db,
+    int $idempleado,
+    string $fecha,
+    array $horario
+): array {
+
+    $fechaSiguiente = (new DateTimeImmutable($fecha))
+        ->modify('+1 day')
+        ->format('Y-m-d');
+
+    $filas = consultarFilas(
+        $db,
+        "
+        SELECT
+            mr.idmarca AS idmarca,
+            NULL AS idmarca_manual,
+            mr.idmarca AS idmarca_reloj,
+            mr.idlector,
+            mr.fecha AS fecha_marca,
+            mr.hora,
+            'reloj' AS origen
+        FROM marcas_reloj mr
+        WHERE mr.idempleado = ?
+          AND mr.fecha IN (?, ?)
+          AND NOT EXISTS (
+              SELECT 1
+              FROM marcas_invalidaciones mi
+              WHERE mi.idmarca_reloj = mr.idmarca
+          )
+
+        UNION ALL
+
+        SELECT
+            mm.idmarca_manual AS idmarca,
+            mm.idmarca_manual AS idmarca_manual,
+            NULL AS idmarca_reloj,
+            NULL AS idlector,
+            mm.fecha AS fecha_marca,
+            mm.hora,
+            'manual' AS origen
+        FROM marcas_manuales mm
+        WHERE mm.idempleado = ?
+          AND mm.fecha IN (?, ?)
+          AND NOT EXISTS (
+              SELECT 1
+              FROM marcas_invalidaciones mi
+              WHERE mi.idmarca_manual = mm.idmarca_manual
+          )
+
+        ORDER BY fecha_marca, hora, idmarca
+        ",
+        'ississ',
+        [
+            $idempleado,
+            $fecha,
+            $fechaSiguiente,
+            $idempleado,
+            $fecha,
+            $fechaSiguiente
+        ]
+    );
+
+    $tramosHorario = $horario['tramos'] ?? [];
+
+    if (count($tramosHorario) === 0) {
+        return [];
+    }
+
+    $inicioHorario = min(
+        array_column($tramosHorario, 'desde')
+    );
+
+    $finHorario = max(
+        array_column($tramosHorario, 'hasta')
+    );
+
+    // Se permiten marcas anticipadas y posteriores al horario.
+    $limiteInicio = max(0, $inicioHorario - 240);
+    $limiteFin = $finHorario + 240;
+
+    $resultado = [];
+
+    foreach ($filas as $fila) {
+        $minutos = minutosHora($fila['hora']);
+
+        if ($minutos === null) {
+            continue;
+        }
+
+        $esDiaSiguiente = (
+            $fila['fecha_marca'] === $fechaSiguiente
+        );
+
+        if ($esDiaSiguiente) {
+            $minutos += 1440;
+        }
+
+        // Evitar incorporar marcas ajenas al turno nocturno.
+        if (
+            $minutos < $limiteInicio ||
+            $minutos > $limiteFin
+        ) {
+            continue;
+        }
+
+        $resultado[] = [
+            'idmarca' => (int)$fila['idmarca'],
+            'idmarca_reloj' =>
+                $fila['idmarca_reloj'] !== null
+                    ? (int)$fila['idmarca_reloj']
+                    : null,
+            'idmarca_manual' =>
+                $fila['idmarca_manual'] !== null
+                    ? (int)$fila['idmarca_manual']
+                    : null,
+            'idlector' =>
+                $fila['idlector'] !== null
+                    ? (int)$fila['idlector']
+                    : null,
+            'fecha_marca' => $fila['fecha_marca'],
+            'hora' => $fila['hora'],
+            'minutos' => $minutos,
+            'origen' => $fila['origen']
+        ];
+    }
+
+    usort(
+        $resultado,
+        fn($a, $b) =>
+            ($a['minutos'] <=> $b['minutos'])
+            ?: ($a['idmarca'] <=> $b['idmarca'])
+    );
+
+    return $resultado;
+}
+
 /* =========================================================
    INTERVALOS DE HORAS EXTRA PROGRAMADAS
 ========================================================= */
@@ -780,7 +953,8 @@ function obtenerMarcasCalculo(
 function obtenerExtrasCalculo(
     mysqli $db,
     int $idempleado,
-    string $fecha
+    string $fecha,
+    bool $cruzaMedianoche = false
 ): array {
 
     $filas = consultarFilas(
@@ -813,9 +987,16 @@ function obtenerExtrasCalculo(
         if (
             $desde === null ||
             $hasta === null ||
-            $hasta <= $desde
+            (
+                $hasta <= $desde &&
+                !$cruzaMedianoche
+            )
         ) {
             continue;
+        }
+
+        if ($cruzaMedianoche && $hasta <= $desde) {
+            $hasta += 1440;
         }
 
         $extras[] = [
@@ -1402,6 +1583,92 @@ function calcularIntervalosCalculo(
     ];
 }
 
+/*********************************** */
+function calcularIntervalosNocturnos(
+    array $marcas,
+    ?array $horario,
+    array $permisos,
+    array $extras,
+    array $configuracion
+): array {
+
+    if (!$horario || empty($horario['cruza_medianoche'])) {
+        throw new InvalidArgumentException(
+            'El cálculo nocturno requiere un horario marcado para cruzar medianoche.'
+        );
+    }
+
+    
+    /*
+    * Normalizar permisos a la misma escala de minutos
+    * que las marcas y los tramos del turno nocturno.
+    */
+    $inicioTurno = (int)($horario['tramos'][0]['desde'] ?? 0);
+
+    foreach ($permisos as &$permiso) {
+
+        if (
+            $permiso['desde'] === null ||
+            $permiso['hasta'] === null
+        ) {
+            continue;
+        }
+
+        /*
+        * Si el permiso comienza antes de la hora de inicio
+        * del turno, corresponde a la madrugada siguiente.
+        * Se trasladan ambas horas al día siguiente.
+        */
+        if ($permiso['desde'] < $inicioTurno) {
+
+            $permiso['desde'] += 1440;
+            $permiso['hasta'] += 1440;
+
+        } elseif ($permiso['hasta'] <= $permiso['desde']) {
+
+            /*
+            * Si comienza antes de medianoche y termina
+            * después, solamente se traslada la finalización.
+            */
+            $permiso['hasta'] += 1440;
+        }
+    }
+
+    unset($permiso);
+
+
+    /*
+     * Normalizar horas extra programadas.
+     */
+    foreach ($extras as &$extra) {
+        if ($extra['hasta'] <= $extra['desde']) {
+            $extra['hasta'] += 1440;
+        }
+    }
+    unset($extra);
+
+    /*
+     * Reutilizar las reglas de clasificación existentes:
+     * descansos, permisos, atrasos y horas extra.
+     */
+    $calculo = calcularIntervalosCalculo(
+        $marcas,
+        $horario,
+        $permisos,
+        $extras,
+        $configuracion
+    );
+
+    /*
+     * Indicar que las horas de los tramos están expresadas
+     * en una escala continua, que puede superar 1439 minutos.
+     * Se utilizará al guardar los DATETIME.
+     */
+    $calculo['cruza_medianoche'] = true;
+
+    return $calculo;
+}
+
 /* =========================================================
    GUARDAR JORNADA Y DETALLES
 ========================================================= */
@@ -1736,6 +2003,25 @@ function guardarJornadaCalculo(
                 );
             }
 
+            $minutosDesde = (int)$tramo['desde'];
+            $minutosHasta = (int)$tramo['hasta'];
+
+            $fechaHoraEntrada = (new DateTime(
+                $fecha . ' 00:00:00'
+            ))->modify(
+                ($minutosDesde >= 0 ? '+' : '') .
+                $minutosDesde .
+                ' minutes'
+            )->format('Y-m-d H:i:s');
+
+            $fechaHoraSalida = (new DateTime(
+                $fecha . ' 00:00:00'
+            ))->modify(
+                ($minutosHasta >= 0 ? '+' : '') .
+                $minutosHasta .
+                ' minutes'
+            )->format('Y-m-d H:i:s');
+
             ejecutarSQL(
                 $db,
                 "
@@ -1745,17 +2031,21 @@ function guardarJornadaCalculo(
                     tipo_tramo,
                     hora_entrada,
                     hora_salida,
+                    fecha_hora_entrada,
+                    fecha_hora_salida,
                     minutos_trabajados
                 )
-                VALUES (?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 ",
-                'iisssi',
+                'iisssssi',
                 [
                     $idjornada,
                     $tramo['orden'],
                     $tipoTramo,
-                    horaSQL($tramo['desde']),
-                    horaSQL($tramo['hasta']),
+                    horaSQL(($minutosDesde % 1440 + 1440) % 1440),
+                    horaSQL(($minutosHasta % 1440 + 1440) % 1440),
+                    $fechaHoraEntrada,
+                    $fechaHoraSalida,
                     $tramo['minutos']
                 ]
             );
@@ -1780,8 +2070,12 @@ function guardarJornadaCalculo(
                 [
                     $idjornada,
                     $descanso['orden'],
-                    horaSQL($descanso['hora_desde']),
-                    horaSQL($descanso['hora_hasta']),
+                    horaSQL(
+                        ((int)$descanso['hora_desde'] % 1440 + 1440) % 1440
+                    ),
+                    horaSQL(
+                        ((int)$descanso['hora_hasta'] % 1440 + 1440) % 1440
+                    ),
                     $descanso['minutos_reales'],
                     $descanso['minutos_permitidos'],
                     $descanso['minutos_exceso']
@@ -1803,44 +2097,6 @@ function guardarJornadaCalculo(
             'is',
             [$idempleado, $fecha]
         );
-
-        foreach ($permisosFecha as $permiso) {
-            ejecutarSQL(
-                $db,
-                "DELETE FROM permiso_marcas WHERE idpermiso = ?",
-                'i',
-                [(int)$permiso['idpermiso']]
-            );
-        }
-
-        foreach ($calculo['asociaciones_permisos'] as $asociacion) {
-            foreach (
-                [
-                    'salida' => $asociacion['salida'],
-                    'regreso' => $asociacion['regreso']
-                ] as $tipo => $marca
-            ) {
-                ejecutarSQL(
-                    $db,
-                    "
-                    INSERT INTO permiso_marcas (
-                        idpermiso,
-                        idmarca_reloj,
-                        idmarca_manual,
-                        tipo
-                    )
-                    VALUES (?, ?, ?, ?)
-                    ",
-                    'iiis',
-                    [
-                        $asociacion['idpermiso'],
-                        $marca['idmarca_reloj'],
-                        $marca['idmarca_manual'],
-                        $tipo
-                    ]
-                );
-            }
-        }
 
         $ordenMarca = 0;
 
@@ -2135,16 +2391,26 @@ try {
                 $fecha
             );
 
-            $marcas = obtenerMarcasCalculo(
-                $mysqli,
-                $idempleado,
-                $fecha
-            );
+            if ($horario && !empty($horario['cruza_medianoche'])) {
+                $marcas = obtenerMarcasNocturnasCalculo(
+                    $mysqli,
+                    $idempleado,
+                    $fecha,
+                    $horario
+                );
+            } else {
+                $marcas = obtenerMarcasCalculo(
+                    $mysqli,
+                    $idempleado,
+                    $fecha
+                );
+            }
 
             $extras = obtenerExtrasCalculo(
                 $mysqli,
                 $idempleado,
-                $fecha
+                $fecha,
+                $horario && !empty($horario['cruza_medianoche'])
             );
 
             $permisos = obtenerPermisosCalculo(
@@ -2154,20 +2420,29 @@ try {
             );
 
             /*
-             * La primera pasada calcula solamente jornadas
-             * con fichajes válidos.
-             */
+            * Mantener la validación actual de marcas.
+            */
             if (count($marcas) === 0) {
                 continue;
             }
 
-            $calculo = calcularIntervalosCalculo(
-                $marcas,
-                $horario,
-                $permisos,
-                $extras,
-                $configuracion
-            );
+            if ($horario && !empty($horario['cruza_medianoche'])) {
+                $calculo = calcularIntervalosNocturnos(
+                    $marcas,
+                    $horario,
+                    $permisos,
+                    $extras,
+                    $configuracion
+                );
+            } else {
+                $calculo = calcularIntervalosCalculo(
+                    $marcas,
+                    $horario,
+                    $permisos,
+                    $extras,
+                    $configuracion
+                );
+            }
 
             $guardado = guardarJornadaCalculo(
                 $mysqli,

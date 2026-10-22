@@ -158,6 +158,7 @@ if ($metodo === 'GET') {
                     nombre,
                     tolerancia_minutos,
                     minutos_trabajo,
+                    cruza_medianoche,
                     activo
                 FROM horarios
                 WHERE idhorario = ?
@@ -406,6 +407,9 @@ if ($metodo === 'GET') {
                     'tramos' =>
                         $tramos,
 
+                    'cruza_medianoche' =>
+                        (int)$horario['cruza_medianoche'],
+
                     'descansos' =>
                         $descansos
 
@@ -428,6 +432,7 @@ if ($metodo === 'GET') {
                 h.tolerancia_minutos,
                 h.minutos_trabajo,
                 h.activo,
+                h.cruza_medianoche,
 
                 (
                     SELECT COUNT(*)
@@ -486,6 +491,9 @@ if ($metodo === 'GET') {
 
                 'cantidad_tramos' =>
                     (int)$fila['cantidad_tramos'],
+
+                'cruza_medianoche' =>
+                    (int)$fila['cruza_medianoche'],
 
                 'cantidad_descansos' =>
                     (int)$fila['cantidad_descansos']
@@ -562,6 +570,16 @@ if ($metodo === 'POST') {
 
         $descansos = $entrada['descansos'] ?? [];
 
+        $cruzaMedianoche = isset($entrada['cruza_medianoche'])
+            ? (int)$entrada['cruza_medianoche']
+            : 0;
+
+        if ($cruzaMedianoche !== 0 && $cruzaMedianoche !== 1) {
+            responderHorario([
+                'status' => 'error',
+                'msg' => 'El valor de cruza medianoche es inválido.'
+            ], 400);
+        }
 
         if ($nombre === '') {
 
@@ -736,7 +754,8 @@ if ($metodo === 'POST') {
                     SET
                         nombre = ?,
                         tolerancia_minutos = ?,
-                        minutos_trabajo = ?
+                        minutos_trabajo = ?,
+                        cruza_medianoche = ?
                     WHERE idhorario = ?
                 ");
 
@@ -746,12 +765,12 @@ if ($metodo === 'POST') {
                     );
                 }
 
-
                 $stmt->bind_param(
-                    'siii',
+                    'siiii',
                     $nombre,
                     $tolerancia,
                     $minutosTrabajo,
+                    $cruzaMedianoche,
                     $idHorario
                 );
 
@@ -841,14 +860,14 @@ if ($metodo === 'POST') {
                 $activo = 1;
 
                 $stmt = $mysqli->prepare("
-                    INSERT INTO horarios
-                    (
+                    INSERT INTO horarios (
                         nombre,
                         tolerancia_minutos,
                         minutos_trabajo,
+                        cruza_medianoche,
                         activo
                     )
-                    VALUES (?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?)
                 ");
 
                 if (!$stmt) {
@@ -857,12 +876,12 @@ if ($metodo === 'POST') {
                     );
                 }
 
-
                 $stmt->bind_param(
-                    'siii',
+                    'siiii',
                     $nombre,
                     $tolerancia,
                     $minutosTrabajo,
+                    $cruzaMedianoche,
                     $activo
                 );
 

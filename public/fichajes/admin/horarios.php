@@ -3,6 +3,43 @@
 
 <head>
     <?php require_once __DIR__ . '/header.php'; ?>
+
+<style>
+    #ModalHorario .modal-dialog {
+    height: calc(100vh - 1rem);
+    margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+#ModalHorario .modal-content {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+#ModalHorario #formHorario {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+}
+
+#ModalHorario .modal-header,
+#ModalHorario .modal-footer {
+    flex: 0 0 auto;
+    background-color: #fff;
+}
+
+#ModalHorario .modal-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+</style>
+
 </head>
 
 <body>
@@ -188,6 +225,35 @@
 
                     </div>
 
+                    <!-- =================================================
+                        CONFIGURACIÓN DE TURNO NOCTURNO
+                    ================================================== -->
+
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <div class="form-check form-switch border rounded p-3 ps-5">
+
+                                <input
+                                    class="form-check-input"
+                                    type="checkbox"
+                                    id="cruza_medianoche"
+                                    name="cruza_medianoche"
+                                    value="1">
+
+                                <label
+                                    class="form-check-label fw-semibold"
+                                    for="cruza_medianoche">
+                                    El horario cruza medianoche
+                                </label>
+
+                                <div class="form-text">
+                                    Activá esta opción para turnos que comienzan un día
+                                    y terminan al día siguiente, por ejemplo de 22:00 a 06:00.
+                                </div>
+
+                            </div>
+                        </div>
+                    </div>
 
                     <!-- =================================================
                          TRAMOS

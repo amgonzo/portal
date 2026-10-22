@@ -19,8 +19,7 @@
 
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
             <div>
-                <h2 class="fw-bold mb-1">
-                    <i class="fas fa-business-time text-primary me-2"></i>
+                <h2 class="fw-bold mb-1">                   
                     Horas compensatorias
                 </h2>
 

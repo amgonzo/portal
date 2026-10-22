@@ -15,10 +15,9 @@ include 'menu.php';
 
         <div>
 
-            <h4 class="mb-1">
-                <i class="fas fa-calendar-alt me-2"></i>
+            <h2 class="fw-bold mb-1">
                 Calendario Maestro
-            </h4>
+            </h2>
 
             <div class="text-muted small">
                 Configuración general del calendario de asistencia

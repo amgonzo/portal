@@ -531,45 +531,150 @@ function construirDetalleJornada(data) {
 
         data.marcas.forEach(function (marca) {
 
-            const origen =
-                marca.origen === 'reloj'
-                    ? `Reloj #${marca.idlector}`
-                    : 'Manual';
+        const origen = marca.origen === 'reloj'
+            ? `Reloj #${marca.idlector}`
+            : 'Manual';
 
-            html += `
-                <div class="jornada-ficha">
+        const invalidada = Boolean(marca.invalidada);
 
-                    <div class="jornada-hora">
-                        ${escapeHtml(marca.hora)}
-                    </div>
+        html += `
+            <div class="jornada-ficha ${invalidada ? 'border border-danger rounded' : ''}">
 
-                    <div class="jornada-origen">
-                        <span class="badge ${
-                            marca.origen === 'reloj'
-                                ? 'bg-primary'
-                                : 'bg-secondary'
-                        }">
-                            ${escapeHtml(origen)}
-                        </span>
-                    </div>
-
-                    <div class="jornada-info">
-                        ${
-                            marca.origen === 'reloj'
-                                ? 'Marca recibida desde reloj'
-                                : 'Marca cargada manualmente'
-                        }
-                    </div>
-
+                <div class="jornada-hora">
+                    ${escapeHtml(marca.hora)}
                 </div>
-            `;
-        });
+
+                <div class="jornada-origen">
+                    <span class="badge ${
+                        marca.origen === 'reloj'
+                            ? 'bg-primary'
+                            : 'bg-secondary'
+                    }">
+                        ${escapeHtml(origen)}
+                    </span>
+
+                    ${invalidada
+                        ? '<span class="badge bg-danger ms-1">Invalidado</span>'
+                        : ''
+                    }
+                </div>
+
+                <div class="jornada-info">
+                    ${invalidada
+                        ? `Motivo: ${escapeHtml(marca.motivo || 'Sin motivo registrado')}`
+                        : marca.origen === 'reloj'
+                            ? 'Marca recibida desde reloj'
+                            : 'Marca cargada manualmente'
+                    }
+                </div>
+
+                <div class="ms-auto">
+                    ${invalidada ? `
+                        <button
+                            type="button"
+                            class="btn btn-sm btn-outline-success"
+                            data-permiso="jornadas_gestionar"
+                            onclick="recuperarMarcaJornada(
+                                ${Number(marca.idinvalidacion)},
+                                ${Number(data.empleado.idempleado)},
+                                '${escapeJs(data.fecha)}',
+                                '${escapeJs(marca.hora)}'
+                            )">
+                            <i class="fas fa-undo me-1"></i>
+                            Validar
+                        </button>
+                    ` : `
+                        <button
+                            type="button"
+                            class="btn btn-sm btn-outline-danger"
+                            data-permiso="jornadas_gestionar"
+                            onclick="invalidarMarcaJornada(
+                                '${escapeJs(marca.origen)}',
+                                ${Number(marca.idmarca)},
+                                ${Number(data.empleado.idempleado)},
+                                '${escapeJs(data.fecha)}',
+                                '${escapeJs(marca.hora)}'
+                            )">
+                            <i class="fas fa-ban me-1"></i>
+                            Invalidar
+                        </button>
+                    `}
+                </div>
+
+            </div>
+        `;
+    });
     }
 
     html += `
         </div>
     `;
 
+    /* =====================================================
+    FICHAJES INVALIDADOS
+    ===================================================== */
+
+    const marcasInvalidas = data.marcas_invalidas || [];
+
+    if (marcasInvalidas.length > 0) {
+
+        html += `
+            <div class="jornada-seccion">
+
+                <h6 class="text-danger">
+                    <i class="fas fa-ban me-1"></i>
+                    Fichajes invalidados (${marcasInvalidas.length})
+                </h6>
+        `;
+
+        marcasInvalidas.forEach(function (marca) {
+
+            const origen = marca.origen === 'reloj'
+                ? `Reloj #${marca.idlector}`
+                : 'Manual';
+
+            html += `
+                <div class="jornada-ficha border border-danger rounded p-2 mb-2">
+
+                    <div class="jornada-hora">
+                        ${escapeHtml(marca.hora)}
+                    </div>
+
+                    <div>
+                        <span class="badge bg-danger">Invalidado</span>
+                        <span class="badge bg-secondary">
+                            ${escapeHtml(origen)}
+                        </span>
+                    </div>
+
+                    <div class="jornada-info">
+                        <strong>Motivo:</strong>
+                        ${escapeHtml(marca.motivo || 'Sin motivo registrado')}
+                    </div>
+
+                    <div class="ms-auto">
+                        <button
+                            type="button"
+                            class="btn btn-sm btn-outline-success"
+                            data-permiso="jornadas_gestionar"
+                            onclick="recuperarMarcaJornada(
+                                ${Number(marca.idinvalidacion)},
+                                ${Number(data.empleado.idempleado)},
+                                '${escapeJs(data.fecha)}',
+                                '${escapeJs(marca.hora)}'
+                            )">
+
+                            <i class="fas fa-undo me-1"></i>
+                            Recuperar
+                        </button>
+                    </div>
+
+                </div>
+            `;
+        });
+
+        html += `</div>`;
+    }
 
     /* =====================================================
        HORARIO
@@ -889,6 +994,179 @@ function construirDetalleJornada(data) {
     return html;
 }
 
+/*********************** */
+
+
+async function invalidarMarcaJornada(
+    origen,
+    idmarca,
+    idempleado,
+    fecha
+) {
+    const confirmacion = await Swal.fire({
+        title: 'Invalidar fichaje',
+        text: 'La marca dejará de utilizarse en el cálculo de la jornada. El registro original se conservará.',
+        input: 'textarea',
+        inputLabel: 'Motivo de la invalidación',
+        inputPlaceholder: 'Indique por qué se invalida este fichaje...',
+        inputAttributes: {
+            maxlength: 255
+        },
+        showCancelButton: true,
+        confirmButtonText: 'Invalidar fichaje',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#dc3545',
+        inputValidator: (valor) => {
+            if (!valor || !valor.trim()) {
+                return 'Debe indicar el motivo de la invalidación.';
+            }
+        }
+    });
+
+    if (!confirmacion.isConfirmed) {
+        return;
+    }
+
+    try {
+        const response = await fetch(
+            API_BASE + '/fichajes/jornadas/jornadas.php',
+            {
+                method: 'POST',
+                headers: {
+                    ...obtenerHeadersSSO(),
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    accion: 'invalidar_marca',
+                    origen: origen,
+                    idmarca: idmarca,
+                    idempleado: idempleado,
+                    fecha: fecha,
+                    motivo: confirmacion.value.trim()
+                })
+            }
+        );
+
+        const res = await response.json();
+
+        if (!response.ok || res.status !== 'ok') {
+            toast(
+                res.msg || 'No se pudo invalidar el fichaje.',
+                'error'
+            );
+            return;
+        }
+
+        toast(
+            'Fichaje invalidado correctamente.',
+            'success'
+        );
+
+        // Actualizar el listado de jornadas.
+        await cargarJornadasPendientes();
+
+        // Actualizar también el detalle que esté abierto.
+        if (tablaJornadasPendientes) {
+            tablaJornadasPendientes.rows().every(function () {
+                const datos = this.data();
+
+                if (
+                    String(datos.idempleado) === String(idempleado) &&
+                    datos.fecha === fecha
+                ) {
+                    const tr = $(this.node());
+
+                    if (tr.hasClass('shown')) {
+                        cargarDetalleJornada(this, tr);
+                    }
+                }
+            });
+        }
+
+    } catch (error) {
+        console.error(error);
+
+        toast(
+            'Error de comunicación al invalidar el fichaje.',
+            'error'
+        );
+    }
+}
+
+/* =========================================================
+   RECUPERAR FICHAJE INVALIDADO
+========================================================= */
+
+async function recuperarMarcaJornada(
+    idinvalidacion,
+    idempleado,
+    fecha,
+    hora
+) {
+
+    const confirmacion = await Swal.fire({
+        title: '¿Recuperar este fichaje?',
+        html: `La marca de las <strong>${escapeHtml(hora)}</strong> volverá a considerarse válida.`,
+        input: 'textarea',
+        inputLabel: 'Motivo de la recuperación',
+        inputPlaceholder: 'Indicá por qué se recupera este fichaje...',
+        inputAttributes: { maxlength: 255 },
+        showCancelButton: true,
+        confirmButtonText: 'Recuperar fichaje',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#198754',
+        inputValidator: (valor) => {
+            if (!String(valor || '').trim()) {
+                return 'Tenés que indicar el motivo de la recuperación.';
+            }
+        }
+    });
+
+    if (!confirmacion.isConfirmed) return;
+
+    try {
+
+        const response = await fetch(
+            API_BASE + '/fichajes/jornadas/jornadas.php',
+            {
+                method: 'POST',
+                headers: {
+                    ...obtenerHeadersSSO(),
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    accion: 'recuperar_marca',
+                    idinvalidacion: idinvalidacion,
+                    motivo: String(confirmacion.value || '').trim()
+                })
+            }
+        );
+
+        const res = await response.json();
+
+        if (res.status !== 'ok') {
+            toast(
+                res.msg || 'No se pudo recuperar el fichaje.',
+                'error'
+            );
+            return;
+        }
+
+        toast('Fichaje recuperado correctamente.', 'success');
+
+        cargarJornadasPendientes();
+
+        // Si el detalle está abierto, recargarlo para mostrar
+        // el fichaje nuevamente entre los válidos.
+        if (typeof cargarDetalleJornada === 'function') {
+            cargarDetalleJornada(idempleado, fecha);
+        }
+
+    } catch (error) {
+        console.error(error);
+        toast('Error al recuperar el fichaje.', 'error');
+    }
+}
 
 /* =========================================================
    ABRIR FICHAJE MANUAL
@@ -913,8 +1191,8 @@ function abrirMarcaManual(
     ).value = empleado;
 
     document.getElementById(
-        'marca_manual_fecha_mostrar'
-    ).value = formatearFecha(fecha);
+    'marca_manual_fecha_mostrar'
+).value = fecha;
 
     document.getElementById(
         'marca_manual_hora'
@@ -945,9 +1223,9 @@ async function guardarMarcaManual() {
     );
 
     const fecha =
-        document.getElementById(
-            'marca_manual_fecha'
-        ).value;
+    document.getElementById(
+        'marca_manual_fecha_mostrar'
+    ).value;
 
     const inputHora =
         document.getElementById(

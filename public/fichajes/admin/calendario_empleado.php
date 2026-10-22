@@ -10,10 +10,9 @@ include 'menu.php';
     <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
 
         <div>
-            <h4 class="mb-1">
-                <i class="fas fa-calendar-alt me-2"></i>
+            <h2 class="fw-bold mb-1">
                 Calendario del empleado
-            </h4>
+            </h2>
 
             <div id="nombreEmpleado" class="text-muted">
                 Cargando empleado...
@@ -113,6 +112,39 @@ include 'menu.php';
 
 </div>
 
+<!-- MODAL DETALLE DE JORNADA -->
+<div
+    class="modal fade"
+    id="modalDetalleJornada"
+    tabindex="-1"
+    aria-hidden="true"
+>
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-calendar-check me-2"></i>
+                    Detalle de jornada
+                </h5>
+
+                <button
+                    type="button"
+                    class="btn-close"
+                    data-bs-dismiss="modal"
+                    aria-label="Cerrar"
+                ></button>
+            </div>
+
+            <div class="modal-body" id="contenidoDetalleJornada">
+                <div class="text-muted">
+                    Seleccioná un día del calendario.
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
 
 <!-- MENÚ CONTEXTUAL -->
 

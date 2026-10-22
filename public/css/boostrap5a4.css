@@ -468,3 +468,198 @@ html[data-bs-theme="dark"] .pagination .page-item.disabled .page-link {
 .form-select::placeholder {
     opacity: 0.55;
 }
+
+/* ===================================================
+   SWEETALERT2 — MODO OSCURO
+   =================================================== */
+
+html[data-bs-theme="dark"] .swal2-popup {
+    background-color: #2d333b !important;
+    color: #adbac7 !important;
+    border: 1px solid #444c56 !important;
+}
+
+html[data-bs-theme="dark"] .swal2-title {
+    color: #f0f6fc !important;
+}
+
+html[data-bs-theme="dark"] .swal2-html-container,
+html[data-bs-theme="dark"] .swal2-content {
+    color: #adbac7 !important;
+}
+
+html[data-bs-theme="dark"] .swal2-popup strong {
+    color: #f0f6fc !important;
+}
+
+html[data-bs-theme="dark"] .swal2-icon.swal2-question {
+    border-color: #60a5fa !important;
+    color: #60a5fa !important;
+}
+
+html[data-bs-theme="dark"] .swal2-popup .swal2-confirm {
+    background-color: #3b82f6 !important;
+    color: #ffffff !important;
+}
+
+html[data-bs-theme="dark"] .swal2-popup .swal2-cancel {
+    background-color: #444c56 !important;
+    color: #f0f6fc !important;
+}
+
+html[data-bs-theme="dark"] .swal2-popup .swal2-deny {
+    background-color: #e74c3c !important;
+    color: #ffffff !important;
+}
+
+/* ==========================================================
+   JORNADAS - ESTILOS GENERALES Y MODO CLARO
+   ========================================================== */
+
+.jornada-detalle {
+    padding: 15px 20px;
+    background: #f8f9fa;
+    color: #373a3c;
+    border-top: 1px solid #dee2e6;
+}
+
+.jornada-detalle-titulo {
+    font-weight: 600;
+    font-size: 15px;
+    margin-bottom: 12px;
+    color: #2c3e50;
+}
+
+.jornada-seccion {
+    background: #fff;
+    color: #373a3c;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    padding: 12px;
+    margin-bottom: 12px;
+}
+
+.jornada-seccion h6 {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 10px;
+    color: #2c3e50;
+}
+
+.jornada-ficha {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 6px 0;
+    border-bottom: 1px solid #eee;
+}
+
+.jornada-ficha:last-child {
+    border-bottom: 0;
+}
+
+.jornada-hora {
+    width: 60px;
+    font-weight: 600;
+    font-family: monospace;
+    font-size: 14px;
+}
+
+.jornada-origen {
+    min-width: 110px;
+}
+
+.jornada-info {
+    font-size: 13px;
+    color: #6c757d;
+}
+
+.jornada-tramo {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 8px;
+    margin: 2px 4px 2px 0;
+    border-radius: 5px;
+    background: #f1f3f5;
+    color: #373a3c;
+    font-size: 13px;
+}
+
+.jornada-extra {
+    border-left: 3px solid #ffc107;
+}
+
+.jornada-permiso {
+    border-left: 3px solid #0dcaf0;
+}
+
+.jornada-sin-horario {
+    color: #dc3545;
+}
+
+.btn-expandir-jornada {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+
+/* ==========================================================
+   JORNADAS - MODO OSCURO
+   ========================================================== */
+
+[data-bs-theme="dark"] .jornada-detalle {
+    background: #22272e !important;
+    color: #adbac7 !important;
+    border-top-color: #444c56 !important;
+}
+
+[data-bs-theme="dark"] .jornada-detalle-titulo {
+    color: #f0f6fc !important;
+}
+
+[data-bs-theme="dark"] .jornada-seccion {
+    background: #2d333b !important;
+    color: #adbac7 !important;
+    border-color: #444c56 !important;
+}
+
+[data-bs-theme="dark"] .jornada-seccion h6,
+[data-bs-theme="dark"] .jornada-seccion strong {
+    color: #f0f6fc !important;
+}
+
+[data-bs-theme="dark"] .jornada-ficha {
+    border-bottom-color: #444c56 !important;
+}
+
+[data-bs-theme="dark"] .jornada-hora,
+[data-bs-theme="dark"] .jornada-origen {
+    color: #adbac7 !important;
+}
+
+[data-bs-theme="dark"] .jornada-info,
+[data-bs-theme="dark"] .jornada-seccion .text-muted {
+    color: #9daab8 !important;
+}
+
+[data-bs-theme="dark"] .jornada-tramo {
+    background: #373e47 !important;
+    color: #adbac7 !important;
+}
+
+[data-bs-theme="dark"] .jornada-extra {
+    border-left-color: #ffc107 !important;
+}
+
+[data-bs-theme="dark"] .jornada-permiso {
+    border-left-color: #0dcaf0 !important;
+}
+
+[data-bs-theme="dark"] .jornada-sin-horario {
+    color: #ff6b6b !important;
+}
