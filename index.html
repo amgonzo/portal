@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OrbitSistemas - Sitio en Construcción</title>
+    <!-- Fuente moderna Sans-Serif -->
+    <link rel="preconnect" href="https://googleapis.com">
+    <link rel="preconnect" href="https://gstatic.com" crossorigin>
+    <link href="https://googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-color: #fcfcfc;
+            --text-dark: #1a1a1a;
+            --text-muted: #555555;
+            --orange: #e65c00;
+            --orange-gradient: linear-gradient(135deg, #ff7518 0%, #b34700 100%);
+            --dark-gradient: linear-gradient(135deg, #404040 0%, #1a1a1a 100%);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-dark);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 700px;
+            text-align: center;
+            animation: fadeIn 1s ease-out;
+        }
+
+        /* --- LOGO EN VECTOR PURO --- */
+         /* --- ESTILOS DEL NUEVO LOGO COMPLETO --- */
+        .logo-container {
+            width: 100%;
+            max-width: 550px; /* Controla el tamaño máximo del logo en la pantalla */
+            margin: 0 auto 50px auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            animation: fadeIn 1s ease-out;
+        }
+
+        .logo-final {
+            width: 100%;
+            height: auto;
+            object-fit: contain;
+            display: block;
+        }
+
+        @media (max-width: 600px) {
+            .logo-container {
+                max-width: 320px; /* Se achica automáticamente en pantallas de celulares */
+                margin-bottom: 30px;
+            }
+        }
+
+        .logo-icon {
+            width: 110px;
+            height: 110px;
+        }
+
+        .logo-text-group {
+            text-align: left;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .brand-name {
+            font-size: 54px;
+            font-weight: 700;
+            letter-spacing: -2px;
+            line-height: 1;
+            color: var(--text-dark);
+        }
+
+        .brand-name span {
+            font-weight: 400;
+            letter-spacing: -1.5px;
+            color: var(--text-muted);
+        }
+
+        .brand-sub {
+            font-size: 16px;
+            font-weight: 400;
+            letter-spacing: 5px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-top: 10px;
+            line-height: 1;
+        }
+
+        /* --- CONTENIDO --- */
+        h1 {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            letter-spacing: -0.5px;
+        }
+
+        p {
+            font-size: 16px;
+            color: var(--text-muted);
+            line-height: 1.6;
+            margin-bottom: 40px;
+            font-weight: 300;
+        }
+
+        /* --- MINI FORMULARIO DE NOTIFICACIÓN --- */
+        .notify-box {
+            display: flex;
+            width: 100%;
+            max-width: 480px;
+            margin: 0 auto;
+            gap: 10px;
+        }
+
+        .notify-input {
+            flex: 1;
+            padding: 14px 20px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 15px;
+            outline: none;
+            transition: border-color 0.3s;
+            font-family: inherit;
+        }
+
+        .notify-input:focus {
+            border-color: var(--orange);
+        }
+
+        .notify-btn {
+            background: var(--orange-gradient);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            font-size: 15px;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: opacity 0.3s, transform 0.2s;
+            font-family: inherit;
+        }
+
+        .notify-btn:hover {
+            opacity: 0.9;
+        }
+        
+        .notify-btn:active {
+            transform: scale(0.98);
+        }
+
+        /* --- ANIMACIONES --- */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* --- RESPONSIVO --- */
+        @media (max-width: 600px) {
+            .logo-container {
+                flex-direction: column;
+                gap: 16px;
+                margin-bottom: 40px;
+            }
+            .logo-text-group {
+                text-align: center;
+            }
+            .brand-name {
+                font-size: 42px;
+            }
+            .brand-sub {
+                font-size: 13px;
+                letter-spacing: 3px;
+            }
+            h1 {
+                font-size: 26px;
+            }
+            .notify-box {
+                flex-direction: column;
+            }
+            .notify-btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        
+        <!-- Contenedor del Logo Corporativo -->
+                <!-- Contenedor del Logo Corporativo Corregido -->
+        <div class="logo-container">
+            <img src="logo-orbit.jpg" alt="OrbitSistemas Logo" class="logo-final">
+        </div>
+
+        <!-- Mensaje de la Página -->
+        <h1>Estamos preparando algo grande</h1>
+        <p>Nuestra plataforma integral para la gestión de fichajes, facturación y recursos humanos se encuentra en desarrollo activo. Muy pronto vas a poder centralizar todo tu negocio en un solo lugar.</p>
+        
+        <!-- Formulario de captura para interesados -->
+        <form class="notify-box" onsubmit="event.preventDefault(); alert('¡Gracias! Te avisaremos apenas estemos listos.');">
+            <input type="email" class="notify-input" placeholder="Ingresá tu email corporativo" required>
+            <button type="submit" class="notify-btn">Avisarme del lanzamiento</button>
+        </form>
+
+    </div>
+
+</body>
+</html>
