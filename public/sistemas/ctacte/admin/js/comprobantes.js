@@ -40,7 +40,7 @@ function inicializarDataTable() {
 }
 
 function cargarPeriodos() {
-    fetch('/api/ctacte/compras/obtener_periodos_combo.php', {
+    fetch(API_BASE + '/ctacte/compras/obtener_periodos_combo.php', {
         headers: obtenerHeadersSSO()
     })
         .then(res => res.json())
@@ -58,7 +58,7 @@ function cargarPeriodos() {
 
 function cargarComboPersonas() {
     // Pedimos 'todos=1' para que traiga activos e inactivos
-    fetch('/api/ctacte/personas/obtener_personas_combo.php?todos=1', {
+    fetch(API_BASE + '/ctacte/personas/obtener_personas_combo.php?todos=1', {
         headers: obtenerHeadersSSO()
     })
         .then(res => res.json())
@@ -97,7 +97,7 @@ function cargarFacturas() {
     const ticket   = document.getElementById('filtro_ticket').value.trim();
     const verAnulados = document.getElementById('filtro_anulados').value;
 
-    fetch(`/api/ctacte/compras/obtener_compras_filtradas.php?periodo=${encodeURIComponent(periodo)}&dni=${encodeURIComponent(dni)}&ticket=${encodeURIComponent(ticket)}&anulados=${encodeURIComponent(verAnulados)}`, {
+    fetch(API_BASE + `/ctacte/compras/obtener_compras_filtradas.php?periodo=${encodeURIComponent(periodo)}&dni=${encodeURIComponent(dni)}&ticket=${encodeURIComponent(ticket)}&anulados=${encodeURIComponent(verAnulados)}`, {
         headers: obtenerHeadersSSO()
     })
         .then(res => res.json())
@@ -234,7 +234,7 @@ function anularComprobante(pv_id, venta_id, ticketFormateado) {
             formData.append('venta_id', venta_id);
             formData.append('motivo', result.value);
 
-            fetch('/api/ctacte/compras/anular_compra.php', {
+            fetch(API_BASE + '/ctacte/compras/anular_compra.php', {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('sso_token')}`
@@ -274,7 +274,7 @@ function desanularComprobante(pv_id, venta_id, ticketFormateado) {
             formData.append('punto_venta_id', pv_id);
             formData.append('venta_id', venta_id);
 
-            fetch('/api/ctacte/compras/desanular_compra.php', {
+            fetch(API_BASE + '/ctacte/compras/desanular_compra.php', {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('sso_token')}`
@@ -395,7 +395,7 @@ function guardarReasignacion(e) {
     e.preventDefault();
     const formData = new FormData(document.getElementById('formReasignar'));
 
-    fetch('/api/ctacte/compras/reasignar_compra.php', {
+    fetch(API_BASE + '/ctacte/compras/reasignar_compra.php', {
         method: 'POST',
         headers: obtenerHeadersSSO(),
         body: formData

@@ -22,6 +22,7 @@ return [
     'env_ctacte' => $publicRoot . '/ctacte',
     'env_fichajes' => $publicRoot . '/fichajes',
     'env_tablero' => $publicRoot . '/tablero',
+    'env_rrhh' => $publicRoot . '/rrhh',
 
     // Archivos PHP
     'conexion'       => $publicRoot . '/api/config/conexion.php',
@@ -54,11 +55,14 @@ return [
     'logo_ctacte'        => $publicRoot . '/img/logoctacte.png',
     'logo_ctacte_web'    => '/sistemas/img/logoctacte.png',
 
-    'logo_fichajes'        => $publicRoot . '/img/logoctacte.png',
-    'logo_fichajes_web'    => '/sistemas/img/logoctacte.png',
+    'logo_fichajes'        => $publicRoot . '/img/logo-orbit-min.png',
+    'logo_fichajes_web'    => '/sistemas/img/logo-orbit-min.png',
 
     'logo_tablero'        => $publicRoot . '/img/logoctacte.png',
     'logo_tablero_web'    => '/sistemas/img/logoctacte.png',
+
+    'logo_rrhh'        => $publicRoot . '/img/logo-orbit-min.png',
+    'logo_rrhh_web'    => '/sistemas/img/logo-orbit-min.png',
 
     'favicon'         => $publicRoot . '/favicon.ico',
     'favicon_web'     => '/sistemas/favicon.ico',

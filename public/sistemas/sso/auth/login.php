@@ -231,7 +231,7 @@ $empresaSlug = trim($_GET['empresa'] ?? '');
 
                                     <span class="input-group-text bg-light text-secondary">
 
-                                        <i class="bi bi-envelope"></i>>
+                                        <i class="bi bi-envelope"></i>
 
                                     </span>
 
@@ -353,7 +353,7 @@ $empresaSlug = trim($_GET['empresa'] ?? '');
 
         const URL_EMPRESAS = <?= json_encode(
             $rutas['seleccionar_empresa_sso_web']
-            ?? '/sso/auth/seleccionar_empresa.php'
+            ?? '/sistemas/sso/auth/seleccionar_empresa.php'
         ) ?>;
 
         const EMPRESA_URL = <?= json_encode($empresaSlug) ?>;

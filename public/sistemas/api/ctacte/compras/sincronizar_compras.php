@@ -202,7 +202,10 @@ try {
     $row_last = $res_last->fetch_assoc();
     $stmt_last->close();
 
-    $fecha_desde = !empty($row_last['valor']) ? date('Ymd H:i:s', strtotime($row_last['valor'])) : date('Ym01 00:00:00');
+    $fecha_desde = !empty($row_last['valor'])
+        ? date('Ymd H:i:s', strtotime($row_last['valor'] . ' -4 hours'))
+        : date('Ym01 00:00:00');
+
     $ahora_sincronizacion = date('Y-m-d H:i:s');
 
     $query_mssql = "
@@ -211,11 +214,16 @@ try {
             v.PUNTO_VENTA_ID,
             v.VENTA_ID,
             v.TIPO_COMPROBANTE_AFIP_ID,
-            v.CONTACTO_DOCUMENTO,
+            -- Si tiene 11 caracteres, extrae los 8 del medio (DNI), de lo contrario deja el documento original
+            CASE 
+                WHEN LEN(LTRIM(RTRIM(v.CONTACTO_DOCUMENTO))) = 11 THEN SUBSTRING(LTRIM(RTRIM(v.CONTACTO_DOCUMENTO)), 3, 8)
+                ELSE v.CONTACTO_DOCUMENTO
+            END AS CONTACTO_DOCUMENTO,
             v.FECHA,
             v.NRO_COMPROBANTE,
             vd.ARTICULO_ID,
-            a.DESCRIPCION,
+            vd.RUBRO_ID,
+            COALESCE(a.DESCRIPCION, r.DESCRIPCION) AS DESCRIPCION,
             vd.CANTIDAD,
             vd.IMPORTE AS DETALLE_IMPORTE,
             SUM(vd.IMPORTE) OVER (
@@ -226,8 +234,10 @@ try {
             ON v.VENTA_ID = vd.VENTA_ID
            AND v.PUNTO_VENTA_ID = vd.PUNTO_VENTA_ID
            AND v.SUCURSAL_ID = vd.SUCURSAL_ID
-        INNER JOIN ARTICULO a
-            ON a.ARTICULO_ID = vd.ARTICULO_ID   
+        LEFT JOIN ARTICULO a
+            ON a.ARTICULO_ID = vd.ARTICULO_ID
+        LEFT JOIN RUBRO r
+            ON r.RUBRO_ID = vd.RUBRO_ID   
         WHERE v.FECHA > :fecha_desde_1
           AND v.CONDICION_VENTA = 'CTACTE'
 
@@ -238,11 +248,16 @@ try {
             v.PUNTO_VENTA_ID,
             v.VENTA_ID,
             v.TIPO_COMPROBANTE_AFIP_ID,
-            v.CONTACTO_DOCUMENTO,
+            -- Si tiene 11 caracteres, extrae los 8 del medio (DNI), de lo contrario deja el documento original
+            CASE 
+                WHEN LEN(LTRIM(RTRIM(v.CONTACTO_DOCUMENTO))) = 11 THEN SUBSTRING(LTRIM(RTRIM(v.CONTACTO_DOCUMENTO)), 3, 8)
+                ELSE v.CONTACTO_DOCUMENTO
+            END AS CONTACTO_DOCUMENTO,
             v.FECHA,
             v.NRO_COMPROBANTE,
             vd.ARTICULO_ID,
-            a.DESCRIPCION,
+            vd.RUBRO_ID,
+            COALESCE(a.DESCRIPCION, r.DESCRIPCION) AS DESCRIPCION,
             vd.CANTIDAD,
             vd.IMPORTE AS DETALLE_IMPORTE,
             SUM(vd.IMPORTE) OVER (
@@ -253,8 +268,10 @@ try {
             ON v.VENTA_ID = vd.VENTA_ID
            AND v.PUNTO_VENTA_ID = vd.PUNTO_VENTA_ID
            AND v.SUCURSAL_ID = vd.SUCURSAL_ID
-        INNER JOIN ARTICULO a
-            ON a.ARTICULO_ID = vd.ARTICULO_ID 
+        LEFT JOIN ARTICULO a
+            ON a.ARTICULO_ID = vd.ARTICULO_ID
+        LEFT JOIN RUBRO r
+            ON r.RUBRO_ID = vd.RUBRO_ID
         INNER JOIN PAGO p 
             ON p.VENTA_ID = v.VENTA_ID 
            AND p.PUNTO_VENTA_ID = v.PUNTO_VENTA_ID
@@ -307,6 +324,7 @@ try {
         if (isset($tickets_agrupados[$clave_ticket])) {
             $tickets_agrupados[$clave_ticket]['detalles'][] = [
                 'articulo_id'     => $row['ARTICULO_ID'],
+                'rubro_id'        => $row['RUBRO_ID'],
                 'descripcion'     => $row['DESCRIPCION'],
                 'cantidad'        => limpiarNumeroParaMySQL($row['CANTIDAD']),
                 'importe_renglon' => limpiarNumeroParaMySQL($row['DETALLE_IMPORTE'])
@@ -396,11 +414,12 @@ try {
         $stmt_ins_cab->execute();
 
         foreach ($ticket['detalles'] as $det) {
+            $articuloId = $det['articulo_id'] ?? $det['rubro_id'];
             $stmt_ins_det->bind_param(
                 "iissdd", 
                 $pv_id, 
                 $v_id, 
-                $det['articulo_id'], 
+                $articuloId,
                 $det['descripcion'], 
                 $det['cantidad'], 
                 $det['importe_renglon']

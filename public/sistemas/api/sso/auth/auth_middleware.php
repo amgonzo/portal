@@ -108,6 +108,7 @@ function obtenerEmpresaActivaMiddleware()
  * El slug se resuelve contra la tabla aplicaciones.
  * No se utilizan IDs de aplicación hardcodeados.
  */
+
 function obtenerAplicacionDesdeRequest($mysqli)
 {
     $requestUri = parse_url(
@@ -115,21 +116,17 @@ function obtenerAplicacionDesdeRequest($mysqli)
         PHP_URL_PATH
     );
 
-    $partes = explode(
-        '/',
-        trim($requestUri, '/')
-    );
+    $partes = explode('/', trim($requestUri, '/'));
 
-    if (
-        count($partes) < 3 ||
-        $partes[0] !== 'api'
-    ) {
+    // Buscar el segmento "api", aunque exista /sistemas/ delante.
+    $indiceApi = array_search('api', $partes, true);
+
+    if ($indiceApi === false || !isset($partes[$indiceApi + 1])) {
         return null;
     }
 
-    $slug = trim(
-        $partes[1]
-    );
+    // El segmento siguiente a "api" es el slug de la aplicación.
+    $slug = trim($partes[$indiceApi + 1]);
 
     if ($slug === '') {
         return null;
@@ -157,32 +154,24 @@ function obtenerAplicacionDesdeRequest($mysqli)
         exit;
     }
 
-    $stmt->bind_param(
-        "s",
-        $slug
-    );
-
+    $stmt->bind_param("s", $slug);
     $stmt->execute();
 
     $resultado = $stmt->get_result();
-
-    if ($resultado->num_rows === 0) {
-
-        $stmt->close();
-
-        return null;
-    }
-
     $aplicacion = $resultado->fetch_assoc();
 
     $stmt->close();
 
-    if (intval($aplicacion['activo']) !== 1) {
+    if (
+        !$aplicacion ||
+        intval($aplicacion['activo']) !== 1
+    ) {
         return null;
     }
 
     return $aplicacion;
 }
+
 
 
 /**
@@ -199,6 +188,7 @@ function obtenerAplicacionDesdeRequest($mysqli)
  * /api/fichajes/empleados/listar.php
  *      -> /empleados/listar.php
  */
+
 function obtenerEndpointActual()
 {
     $requestUri = parse_url(
@@ -206,27 +196,23 @@ function obtenerEndpointActual()
         PHP_URL_PATH
     );
 
-    $partes = explode(
-        '/',
-        trim($requestUri, '/')
-    );
+    $partes = explode('/', trim($requestUri, '/'));
+
+    // Localizar "api" sin depender de que esté al principio.
+    $indiceApi = array_search('api', $partes, true);
 
     if (
-        count($partes) >= 3 &&
-        $partes[0] === 'api'
+        $indiceApi !== false &&
+        isset($partes[$indiceApi + 1])
     ) {
+        // Quitar el prefijo, "api" y el slug de la aplicación.
+        $partesEndpoint = array_slice(
+            $partes,
+            $indiceApi + 2
+        );
 
-        array_shift($partes); // api
-        array_shift($partes); // aplicación
-
-        $endpoint = '/' .
-            implode(
-                '/',
-                $partes
-            );
-
+        $endpoint = '/' . implode('/', $partesEndpoint);
     } else {
-
         $endpoint = preg_replace(
             '#^/api#',
             '',
@@ -234,12 +220,9 @@ function obtenerEndpointActual()
         );
     }
 
-    if ($endpoint === '') {
-        $endpoint = '/';
-    }
-
-    return $endpoint;
+    return $endpoint === '' ? '/' : $endpoint;
 }
+
 
 
 /**
