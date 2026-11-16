@@ -6,68 +6,47 @@ function versionar($url)
 
     $urlLimpia = ltrim($url, '/');
 
-    /*
-     * =========================================================
-     * 1. Buscar primero en la raíz pública central
-     *
-     * Esto permite usar archivos globales, por ejemplo:
-     *
-     * versionar('css/bootstrap5a4.css')
-     *
-     * =========================================================
-     */
+    // Raíz física y prefijo público de la aplicación
+    $rutaPublica = rtrim($rutas['public'], '/');
+    $prefijoURL = '/' . basename($rutaPublica);
 
-    $rutaAbsoluta = $rutas['public'] . '/' . $urlLimpia;
+    // 1. Buscar archivos globales
+    $rutaAbsoluta = $rutaPublica . '/' . $urlLimpia;
 
     if (file_exists($rutaAbsoluta)) {
-        return '/' . $urlLimpia . '?v=' . filemtime($rutaAbsoluta);
+        return $prefijoURL . '/' . $urlLimpia
+            . '?v=' . filemtime($rutaAbsoluta);
     }
 
-
-    /*
-     * =========================================================
-     * 2. Buscar dentro de la aplicación actual
-     *
-     * Ejemplo:
-     *
-     * /public/sso/js/permisos.js
-     *
-     * Si la página actual está en /sso/, buscamos:
-     *
-     * /public/sso/js/permisos.js
-     * =========================================================
-     */
-
+    // 2. Buscar dentro de la aplicación actual
     $scriptActual = $_SERVER['SCRIPT_NAME'] ?? '';
-
     $directorioActual = dirname($scriptActual);
 
-    // Evitamos problemas si estamos en la raíz
-    if ($directorioActual === '/' || $directorioActual === '\\') {
-        $directorioActual = '';
+    // Quitar el prefijo público solamente para la ruta física
+    $directorioRelativo = preg_replace(
+        '#^' . preg_quote($prefijoURL, '#') . '#',
+        '',
+        $directorioActual
+    );
+
+    if ($directorioRelativo === '/') {
+        $directorioRelativo = '';
     }
 
-    $rutaApp = $rutas['public']
-        . $directorioActual
+    $rutaApp = $rutaPublica
+        . $directorioRelativo
         . '/'
         . $urlLimpia;
 
     if (file_exists($rutaApp)) {
 
+        // La URL conserva /sistemas
         $urlFinal = $directorioActual . '/' . $urlLimpia;
-
-        // Normalizar posibles //
         $urlFinal = preg_replace('#/+#', '/', $urlFinal);
 
         return $urlFinal . '?v=' . filemtime($rutaApp);
     }
 
-
-    /*
-     * =========================================================
-     * 3. Si no se encontró, mantener comportamiento anterior
-     * =========================================================
-     */
-
-    return $url;
+    // 3. Si no existe físicamente, conservar el prefijo público
+    return $prefijoURL . '/' . $urlLimpia;
 }

@@ -1968,11 +1968,13 @@ async function cargarHuellasEmpleado(
             );
         }
 
-        renderizarHuellasEmpleado(
-            Array.isArray(datos.huellas)
-                ? datos.huellas
-                : []
-        );
+        const huellas = Array.isArray(datos.huellas)
+            ? datos.huellas
+            : [];
+
+        window.huellasEmpleadoActuales = huellas;
+
+        renderizarHuellasEmpleado(huellas);
 
         return true;
 
@@ -2085,6 +2087,11 @@ async function abrirModalHuellas(
         return;
     }
 
+    combo.onchange = () => {
+        renderizarHuellasEmpleado(
+            window.huellasEmpleadoActuales || []
+        );
+    };
     // ---------------------------------------------------------
     // PREPARAR MODAL
     // ---------------------------------------------------------
@@ -2126,6 +2133,16 @@ async function abrirModalHuellas(
         const lectoresOK =
             await cargarLectoresDisponibles();
 
+        if (lectoresOK) {
+            await cargarLectoresEmpleado(idempleado);
+        }
+        
+        const lectoresAsignados = lectoresDisponibles.filter(lector =>
+            lectoresEmpleadoList.some(id =>
+                Number(id) === Number(lector.idlector)
+            )
+        );
+        
         if (!lectoresOK) {
 
             combo.innerHTML = `
@@ -2147,12 +2164,7 @@ async function abrirModalHuellas(
                 `;
             }
 
-        } else if (
-            !Array.isArray(
-                lectoresDisponibles
-            ) ||
-            lectoresDisponibles.length === 0
-        ) {
+        } else if (lectoresAsignados.length === 0) {
 
             combo.innerHTML = `
                 <option value="">
@@ -2185,7 +2197,7 @@ async function abrirModalHuellas(
                 </option>
             `;
 
-            lectoresDisponibles.forEach(
+            lectoresAsignados.forEach(
                 lector => {
 
                     const option =
@@ -2198,6 +2210,9 @@ async function abrirModalHuellas(
 
                     option.textContent =
                         lector.nombre;
+
+                    option.dataset.marca = 
+                        String(lector.marca || '').toLowerCase();
 
                     combo.appendChild(
                         option
@@ -2276,6 +2291,18 @@ function renderizarHuellasEmpleado(
         return;
     }
 
+    const idlector = Number(
+        document.getElementById('huella_idlector')?.value
+    );
+
+    const lectorSeleccionado = lectoresDisponibles.find(
+        lector => Number(lector.idlector) === idlector
+    );
+
+    const marca = String(
+        lectorSeleccionado?.marca || ''
+    ).trim().toLowerCase();
+
     const dedos = [
 
         'Pulgar derecho',
@@ -2299,22 +2326,31 @@ function renderizarHuellasEmpleado(
         'Meñique izquierdo'
     ];
 
+    const dedosDisponibles = marca === 'anviz'
+        ? dedos.slice(0, 2)
+        : dedos;
+        
     contenedor.innerHTML = '';
 
-    dedos.forEach(
+    dedosDisponibles.forEach(
         (
             nombreDedo,
             iddedo
         ) => {
 
-            const huellaRegistrada =
-                huellas.some(
-                    huella =>
-                        Number(
-                            huella.iddedo
-                        ) ===
-                        Number(iddedo)
-                );
+            const huellaRegistrada = huellas.some(huella =>
+                Number(huella.iddedo) === iddedo &&
+                Number(huella.idlector) === idlector &&
+                idlector > 0
+            );
+
+            const huellaOtroLector = huellas.some(huella =>
+                Number(huella.iddedo) === iddedo &&
+                (
+                    huella.idlector === null ||
+                    Number(huella.idlector) !== idlector
+                )
+            );
 
             const div =
                 document.createElement(

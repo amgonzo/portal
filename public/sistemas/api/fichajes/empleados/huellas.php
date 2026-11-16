@@ -812,6 +812,7 @@ try {
             SELECT
                 idbiometrico,
                 idempleado,
+                idlector,
                 tipo,
                 dedo AS iddedo,
                 idusuario,
@@ -856,6 +857,9 @@ try {
             $huellas[] = [
                 'idbiometrico' => (int)$huella['idbiometrico'],
                 'idempleado'   => (int)$huella['idempleado'],
+                'idlector'     => $huella['idlector'] !== null
+                                ? (int)$huella['idlector']
+                                : null,
                 'tipo'         => $huella['tipo'],
                 'iddedo'       => (int)$huella['iddedo'],
                 'idusuario'    => (int)$huella['idusuario'],
@@ -1178,6 +1182,7 @@ try {
             SELECT
                 l.idlector,
                 l.nombre,
+                l.marca,
                 l.ip,
                 l.puerto,
                 l.ubicacion,
@@ -1334,7 +1339,7 @@ try {
     // =========================================================
 
     $datos = [
-        'marca'     => 'zkteco',
+        'marca'     => $lector['marca'],
         'ip'        => $lector['ip'],
         'puerto'    => (int)$lector['puerto'],
         'documento' => $empleado['documento']

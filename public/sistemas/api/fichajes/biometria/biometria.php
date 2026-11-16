@@ -28,6 +28,7 @@
 function guardarHuellaDesdeResultado(
     mysqli $dbEmpresa,
     int $idEmpleado,
+    int $idLector,
     string $respuestaJson
 ): array {
 
@@ -290,6 +291,28 @@ function guardarHuellaDesdeResultado(
         );
     }
 
+    if ($idLector <= 0) {
+        throw new Exception('Lector inválido para guardar la huella.');
+    }
+
+    $stmt = $dbEmpresa->prepare("
+        SELECT idlector
+        FROM lectores
+        WHERE idlector = ?
+        AND activo = 1
+        LIMIT 1
+    ");
+
+    $stmt->bind_param('i', $idLector);
+    $stmt->execute();
+
+    $lector = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+
+    if (!$lector) {
+        throw new Exception('El lector no existe o está inactivo.');
+    }
+
     // =====================================================
     // DESACTIVAR HUELLA ACTIVA ANTERIOR
     // =====================================================
@@ -307,6 +330,7 @@ function guardarHuellaDesdeResultado(
         SET
             activo = 0
         WHERE idempleado = ?
+          AND idlector = ?
           AND tipo = 'huella'
           AND dedo = ?
           AND activo = 1
@@ -324,8 +348,9 @@ function guardarHuellaDesdeResultado(
         (string)$idDedo;
 
     $stmt->bind_param(
-        'is',
+        'iis',
         $idEmpleado,
+        $idLector,
         $dedoTexto
     );
 
@@ -355,6 +380,7 @@ function guardarHuellaDesdeResultado(
         INSERT INTO empleados_datos_biometricos
         (
             idempleado,
+            idlector,
             tipo,
             dedo,
             datos,
@@ -364,6 +390,7 @@ function guardarHuellaDesdeResultado(
         )
         VALUES
         (
+            ?,
             ?,
             ?,
             ?,
@@ -383,8 +410,9 @@ function guardarHuellaDesdeResultado(
     }
 
     $stmt->bind_param(
-        'isssi',
+        'iisssi',
         $idEmpleado,
+        $idLector,
         $tipo,
         $dedoTexto,
         $datosBase64,
@@ -423,6 +451,9 @@ function guardarHuellaDesdeResultado(
         'idempleado' =>
             $idEmpleado,
 
+        'idlector' => 
+            $idLector,
+            
         'documento' =>
             $empleado['documento'],
 

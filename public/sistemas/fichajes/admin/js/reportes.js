@@ -1,6 +1,6 @@
 $(document).ready(function() {
     cargarReportes();
-    cargarCategoriasFiltro();
+    //cargarCategoriasFiltro();
 });
 
 // Función auxiliar para inyectar el token en las llamadas AJAX tal como en usuarios
@@ -15,7 +15,9 @@ function getAuthHeaders() {
     }
 
     if (empresaId) {
-        headers['X-EMPRESA-ID'] = empresaId;
+        //headers['X-EMPRESA-ID'] = empresaId;
+        const empresa = JSON.parse(empresaId);
+        headers['X-EMPRESA-ID'] = empresa.idempresa;    
     }
 
     return headers;
@@ -24,7 +26,7 @@ function getAuthHeaders() {
 function cargarReportes() {
     $.ajax({
         type: "GET",
-        url: API_BASE + "/ctacte/reportes/listar_reportes.php",
+        url: API_BASE + "/fichajes/reportes/listar_reportes.php",
         headers: getAuthHeaders(),
         success: function(res) {
             const respuesta = (typeof res === 'string') ? JSON.parse(res) : res;
@@ -61,22 +63,39 @@ function cargarReportes() {
 
 // Función encargada de cargar las personas respetando el switch de inactivos
 function cargarPersonasReporte(incluirInactivos = false) {
-    const url = API_BASE + `/ctacte/personas/obtener_personas_combo.php${incluirInactivos ? '?todos=1' : ''}`;
-
     $.ajax({
         type: "GET",
-        url: url,
+        url: API_BASE + "/fichajes/empleados/empleados.php?action=listar",
         headers: getAuthHeaders(),
+        dataType: "json",
         success: function(res) {
-            const personas = (typeof res === 'string') ? JSON.parse(res) : res;
             let options = '<option value="">-- Seleccionar Persona --</option>';
-            if (Array.isArray(personas)) {
-                personas.forEach(p => {
-                    const labelInactivo = Number(p.activo) === 0 ? ' (INACTIVO)' : '';
-                    options += `<option value="${p.dni}">${p.apellido}, ${p.nombre}${labelInactivo} (DNI: ${p.dni})</option>`;
+
+            if (res.status === "ok" && Array.isArray(res.data)) {
+                res.data.forEach(p => {
+
+                    if (!incluirInactivos && Number(p.activo) === 0) {
+                        return;
+                    }
+
+                    const labelInactivo = Number(p.activo) === 0
+                        ? ' (INACTIVO)'
+                        : '';
+
+                    options += `
+                        <option value="${p.documento}">
+                            ${p.apellido}, ${p.nombre}${labelInactivo}
+                            (DNI: ${p.documento})
+                        </option>
+                    `;
                 });
             }
+
             $("#rep_categoria").html(options);
+        },
+        error: function(xhr) {
+            console.error("Error cargando empleados:", xhr.responseText);
+            Swal.fire('Error', 'No se pudieron cargar los empleados.', 'error');
         }
     });
 }
@@ -93,7 +112,7 @@ function abrirModalReporte(tipo, nombre) {
     $("#chk_inactivos_rep").prop('checked', false);
 
     // 1. Caso Resumen Mensual: Muestra Mes y Año
-    if (tipo === 'resumen_mensual') {
+    if (tipo === 'resumen_asistencia') {
         $("#div_fechas").hide();
         $("#div_mes_anio").show();
 
@@ -137,7 +156,7 @@ function abrirModalReporte(tipo, nombre) {
         cargarCategoriasFiltro(); 
 
     // 4. Consumo Quincenal de Artículos (Requiere persona y mes/año)
-    } else if (tipo === 'consumo_quincenal_articulos') {
+    } else if (tipo === 'asistencia') {
         $("#div_fechas").hide();
         $("#div_mes_anio").show();
         $("#div_categoria").show();
@@ -189,27 +208,21 @@ function generarPDF() {
     urlParams.append('tipo', tipo);
 
     // Mapeo ordenado y limpio de parámetros según el tipo de reporte
-    if (tipo === 'resumen_mensual' || tipo === 'consumo_por_rango_dni') {
-        urlParams.append('mes', $("#rep_mes").val());
-        urlParams.append('anio', $("#rep_anio").val());
+    if (tipo === 'resumen_asistencia') {
+    urlParams.append('mes', $("#rep_mes").val());
+    urlParams.append('anio', $("#rep_anio").val());
 
-    } else if (tipo === 'estado_cuenta' || tipo === 'consumo_quincenal_articulos' || tipo === 'recibo_pago') {
+    } else if (tipo === 'asistencia') {
         const dni = $("#rep_categoria").val();
+
         if (!dni) {
             Swal.fire('Atención', 'Debe seleccionar una persona', 'warning');
             return;
         }
+
         urlParams.append('dni', dni);
         urlParams.append('mes', $("#rep_mes").val());
         urlParams.append('anio', $("#rep_anio").val());
-
-    } else if (tipo === 'aptos_por_medico' || tipo === 'padron_categorias') {
-        urlParams.append('cat', $("#rep_categoria").val());
-
-    } else {
-        // Por defecto para reportes basados en rangos de fechas (Desde / Hasta)
-        urlParams.append('desde', $("#rep_desde").val());
-        urlParams.append('hasta', $("#rep_hasta").val());
     }
 
     // Pasamos también el token por parámetro para que el window.open del PDF no pierda la sesión
@@ -228,7 +241,7 @@ function generarPDF() {
 
     $.ajax({
         type: "GET",
-        url: API_BASE + `/ctacte/reportes/generar_reporte.php?${queryParams}`,
+        url: API_BASE + `/fichajes/reportes/generar_reporte.php?${queryParams}`,
         headers: getAuthHeaders(),
         dataType: "json",
         success: function(res) {
@@ -243,7 +256,7 @@ function generarPDF() {
                     confirmButtonText: 'Entendido'
                 });
             } else if (res.status === "ok") {
-                const urlPdf = API_BASE + `/ctacte/reportes/ver_pdf_reporte.php?${queryParams}`;
+                const urlPdf = API_BASE + `/fichajes/reportes/ver_pdf_reporte.php?${queryParams}`;
                 window.open(urlPdf, '_blank');
             }
         },

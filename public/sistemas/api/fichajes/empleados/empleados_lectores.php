@@ -54,6 +54,7 @@ try {
                 SELECT
                     idlector,
                     nombre,
+                    marca,
                     ip,
                     puerto,
                     ubicacion,

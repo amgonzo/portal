@@ -474,6 +474,7 @@ try {
                 SELECT
                     idtarea,
                     idempleado,
+                    idlector,
                     accion,
                     estado
                 FROM tareas_agente
@@ -566,6 +567,7 @@ try {
                     guardarHuellaDesdeResultado(
                         $dbEmpresa,
                         (int)$tarea['idempleado'],
+                        (int)$tarea['idlector'],
                         $respuestaJson
                     );
 
