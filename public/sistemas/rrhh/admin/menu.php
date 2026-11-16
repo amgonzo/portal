@@ -46,50 +46,64 @@ $empresa = $_ENV['APP_NAME'] ?? 'Sistema RRHH';
 
                         <li class="nav-item">
                             <a href="dashboard.php" class="nav-link menu-item-permiso">
-                                <i class="bi bi-house-door"></i> Inicio
+                                Inicio
                             </a>
                         </li>
 
-                        <!-- GESTIÓN DE RRHH -->
+                        <!-- PERSONAL -->
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#"
-                               data-bs-toggle="dropdown">
-                                <i class="bi bi-people"></i> Personal
+                            data-bs-toggle="dropdown">
+                                Personal
                             </a>
+
                             <div class="dropdown-menu">
                                 <h6 class="dropdown-header">Administración de personal</h6>
 
                                 <a href="empleados.php"
-                                   class="dropdown-item menu-item-permiso"
-                                   data-permiso="empleados_ver">
-                                    <i class="bi bi-person-vcard me-2"></i>Empleados
-                                </a>
-
-                                <a href="legajos.php"
-                                   class="dropdown-item menu-item-permiso"
-                                   data-permiso="legajos_ver">
-                                    <i class="bi bi-folder2-open me-2"></i>Legajos
+                                class="dropdown-item menu-item-permiso"
+                                data-permiso="empleados_ver">
+                                    <span data-diccionario="empleado_plural"></span>
                                 </a>
 
                                 <a href="documentos.php"
-                                   class="dropdown-item menu-item-permiso"
-                                   data-permiso="documentos_ver">
-                                    <i class="bi bi-file-earmark-text me-2"></i>Documentación
+                                class="dropdown-item menu-item-permiso"
+                                data-permiso="documentos_ver">
+                                    Documentación
                                 </a>
+                            </div>
+                        </li>
+
+                        <!-- ORGANIZACIÓN -->
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#"
+                            data-bs-toggle="dropdown">
+                                Organización
+                            </a>
+
+                            <div class="dropdown-menu">
+                                <h6 class="dropdown-header">Estructura organizacional</h6>
 
                                 <a href="sectores.php"
-                                   class="dropdown-item menu-item-permiso"
-                                   data-permiso="sectores_ver">
-                                    <i class="bi bi-diagram-3 me-2"></i>Sectores y puestos
+                                class="dropdown-item menu-item-permiso"
+                                data-permiso="sectores_ver">
+                                    Sectores
+                                </a>
+
+                                <a href="puestos.php"
+                                class="dropdown-item menu-item-permiso"
+                                data-permiso="puestos_ver">
+                                    Puestos
                                 </a>
                             </div>
                         </li>
 
                         <!-- LICENCIAS Y VACACIONES -->
+                         <!--
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#"
                                data-bs-toggle="dropdown">
-                                <i class="bi bi-calendar-check"></i> Ausencias
+                                Ausencias
                             </a>
                             <div class="dropdown-menu">
                                 <h6 class="dropdown-header">Vacaciones y licencias</h6>
@@ -97,28 +111,28 @@ $empresa = $_ENV['APP_NAME'] ?? 'Sistema RRHH';
                                 <a href="solicitudes.php"
                                    class="dropdown-item menu-item-permiso"
                                    data-permiso="solicitudes_ver">
-                                    <i class="bi bi-inbox me-2"></i>Solicitudes
+                                    Solicitudes
                                 </a>
 
                                 <a href="vacaciones.php"
                                    class="dropdown-item menu-item-permiso"
                                    data-permiso="vacaciones_ver">
-                                    <i class="bi bi-calendar2-week me-2"></i>Vacaciones
+                                    Vacaciones
                                 </a>
 
                                 <a href="tipos_licencia.php"
                                    class="dropdown-item menu-item-permiso"
                                    data-permiso="licencias_configurar">
-                                    <i class="bi bi-list-check me-2"></i>Tipos de licencia
+                                    Tipos de licencia
                                 </a>
                             </div>
                         </li>
-
+                        -->
                         <li class="nav-item">
                             <a href="reportes.php"
                                class="nav-link menu-item-permiso"
                                data-permiso="rrhh_reportes_ver">
-                                <i class="bi bi-bar-chart"></i> Reportes
+                                Reportes
                             </a>
                         </li>
 
@@ -126,7 +140,7 @@ $empresa = $_ENV['APP_NAME'] ?? 'Sistema RRHH';
                         <li class="nav-item dropdown menu-config" style="display:none;">
                             <a class="nav-link dropdown-toggle" href="#"
                                data-bs-toggle="dropdown">
-                                <i class="fa fa-cog"></i> Configuración
+                                Configuración
                             </a>
 
                             <div class="dropdown-menu dropdown-menu-end">
@@ -136,7 +150,7 @@ $empresa = $_ENV['APP_NAME'] ?? 'Sistema RRHH';
                                    class="dropdown-item item-permiso"
                                    data-permiso="sistema_configuracion"
                                    style="display:none;">
-                                    <i class="fas fa-sliders-h me-2"></i>Variables del sistema
+                                    Variables del sistema
                                 </a>
 
                                 <a href="verauditoria.php"

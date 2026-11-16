@@ -75,7 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ========================================================
     // TABLA SOLICITUDES PENDIENTES
     // ========================================================
-
+/*
     function renderSolicitudes(filas) {
 
         const tbody = document.getElementById(
@@ -123,7 +123,7 @@ document.addEventListener('DOMContentLoaded', () => {
             </tr>
         `).join('');
     }
-
+*/
     // ========================================================
     // TABLA DOCUMENTOS POR VENCER
     // ========================================================
@@ -168,7 +168,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ========================================================
     // TABLA PRÓXIMAS AUSENCIAS
     // ========================================================
-
+    /*
     function renderAusencias(filas) {
 
         const tbody = document.getElementById(
@@ -200,7 +200,7 @@ document.addEventListener('DOMContentLoaded', () => {
             </tr>
         `).join('');
     }
-
+    */
     // ========================================================
     // TABLA PERSONAL POR SECTOR
     // ========================================================
@@ -301,22 +301,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 'card-empleados-activos',
                 k.empleados_activos
             );
-
+/*
             mostrar(
                 'card-solicitudes-pendientes',
                 k.solicitudes_pendientes
             );
-
+*/
             mostrar(
                 'card-documentos-vencer',
                 k.documentos_por_vencer
             );
-
+/*
             mostrar(
                 'card-vacaciones-proximas',
                 k.vacaciones_proximas
             );
-
+*/
             mostrar(
                 'card-legajos-completos',
                 k.legajos_registrados
@@ -335,19 +335,19 @@ document.addEventListener('DOMContentLoaded', () => {
             // ================================================
             // TABLAS
             // ================================================
-
+/*
             renderSolicitudes(
                 data.solicitudes_pendientes || []
             );
-
+*/
             renderDocumentos(
                 data.documentos_por_vencer || []
             );
-
+/*
             renderAusencias(
                 data.proximas_ausencias || []
             );
-
+*/
             renderSectores(
                 data.personal_sectores || []
             );
