@@ -456,6 +456,22 @@ $apiUrl = $_ENV['API_URL'] ?? '/sistemas/api';
                                     style="display: none;"
                                 ></div>
 
+                                <!-- MIS PREFERENCIAS -->
+
+                                <a
+                                    id="linkPreferenciasSso"
+                                    href="#"
+                                    class="dropdown-item"
+                                >
+
+                                    <i class="fa fa-key me-2"></i>
+
+                                    Mis Pareferencias (SSO)
+
+                                </a>
+
+
+                                <div class="dropdown-divider"></div>
 
                                 <!-- CAMBIAR PASSWORD -->
 
@@ -588,6 +604,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     const linkPass =
         document.getElementById('linkPasswordSso');
 
+    const linkPreferencias = 
+        document.getElementById('linkPreferenciasSso');
 
     // =========================================================
     // BOTÓN CAMBIAR DE APLICACIÓN
@@ -618,6 +636,16 @@ document.addEventListener("DOMContentLoaded", async () => {
             '?token=' +
             encodeURIComponent(token);
 
+    }
+    // =========================================================
+    // MIS PREFERENCIAS
+    // =========================================================
+
+    if (linkPreferencias) {
+        linkPreferencias.href =
+            urlPerfilSso.replace('perfil.php', 'preferencias.php') +
+            '?token=' +
+            encodeURIComponent(token);
     }
 
 

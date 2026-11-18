@@ -259,7 +259,7 @@ function formatearNumero(valor, decimales = 2) {
 function formatearPorcentaje(valor) {
     return `${formatearNumero(valor, 2)}%`;
 }
-
+/*
 function escaparHTML(valor) {
     return String(valor ?? "").replace(/[&<>"']/g, function (caracter) {
         return {
@@ -271,7 +271,7 @@ function escaparHTML(valor) {
         }[caracter];
     });
 }
-
+*/
 function mostrarError(mensaje) {
     if (typeof Swal !== "undefined") {
         Swal.fire({

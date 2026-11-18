@@ -39,7 +39,6 @@ function inicializarTablaTareas() {
         responsive: true,
         autoWidth: false,
         order: [[0, 'desc']],
-        pageLength: 10,
         language: {
             processing: 'Procesando...',
             lengthMenu: 'Mostrar _MENU_ registros',

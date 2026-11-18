@@ -32,7 +32,6 @@ function inicializarDataTable() {
                 last:       "Último"
             }
         },
-        pageLength: 10,
         responsive: true,
         order: [[0, 'desc']],
         dom: 'rtip'

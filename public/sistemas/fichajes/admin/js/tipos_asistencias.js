@@ -57,8 +57,6 @@ function inicializarTablaTiposAsistencia() {
 
             responsive: true,
 
-            pageLength: 10,
-
             order: [[0, 'asc']],
 
             language: {

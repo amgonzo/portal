@@ -666,6 +666,34 @@ if ($stmtT) {
     $stmtT->close();
 }
 
+$preferencias = [
+    'registros_por_pagina' => 10,
+    'tema' => 'claro'
+];
+
+$stmtPref = $mysqli->prepare("
+    SELECT registros_por_pagina, tema
+    FROM usuarios_configuracion
+    WHERE idusuario = ?
+    LIMIT 1
+");
+
+if ($stmtPref) {
+    $stmtPref->bind_param("i", $user['idusuario']);
+    $stmtPref->execute();
+
+    $resPref = $stmtPref->get_result();
+
+    if ($rowPref = $resPref->fetch_assoc()) {
+        $preferencias = [
+            'registros_por_pagina' => (int)$rowPref['registros_por_pagina'],
+            'tema' => $rowPref['tema']
+        ];
+    }
+
+    $stmtPref->close();
+}
+
 // =========================================================
 // ✅ AUDITORÍA LOGIN
 // =========================================================
@@ -695,9 +723,11 @@ echo json_encode([
         "idtiposistema" => (int)$user['idtiposistema'],
         "tipo_sistema" => $user['tipo_sistema'],
         "idtipousuario" => $idTipoUsuarioSSO,
-        "super_admin" => $esRoot
+        "super_admin" => $esRoot,
     ],
 
+    "preferencias" => $preferencias,
+    
     "empresa" => $empresaData,
 
     "aplicaciones" => $aplicaciones,

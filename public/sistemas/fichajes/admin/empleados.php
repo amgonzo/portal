@@ -21,15 +21,23 @@
                     Administración de personal y tarjetas de fichaje.
                 </p>
             </div>
-
-            <button
-                class="btn btn-primary fw-semibold shadow-sm"
-                name="btnNuevoEmpleado"
-                id="btnNuevoEmpleado"
-                onclick="abrirNuevoEmpleado()">
-                <i class="fas fa-user-plus me-2"></i>
-                Nuevo <span data-diccionario="empleado_singular">Empleado</span>
-            </button>
+            <div class="d-flex gap-2">
+                <button
+                    class="btn btn-primary fw-semibold shadow-sm"
+                    name="btnNuevoEmpleado"
+                    id="btnNuevoEmpleado"
+                    onclick="abrirNuevoEmpleado()">
+                    <i class="fas fa-user-plus me-2"></i>
+                    Nuevo <span data-diccionario="empleado_singular"></span>
+                </button>
+                <button
+                    type="button"
+                    class="btn btn-outline-secondary"
+                    id="btnVerInactivos"
+                    onclick="alternarEmpleadosInactivos()">
+                    Ver empleados inactivos
+                </button>
+            </div>
         </div>
 
         <div class="card border-0 shadow-sm rounded-3 p-3 bg-white">

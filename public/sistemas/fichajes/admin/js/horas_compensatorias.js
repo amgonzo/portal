@@ -77,7 +77,6 @@ function inicializarTablasHoras() {
         },
         responsive: true,
         autoWidth: false,
-        pageLength: 25,
         order: [[0, "asc"]],
         columnDefs: [
             { targets: [1, 2, 3, 4], className: "text-end" },
@@ -89,7 +88,6 @@ function inicializarTablasHoras() {
         language: idiomaDataTableHoras(),
         responsive: true,
         autoWidth: false,
-        pageLength: 10,
         order: [[0, "desc"]]
     });
 
@@ -97,7 +95,6 @@ function inicializarTablasHoras() {
         language: idiomaDataTableHoras(),
         responsive: true,
         autoWidth: false,
-        pageLength: 10,
         order: [[0, "desc"]]
     });
 }
@@ -702,7 +699,7 @@ function normalizarTexto(texto) {
         .replace(/[\u0300-\u036f]/g, "")
         .trim();
 }
-
+/*
 function escaparHTML(valor) {
 
     return String(valor ?? "").replace(/[&<>"']/g, caracter => ({
@@ -713,7 +710,7 @@ function escaparHTML(valor) {
         "'": "&#039;"
     })[caracter]);
 }
-
+*/
 function badgeEstado(estado) {
 
     const estados = {

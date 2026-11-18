@@ -713,8 +713,6 @@ function inicializarDataTable() {
     tablaIncidencias =
         $('#tablaIncidencias').DataTable({
 
-            pageLength: 25,
-
             order: [
                 [6, 'desc']
             ],
@@ -802,7 +800,7 @@ function formatearFecha(valor) {
 /* =========================================================
    ESCAPAR HTML
    ========================================================= */
-
+/*
 function escaparHtml(valor) {
 
     return String(valor ?? '')
@@ -812,3 +810,4 @@ function escaparHtml(valor) {
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
 }
+*/

@@ -171,35 +171,48 @@ async function cargarEmpleados() {
 
             const btnEditar = `
                 <button type="button"
-                        class="btn btn-sm btn-primary me-1"
-                        onclick="editarEmpleado(${Number(e.idempleado)})">
-                    Editar
+                        class="btn btn-sm btn-outline-primary me-1"
+                        onclick="editarEmpleado(${Number(e.idempleado)})"
+                        title="Editar empleado">
+                    <i class="fas fa-edit"></i>
                 </button>
             `;
 
             const btnHistorial = `
                 <button type="button"
-                        class="btn btn-sm btn-outline-secondary me-1"
-                        onclick="verHistorialLaboral(${Number(e.idempleado)})">
-                    Historial
+                        class="btn btn-sm btn-outline-info me-1"
+                        onclick="verHistorialLaboral(${Number(e.idempleado)})"
+                        title="Historial laboral">
+                    <i class="fas fa-history"></i>
                 </button>
             `;
 
             const btnEstado = Number(e.activo) === 1
                 ? `
                     <button type="button"
-                            class="btn btn-sm btn-outline-danger"
-                            onclick="cambiarEstadoEmpleado(${Number(e.idempleado)}, 0)">
-                        Dar de baja
+                            class="btn btn-sm btn-outline-danger me-1"
+                            onclick="cambiarEstadoEmpleado(${Number(e.idempleado)}, 0)"
+                            title="Dar de baja">
+                        <i class="fas fa-user-slash"></i>
                     </button>
-                  `
+                `
                 : `
                     <button type="button"
-                            class="btn btn-sm btn-outline-success"
-                            onclick="cambiarEstadoEmpleado(${Number(e.idempleado)}, 1)">
-                        Dar de alta
+                            class="btn btn-sm btn-outline-success me-1"
+                            onclick="cambiarEstadoEmpleado(${Number(e.idempleado)}, 1)"
+                            title="Dar de alta">
+                        <i class="fas fa-user-check"></i>
                     </button>
-                  `;
+                `;
+
+            const btnGrupoFamiliar = `
+                <button type="button"
+                        class="btn btn-sm btn-outline-secondary me-1"
+                        onclick="abrirGrupoFamiliar(${Number(e.idempleado)})"
+                        title="Grupo familiar">
+                    <i class="fas fa-users"></i>
+                </button>
+            `;
 
             tablaEmpleados.row.add([
 
@@ -217,7 +230,7 @@ async function cargarEmpleados() {
 
                 estado,
 
-                `${btnEditar}${btnHistorial}${btnEstado}`
+                `${btnEditar}${btnHistorial}${btnGrupoFamiliar}${btnEstado}`
 
             ]);
         });
@@ -545,7 +558,7 @@ async function cambiarEstadoEmpleado(id, nuevoEstado) {
 // ============================================================
 // ESCAPAR HTML
 // ============================================================
-
+/*
 function escaparHTML(valor) {
 
     return String(valor ?? '').replace(/[&<>"']/g, caracter => {
@@ -560,4 +573,4 @@ function escaparHTML(valor) {
 
         return entidades[caracter];
     });
-}
+}*/

@@ -319,8 +319,9 @@
     </div>
 </div>
 
-
+<?php include 'modal/grupo_familiar.php'; ?>
 <script src="js/empleados.js?v=<?php echo time(); ?>"></script>
+<script src="js/grupo_familiar.js?v=<?php echo time(); ?>"></script>
 
 </body>
 </html>

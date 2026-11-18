@@ -439,6 +439,16 @@ $empresaSlug = trim($_GET['empresa'] ?? '');
                                 'sso_token',
                                 data.token
                             );
+                            
+                            localStorage.setItem(
+                                'sso_registros_por_pagina',
+                                Number(data.preferencias?.registros_por_pagina) || 10
+                            );
+
+                            localStorage.setItem(
+                                'sso_tema',
+                                data.preferencias?.tema === 'oscuro' ? 'oscuro' : 'claro'
+                            );
 
                             localStorage.setItem(
                                 'sso_aplicaciones',

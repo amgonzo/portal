@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <?php include 'header.php'; ?>
+    <title>Grupo familiar - <?php echo $empresa; ?></title>
+</head>
+<body>
+<?php include 'menu.php'; ?>
+
+<div class="container-fluid px-4" style="margin-top:30px;">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold mb-0">Grupo familiar</h2>
+            <p class="text-muted mb-0">Administración de familiares de los <span data-diccionario="empleado_plural"></span>.</p>
+        </div>
+
+        <button class="btn btn-primary" id="btnNuevoFamiliar" disabled>
+            <i class="fas fa-plus me-2"></i>Agregar familiar
+        </button>
+    </div>
+
+    <div class="card border-0 shadow-sm rounded-3 p-3 mb-3">
+        <label for="filtroEmpleado" class="form-label fw-semibold">
+            <span data-diccionario="empleado_singular"></span>
+        </label>
+        <select id="filtroEmpleado" class="form-select">
+            <option value="">Seleccione un <span data-diccionario="empleado_singular"></span></option>
+        </select>
+    </div>
+
+    <div class="card border-0 shadow-sm rounded-3 p-3">
+        <div class="table-responsive">
+            <table id="tablaFamiliares" class="table table-hover align-middle w-100">
+                <thead class="table-light">
+                    <tr>
+                        <th>Nombre y apellido</th>
+                        <th>Parentesco</th>
+                        <th>Documento</th>
+                        <th>Fecha nacimiento</th>
+                        <th>Convive</th>
+                        <th>Contacto emergencia</th>
+                        <th class="text-center">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal fade" id="modalFamiliar" tabindex="-1">
+    <div class="modal-dialog">
+        <form id="formFamiliar">
+            <div class="modal-content">
+
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">Familiar</h5>
+                    <button type="button" class="btn-close btn-close-white"
+                        data-bs-dismiss="modal"></button>
+                </div>
+
+                <div class="modal-body">
+                    <input type="hidden" name="idfamiliar" id="idfamiliar">
+
+                    <div class="mb-3">
+                        <label class="form-label">Nombre *</label>
+                        <input type="text" name="nombre" id="familiarNombre"
+                            class="form-control" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Apellido *</label>
+                        <input type="text" name="apellido" id="familiarApellido"
+                            class="form-control" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Parentesco *</label>
+                        <select name="parentesco" id="familiarParentesco"
+                            class="form-select" required>
+                            <option value="">Seleccione</option>
+                            <option value="Cónyuge">Cónyuge</option>
+                            <option value="Hijo/a">Hijo/a</option>
+                            <option value="Padre">Padre</option>
+                            <option value="Madre">Madre</option>
+                            <option value="Hermano/a">Hermano/a</option>
+                            <option value="Otro">Otro</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Documento</label>
+                        <input type="text" name="documento" id="familiarDocumento"
+                            class="form-control">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Fecha de nacimiento</label>
+                        <input type="date" name="fecha_nacimiento"
+                            id="familiarFechaNacimiento" class="form-control">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Género</label>
+                        <select name="genero" id="familiarGenero" class="form-select">
+                            <option value="">Sin especificar</option>
+                            <option value="Femenino">Femenino</option>
+                            <option value="Masculino">Masculino</option>
+                            <option value="Otro">Otro</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Teléfono</label>
+                        <input type="text" name="telefono" id="familiarTelefono"
+                            class="form-control">
+                    </div>
+
+                    <div class="form-check mb-2">
+                        <input type="checkbox" name="convive" value="1"
+                            id="familiarConvive" class="form-check-input">
+                        <label class="form-check-label" for="familiarConvive">
+                            Convive con el <span data-diccionario="empleado_singular"></span>
+                        </label>
+                    </div>
+
+                    <div class="form-check mb-3">
+                        <input type="checkbox" name="contacto_emergencia" value="1"
+                            id="familiarEmergencia" class="form-check-input">
+                        <label class="form-check-label" for="familiarEmergencia">
+                            Contacto de emergencia
+                        </label>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Observaciones</label>
+                        <textarea name="observaciones" id="familiarObservaciones"
+                            class="form-control" rows="2"></textarea>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary"
+                        data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary"
+                        id="btnGuardarFamiliar">Guardar</button>
+                </div>
+
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="js/grupo_familiar.js?v=<?php echo time(); ?>"></script>
+</body>
+</html>

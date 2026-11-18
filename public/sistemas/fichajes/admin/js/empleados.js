@@ -16,6 +16,8 @@ let pollingHuellaActivo = false;
 let pollingHuellaTimer = null;
 let pollingHuellaInicio = 0;
 
+let mostrarInactivos = false;
+
 const POLLING_HUELLA_INTERVALO = 1500;
 const POLLING_HUELLA_TIMEOUT = 90000;
 
@@ -214,7 +216,12 @@ async function cargarEmpleados() {
 
         tablaEmpleados.clear();
 
-        empleadosList.forEach(e => {
+        empleadosList
+            .filter(e => mostrarInactivos
+                ? Number(e.activo) === 0
+                : Number(e.activo) === 1
+            )
+            .forEach(e => {
 
             const activo =
                 e.activo == 1;
@@ -315,14 +322,15 @@ async function cargarEmpleados() {
                 e.fecha_inicio ?? '-',
 
                 badgeEstado,
-
-                `${btnEditar}
+                `<div class="d-flex justify-content-end gap-1">
+                 ${btnEditar}
                  ${btnCiclo}
                  ${btnEnviarLector}
                  ${btnSincronizarEmpleado}
                  ${btnHuellas}
                  ${btnCalendario}
-                 ${btnEstado}`
+                 ${btnEstado}
+                 </div>`
             ]);
         });
 
@@ -353,10 +361,10 @@ async function abrirNuevoEmpleado() {
     lectoresEmpleadoList = [];
 
     $('.modal-title')
-        .text('Crear Nuevo Empleado');
+        .text('Crear Nuevo ' + aplicarDiccionarioTexto('Empleado'));
 
     $('#btnGuardarEmpleado')
-        .text('Guardar Empleado');
+        .text('Guardar ' + aplicarDiccionarioTexto('Empleado'));
 
     const contenedor =
         document.getElementById(
@@ -3085,6 +3093,18 @@ function abrirCalendarioEmpleado(
         );
 }
 
+function alternarEmpleadosInactivos() {
+
+    mostrarInactivos = !mostrarInactivos;
+
+    const btn = document.getElementById('btnVerInactivos');
+
+    btn.textContent = mostrarInactivos
+        ? 'Ver empleados activos'
+        : 'Ver empleados inactivos';
+
+    cargarEmpleados();
+}
 
 // =========================================================
 // ESCAPE HTML

@@ -76,8 +76,6 @@ function inicializarTabla() {
 
         responsive: true,
 
-        pageLength: 10,
-
         order: [[2, 'desc']],
 
         language: {

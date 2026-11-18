@@ -32,92 +32,99 @@ const toast = (mensaje, icono = 'success') => {
     });
 };
 
-
 // =========================================================
-// TEMA
+// PREFERENCIAS GLOBALES SSO
 // =========================================================
 
-(function() {
+window.PREFERENCIAS_USUARIO = {
+    registros_por_pagina: Number(
+        localStorage.getItem('sso_registros_por_pagina')
+    ) || 10,
+    tema: localStorage.getItem('sso_tema') || 'claro'
+};
 
-    const temaGuardado =
-        localStorage.getItem('theme_mode') || 'light';
+function aplicarTemaUsuario() {
+    const tema = window.PREFERENCIAS_USUARIO.tema === 'oscuro'
+        ? 'dark'
+        : 'light';
 
-    document.documentElement.setAttribute(
-        'data-bs-theme',
-        temaGuardado
-    );
+    document.documentElement.setAttribute('data-bs-theme', tema);
+    actualizarIconoTema(tema);
+}
 
-})();
+function actualizarIconoTema(tema) {
+    const icono = document.getElementById('iconoTheme');
+    const switchInput = document.getElementById('checkThemeSwitch');
 
+    if (tema === 'dark') {
+        if (icono) icono.className = 'bi bi-sun-fill text-warning me-2';
+        if (switchInput) switchInput.checked = true;
+    } else {
+        if (icono) icono.className = 'bi bi-moon-stars-fill me-2';
+        if (switchInput) switchInput.checked = false;
+    }
+}
 
-function toggleModoOscuro() {
+function actualizarPreferenciasLocalStorage(preferencias) {
+    window.PREFERENCIAS_USUARIO = {
+        registros_por_pagina: Number(preferencias.registros_por_pagina) || 10,
+        tema: preferencias.tema === 'oscuro' ? 'oscuro' : 'claro'
+    };
 
-    const html = document.documentElement;
-
-    const nuevoTema =
-        html.getAttribute('data-bs-theme') === 'dark'
-            ? 'light'
-            : 'dark';
-
-    html.setAttribute(
-        'data-bs-theme',
-        nuevoTema
+    localStorage.setItem(
+        'sso_registros_por_pagina',
+        window.PREFERENCIAS_USUARIO.registros_por_pagina
     );
 
     localStorage.setItem(
-        'theme_mode',
-        nuevoTema
+        'sso_tema',
+        window.PREFERENCIAS_USUARIO.tema
     );
 
-    actualizarIconoTema(nuevoTema);
+    aplicarTemaUsuario();
 }
 
-
-function actualizarIconoTema(tema) {
-
-    const icono =
-        document.getElementById('iconoTheme');
-
-    const switchInput =
-        document.getElementById('checkThemeSwitch');
-
-    if (tema === 'dark') {
-
-        if (icono) {
-            icono.className =
-                'bi bi-sun-fill text-warning me-2';
+async function guardarPreferenciasUsuario() {
+    const response = await fetch(
+        API_BASE + '/sso/auth/preferencias_usuario.php?action=guardar',
+        {
+            method: 'POST',
+            headers: {
+                ...obtenerHeadersSSO(),
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(window.PREFERENCIAS_USUARIO)
         }
+    );
 
-        if (switchInput) {
-            switchInput.checked = true;
-        }
+    const resultado = await response.json();
 
-    } else {
+    if (!response.ok || resultado.status !== 'ok') {
+        throw new Error(resultado.msg || 'No se pudieron guardar las preferencias.');
+    }
 
-        if (icono) {
-            icono.className =
-                'bi bi-moon-stars-fill me-2';
-        }
+    actualizarPreferenciasLocalStorage(window.PREFERENCIAS_USUARIO);
+}
 
-        if (switchInput) {
-            switchInput.checked = false;
-        }
+async function toggleModoOscuro() {
+    const temaAnterior = window.PREFERENCIAS_USUARIO.tema;
 
+    window.PREFERENCIAS_USUARIO.tema =
+        temaAnterior === 'oscuro' ? 'claro' : 'oscuro';
+
+    aplicarTemaUsuario();
+
+    try {
+        await guardarPreferenciasUsuario();
+    } catch (error) {
+        window.PREFERENCIAS_USUARIO.tema = temaAnterior;
+        aplicarTemaUsuario();
+        console.error(error);
+        toast('No se pudo guardar el tema.', 'error');
     }
 }
 
-
-document.addEventListener(
-    'DOMContentLoaded',
-    function() {
-
-        actualizarIconoTema(
-            localStorage.getItem('theme_mode') || 'light'
-        );
-
-    }
-);
-
+document.addEventListener('DOMContentLoaded', aplicarTemaUsuario);
 
 // =========================================================
 // EMPRESA ACTIVA
@@ -665,3 +672,13 @@ document.addEventListener('DOMContentLoaded', async function () {
     }
 
 });*/
+
+function escaparHTML(valor) {
+    return String(valor ?? '').replace(/[&<>"']/g, caracter => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+    })[caracter]);
+}
