@@ -178,20 +178,16 @@ async function editarFamiliar(id) {
         document.getElementById('idempleadoFamiliar').value =
             idEmpleadoFamiliarActual;
 
-        document.getElementById('familiar_nombre').value = f.nombre;
-        document.getElementById('familiar_apellido').value = f.apellido;
-        document.getElementById('familiar_parentesco').value = f.parentesco;
-        document.getElementById('familiar_documento').value = f.documento || '';
-        document.getElementById('familiar_fecha_nacimiento').value =
-            f.fecha_nacimiento || '';
-        document.getElementById('familiar_genero').value = f.genero || '';
-        document.getElementById('familiar_telefono').value = f.telefono || '';
-        document.getElementById('familiar_convive').checked =
-            Number(f.convive) === 1;
-        document.getElementById('familiar_contacto_emergencia').checked =
-            Number(f.contacto_emergencia) === 1;
-        document.getElementById('familiar_observaciones').value =
-            f.observaciones || '';
+        document.getElementById('familiarNombre').value = f.nombre;
+        document.getElementById('familiarApellido').value = f.apellido;
+        document.getElementById('familiarParentesco').value = f.parentesco;
+        document.getElementById('familiarDocumento').value = f.documento || '';
+        document.getElementById('familiarFechaNacimiento').value = f.fecha_nacimiento || '';
+        document.getElementById('familiarGenero').value = f.genero || '';
+        document.getElementById('familiarTelefono').value = f.telefono || '';
+        document.getElementById('familiarConvive').checked = Number(f.convive) === 1;
+        document.getElementById('familiarEmergencia').checked = Number(f.contacto_emergencia) === 1;
+        document.getElementById('familiarObservaciones').value = f.observaciones || '';
 
         document.getElementById('tituloModalFamiliar').textContent =
             'Editar familiar';

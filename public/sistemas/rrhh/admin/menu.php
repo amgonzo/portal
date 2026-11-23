@@ -46,7 +46,9 @@ $empresa = $_ENV['APP_NAME'] ?? 'Sistema RRHH';
 
                         <!-- INICIO -->
                         <li class="nav-item">
-                            <a href="dashboard.php" class="nav-link menu-item-permiso">
+                            <a href="dashboard.php"
+                               class="nav-link menu-item-permiso"
+                               style="display:none;">
                                 Inicio
                             </a>
                         </li>
@@ -61,20 +63,23 @@ $empresa = $_ENV['APP_NAME'] ?? 'Sistema RRHH';
                                 <h6 class="dropdown-header">Administración de personal</h6>
 
                                 <a href="empleados.php"
-                                class="dropdown-item menu-item-permiso"
-                                data-permiso="empleados_ver">
+                                   class="dropdown-item menu-item-permiso"
+                                   data-permiso="empleados_ver"
+                                   style="display:none;">
                                     <span data-diccionario="empleado_plural"></span>
                                 </a>
 
                                 <a href="documentos.php"
-                                class="dropdown-item menu-item-permiso"
-                                data-permiso="documentos_ver">
+                                   class="dropdown-item menu-item-permiso"
+                                   data-permiso="documentos_ver"
+                                   style="display:none;">
                                     Documentación
                                 </a>
 
                                 <a href="sanciones.php"
-                                class="dropdown-item menu-item-permiso"
-                                data-permiso="sanciones_ver">
+                                   class="dropdown-item menu-item-permiso"
+                                   data-permiso="sanciones_ver"
+                                   style="display:none;">
                                     Sanciones
                                 </a>
                             </div>
@@ -90,14 +95,16 @@ $empresa = $_ENV['APP_NAME'] ?? 'Sistema RRHH';
                                 <h6 class="dropdown-header">Estructura organizacional</h6>
 
                                 <a href="sectores.php"
-                                class="dropdown-item menu-item-permiso"
-                                data-permiso="sectores_ver">
+                                   class="dropdown-item menu-item-permiso"
+                                   data-permiso="sectores_ver"
+                                   style="display:none;">
                                     Sectores
                                 </a>
 
                                 <a href="puestos.php"
-                                class="dropdown-item menu-item-permiso"
-                                data-permiso="puestos_ver">
+                                   class="dropdown-item menu-item-permiso"
+                                   data-permiso="puestos_ver"
+                                   style="display:none;">
                                     Puestos
                                 </a>
                             </div>
@@ -113,26 +120,30 @@ $empresa = $_ENV['APP_NAME'] ?? 'Sistema RRHH';
                                 <h6 class="dropdown-header">Administración de ausencias</h6>
 
                                 <a href="solicitudes.php"
-                                class="dropdown-item menu-item-permiso"
-                                data-permiso="solicitudes_ver">
+                                   class="dropdown-item menu-item-permiso"
+                                   data-permiso="solicitudes_ver"
+                                   style="display:none;">
                                     Solicitudes
                                 </a>
 
                                 <a href="vacaciones.php"
-                                class="dropdown-item menu-item-permiso"
-                                data-permiso="vacaciones_ver">
+                                   class="dropdown-item menu-item-permiso"
+                                   data-permiso="vacaciones_ver"
+                                   style="display:none;">
                                     Vacaciones
                                 </a>
 
                                 <a href="tipos_licencia.php"
-                                class="dropdown-item menu-item-permiso"
-                                data-permiso="licencias_configurar">
+                                   class="dropdown-item menu-item-permiso"
+                                   data-permiso="licencias_gestionar"
+                                   style="display:none;">
                                     Tipos de licencia
                                 </a>
 
                                 <a href="reglas_vacaciones.php"
-                                class="dropdown-item menu-item-permiso"
-                                data-permiso="vacaciones_configurar">
+                                   class="dropdown-item menu-item-permiso"
+                                   data-permiso="vacaciones_gestionar"
+                                   style="display:none;">
                                     Reglas de vacaciones
                                 </a>
                             </div>
@@ -141,8 +152,9 @@ $empresa = $_ENV['APP_NAME'] ?? 'Sistema RRHH';
                         <!-- REPORTES -->
                         <li class="nav-item">
                             <a href="reportes.php"
-                            class="nav-link menu-item-permiso"
-                            data-permiso="rrhh_reportes_ver">
+                               class="nav-link menu-item-permiso"
+                               data-permiso="reportes_ver"
+                               style="display:none;">
                                 Reportes
                             </a>
                         </li>
@@ -157,84 +169,25 @@ $empresa = $_ENV['APP_NAME'] ?? 'Sistema RRHH';
                                 <h6 class="dropdown-header">Panel de control</h6>
 
                                 <a href="configuracion_sistema.php"
-                                class="dropdown-item item-permiso"
-                                data-permiso="sistema_configuracion"
-                                style="display:none;">
+                                   class="dropdown-item item-permiso"
+                                   data-permiso="sistema_configuracion"
+                                   style="display:none;">
                                     Variables del sistema
                                 </a>
 
                                 <a href="verauditoria.php"
-                                class="dropdown-item item-permiso"
-                                data-permiso="auditoria_ver"
-                                style="display:none;">
+                                   class="dropdown-item item-permiso"
+                                   data-permiso="auditoria_ver"
+                                   style="display:none;">
                                     <i class="fas fa-fingerprint text-warning me-2"></i>
                                     Log de auditoría
                                 </a>
                             </div>
                         </li>
 
-                        <!-- USUARIO -->
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle"
-                            href="#"
-                            id="dropUser"
-                            data-bs-toggle="dropdown"
-                            style="color:#337ab7;font-weight:bold;">
+                        <?php require $rutas['menu_usuario']; ?>
 
-                                <i class="fa fa-user-circle"></i>
-                                <span id="nombre-usuario-ui">Usuario</span>
-                            </a>
-
-                            <div class="dropdown-menu dropdown-menu-end shadow-sm">
-
-                                <a id="btnVolverSso"
-                                href="#"
-                                class="dropdown-item text-primary fw-bold"
-                                style="display:none;">
-                                    <i class="fa fa-th-large me-2"></i>
-                                    Cambiar de aplicación
-                                </a>
-
-                                <div id="divDividerSso"
-                                    class="dropdown-divider"
-                                    style="display:none;"></div>
-
-                                <a id="linkPasswordSso" href="#" class="dropdown-item">
-                                    <i class="fa fa-key me-2"></i>
-                                    Mi contraseña (SSO)
-                                </a>
-
-                                <div class="dropdown-divider"></div>
-
-                                <div class="dropdown-item d-flex align-items-center justify-content-between"
-                                    onclick="event.stopPropagation();">
-
-                <span>
-                    <i id="iconoTheme" class="bi bi-moon-stars-fill me-2"></i>
-                    Modo oscuro
-                </span>
-
-                <div class="form-check form-switch m-0 ms-2">
-                    <input class="form-check-input"
-                           type="checkbox"
-                           id="checkThemeSwitch"
-                           onchange="toggleModoOscuro();"
-                           style="cursor:pointer;">
-                </div>
-            </div>
-
-            <div class="dropdown-divider"></div>
-
-            <a href="javascript:void(0);"
-               onclick="cerrarSesion();"
-               class="dropdown-item text-danger">
-                <i class="fa fa-sign-out me-2"></i>
-                Cerrar sesión
-            </a>
-        </div>
-    </li>
-
-</ul>
+                    </ul>
                 </div>
             </div>
         </nav>
@@ -250,21 +203,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
     }
 
-    const urlPanelSso = <?= json_encode($rutas['panel_sso_web']) ?>;
-    const urlPerfilSso = <?= json_encode($rutas['perfil_sso_web']) ?>;
-
     const btnSso = document.getElementById('btnVolverSso');
     const divSso = document.getElementById('divDividerSso');
-    const linkPass = document.getElementById('linkPasswordSso');
 
     if (btnSso && divSso) {
         btnSso.style.display = 'block';
         divSso.style.display = 'block';
         btnSso.href = urlPanelSso + '?token=' + encodeURIComponent(token);
-    }
-
-    if (linkPass) {
-        linkPass.href = urlPerfilSso + '?token=' + encodeURIComponent(token);
     }
 
     try {

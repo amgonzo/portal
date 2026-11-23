@@ -132,8 +132,15 @@
                     <hr>
 
                     <!-- LEGAJO -->
-                    <h6 class="fw-bold mb-3">Datos del legajo</h6>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="fw-bold mb-0">Datos del legajo</h6>
 
+                        <button type="button"
+                                class="btn btn-sm btn-outline-secondary"
+                                id="btnVerHistorialContractual">
+                            Historial contractual
+                        </button>
+                    </div>
                     <div class="row">
 
                         <div class="col-md-4 mb-3">
@@ -164,6 +171,16 @@
                                    class="form-control"
                                    id="emp_categoria"
                                    name="categoria">
+                        </div>
+
+                        <div class="col-md-4 mb-3">
+                            <label for="emp_fecha_desde_contrato" class="form-label">
+                                Inicio contractual
+                            </label>
+                            <input type="date"
+                                class="form-control"
+                                id="emp_fecha_desde_contrato"
+                                name="fecha_desde_contrato">
                         </div>
 
                         <div class="col-12 mb-3">
@@ -319,9 +336,68 @@
     </div>
 </div>
 
+<!-- MODAL HISTORIAL CONTRACTUAL -->
+<div class="modal fade" id="ModalHistorialContractual" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">Historial contractual</h5>
+
+                <button type="button"
+                        class="btn-close btn-close-white"
+                        data-bs-dismiss="modal">
+                </button>
+            </div>
+
+            <div class="modal-body">
+
+                <div id="historialContractualEmpleado"
+                     class="fw-semibold mb-3">
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Tipo de contrato</th>
+                                <th>Categoría</th>
+                                <th>Desde</th>
+                                <th>Hasta</th>
+                                <th>Observaciones</th>
+                            </tr>
+                        </thead>
+
+                        <tbody id="tablaHistorialContractual">
+                            <tr>
+                                <td colspan="5" class="text-center text-muted">
+                                    Sin registros.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+
+            <div class="modal-footer">
+                <button type="button"
+                        class="btn btn-secondary"
+                        data-bs-dismiss="modal">
+                    Cerrar
+                </button>
+            </div>
+
+        </div>
+    </div>
+</div>
+
 <?php include 'modal/grupo_familiar.php'; ?>
+<?php include 'modal/datos_contacto.php'; ?>
+
 <script src="js/empleados.js?v=<?php echo time(); ?>"></script>
 <script src="js/grupo_familiar.js?v=<?php echo time(); ?>"></script>
+<script src="js/datos_contacto.js?v=<?php echo time(); ?>"></script>
 
 </body>
 </html>

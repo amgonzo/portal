@@ -533,8 +533,281 @@ function abrirAplicacionesEmpresa(
     $("#ModalAplicacionesEmpresa").modal("show");
 
     cargarAplicacionesEmpresa(idEmpresa);
+    cargarIntegracionesEmpresa(idEmpresa);
+    
 }
 
+function agregarIntegracionEmpresa() {
+
+    const idEmpresa = Number($('#aplicaciones_empresa_id').val());
+    const origen = Number($('#integracionOrigenEmpresa').val());
+    const destino = Number($('#integracionDestinoEmpresa').val());
+
+    if (!origen || !destino) {
+        toast('Seleccioná ambas aplicaciones.', 'warning');
+        return;
+    }
+
+    if (origen === destino) {
+        toast('Las aplicaciones deben ser diferentes.', 'warning');
+        return;
+    }
+
+    $.ajax({
+
+        url: API_BASE + '/sso/empresas/guardar_integraciones_empresa.php',
+
+        type: 'POST',
+
+        dataType: 'json',
+
+        headers: obtenerHeadersSSO(),
+
+        data: {
+            idempresa: idEmpresa,
+            idaplicacion_origen: origen,
+            idaplicacion_destino: destino,
+            accion: 'agregar'
+        },
+
+        success: function(res) {
+
+            if (res.status === 'ok') {
+
+                cargarIntegracionesEmpresa(idEmpresa);
+
+                $('#integracionOrigenEmpresa').val('');
+                $('#integracionDestinoEmpresa').val('');
+
+                toast(res.msg, 'success');
+
+            } else {
+
+                toast(res.msg, 'error');
+            }
+        },
+
+        error: function(xhr) {
+
+            console.error(xhr.responseText);
+
+            toast(
+                xhr.responseJSON?.msg || 'Error al agregar la integración.',
+                'error'
+            );
+        }
+    });
+}
+
+function cargarIntegracionesEmpresa(idEmpresa) {
+
+    $('#listaIntegracionesEmpresa').html(
+        '<div class="text-center p-3">Cargando...</div>'
+    );
+
+    $.ajax({
+        url: API_BASE + '/sso/empresas/listar_integraciones_empresa.php',
+        type: 'GET',
+        data: { idempresa: idEmpresa },
+        headers: obtenerHeadersSSO(),
+        dataType: 'json',
+
+        success: function(res) {
+
+            if (res.status !== 'ok') {
+                $('#listaIntegracionesEmpresa').html(
+                    `<div class="alert alert-danger">${res.msg}</div>`
+                );
+                return;
+            }
+
+            const integraciones = res.data || [];
+
+            if (!integraciones.length) {
+                $('#listaIntegracionesEmpresa').html(`
+                    <div class="alert alert-info">
+                        No hay integraciones disponibles para las aplicaciones habilitadas.
+                    </div>
+                `);
+                return;
+            }
+
+            let html = '<div class="list-group">';
+
+            integraciones.forEach(item => {
+
+                const checked = Number(item.activo) === 1 ? 'checked' : '';
+
+                html += `
+                    <div class="list-group-item d-flex align-items-center justify-content-between">
+                        <div>
+                            <strong>${item.origen}</strong>
+                            <span class="mx-2">→</span>
+                            <strong>${item.destino}</strong>
+                        </div>
+
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="form-check form-switch mb-0">
+                                <input
+                                    class="form-check-input"
+                                    type="checkbox"
+                                    ${checked}
+                                    onchange="cambiarEstadoIntegracionEmpresa(${item.id}, this)"
+                                >
+                            </div>
+
+                            <button
+                                type="button"
+                                class="btn btn-sm btn-outline-danger"
+                                onclick="eliminarIntegracionEmpresa(${item.id})"
+                                title="Eliminar integración"
+                            >
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += '</div>';
+
+            $('#listaIntegracionesEmpresa').html(html);
+        },
+
+        error: function(xhr) {
+            console.error(xhr.responseText);
+
+            $('#listaIntegracionesEmpresa').html(`
+                <div class="alert alert-danger">
+                    Error al cargar las integraciones.
+                </div>
+            `);
+        }
+    });
+}
+
+function cambiarEstadoIntegracionEmpresa(idIntegracion, checkbox) {
+
+    const activo = checkbox.checked ? 1 : 0;
+    const idEmpresa = Number($('#aplicaciones_empresa_id').val());
+
+    checkbox.disabled = true;
+
+    $.ajax({
+        url: API_BASE + '/sso/empresas/guardar_integraciones_empresa.php',
+        type: 'POST',
+        dataType: 'json',
+        headers: obtenerHeadersSSO(),
+        data: {
+            idempresa: idEmpresa,
+            idintegracion: idIntegracion,
+            activo: activo,
+            accion: 'estado'
+        },
+        success: function(res) {
+            if (res.status !== 'ok') {
+                checkbox.checked = !activo;
+                toast(res.msg || 'No se pudo actualizar la integración.', 'error');
+            }
+        },
+        error: function(xhr) {
+            checkbox.checked = !activo;
+            console.error(xhr.responseText);
+            toast('Error al actualizar la integración.', 'error');
+        },
+        complete: function() {
+            checkbox.disabled = false;
+        }
+    });
+}
+
+function eliminarIntegracionEmpresa(idIntegracion) {
+
+    Swal.fire({
+        title: '¿Eliminar integración?',
+        text: 'Se eliminará definitivamente esta relación.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Eliminar',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#dc3545'
+    }).then(result => {
+
+        if (!result.isConfirmed) return;
+
+        $.ajax({
+            url: API_BASE + '/sso/empresas/guardar_integraciones_empresa.php',
+            type: 'POST',
+            dataType: 'json',
+            headers: obtenerHeadersSSO(),
+            data: {
+                idempresa: Number($('#aplicaciones_empresa_id').val()),
+                idintegracion: idIntegracion,
+                accion: 'eliminar'
+            },
+            success: function(res) {
+                if (res.status === 'ok') {
+                    cargarIntegracionesEmpresa(
+                        Number($('#aplicaciones_empresa_id').val())
+                    );
+                    toast(res.msg, 'success');
+                } else {
+                    toast(res.msg, 'error');
+                }
+            },
+            error: function(xhr) {
+                console.error(xhr.responseText);
+                toast('No se pudo eliminar la integración.', 'error');
+            }
+        });
+    });
+}
+/*
+function guardarIntegracionesEmpresa() {
+
+    const idEmpresa = Number($('#aplicaciones_empresa_id').val());
+
+    const integraciones = [];
+
+    $('.check-integracion-empresa:checked').each(function() {
+        integraciones.push(Number($(this).val()));
+    });
+
+    const btn = $('#btnGuardarIntegracionesEmpresa');
+
+    btn.prop('disabled', true);
+
+    $.ajax({
+        url: API_BASE + '/sso/empresas/guardar_integraciones_empresa.php',
+        type: 'POST',
+        dataType: 'json',
+        headers: obtenerHeadersSSO(),
+
+        data: {
+            idempresa: idEmpresa,
+            integraciones: integraciones
+        },
+
+        success: function(res) {
+
+            if (res.status === 'ok') {
+                toast(res.msg || 'Integraciones actualizadas correctamente', 'success');
+            } else {
+                toast(res.msg || 'No se pudieron guardar las integraciones', 'error');
+            }
+        },
+
+        error: function(xhr) {
+            console.error(xhr.responseText);
+            toast('Error al guardar las integraciones', 'error');
+        },
+
+        complete: function() {
+            btn.prop('disabled', false);
+        }
+    });
+}
+*/
 
 /* =========================================================
    CARGAR APLICACIONES DE EMPRESA
@@ -579,6 +852,23 @@ function cargarAplicacionesEmpresa(idEmpresa) {
 
             const aplicaciones =
                 respuesta.data?.aplicaciones || [];
+
+                const habilitadas = aplicaciones.filter(app =>
+                    Number(app.asignada) === 1
+                );
+
+                let opciones = '<option value="">Seleccionar aplicación</option>';
+
+                habilitadas.forEach(app => {
+                    opciones += `
+                        <option value="${app.idaplicacion}">
+                            ${app.nombre}
+                        </option>
+                    `;
+                });
+
+                $('#integracionOrigenEmpresa').html(opciones);
+                $('#integracionDestinoEmpresa').html(opciones);
 
             if (aplicaciones.length === 0) {
 
@@ -948,8 +1238,7 @@ function nuevaConexionEmpresa() {
     $('#conexion_db_nombre').val('');
     $('#conexion_db_usuario').val('');
     $('#conexion_db_password').val('');
-    activo: $('#conexion_activo').prop('checked') ? 1 : 0
-
+    
     $('#formularioConexionEmpresa').show();
 }
 

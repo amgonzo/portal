@@ -457,13 +457,57 @@ $ssoLoginUrl = $_ENV['SSO_LOGIN_URL'] ?? '/sso/auth/login.php';
                         // REDIRECCIÓN
                         // =========================================
 
-                        setTimeout(() => {
+                        setTimeout(async () => {
 
-                            window.location.href =
-                                '/sistemas/fichajes/admin/dashboard.php';
+                            const redirigir = () => {
+                                window.location.href = '/sistemas/fichajes/admin/dashboard.php';
+                            };
+
+                            try {
+                                const empresaActiva = JSON.parse(
+                                    localStorage.getItem('sso_empresa_activa') || 'null'
+                                );
+
+                                const idempresa = empresaActiva?.idempresa;
+
+                                if (!idempresa) {
+                                    console.error('No se encontró sso_empresa_activa o idempresa.');
+                                    localStorage.setItem('sso_integraciones', JSON.stringify([]));
+                                    redirigir();
+                                    return;
+                                }
+
+                                const response = await fetch(
+                                    SSO_API_URL + '/sso/empresas/listar_integraciones_empresa.php?idempresa=' +
+                                    encodeURIComponent(idempresa),
+                                    {
+                                        method: 'GET',
+                                        headers: {
+                                            'Authorization': 'Bearer ' + token
+                                        }
+                                    }
+                                );
+
+                                const resultado = await response.json();
+
+                                if (response.ok && resultado.status === 'ok') {
+                                    localStorage.setItem(
+                                        'sso_integraciones',
+                                        JSON.stringify(resultado.data || [])
+                                    );
+                                } else {
+                                    console.error('Error cargando integraciones:', resultado);
+                                    localStorage.setItem('sso_integraciones', JSON.stringify([]));
+                                }
+
+                            } catch (error) {
+                                console.error('Error consultando integraciones:', error);
+                                localStorage.setItem('sso_integraciones', JSON.stringify([]));
+                            }
+
+                            redirigir();
 
                         }, 500);
-
 
                     } else {
 

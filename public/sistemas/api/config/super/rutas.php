@@ -44,6 +44,8 @@ return [
 
     'helpers'    => $publicRoot . '/api/utils/helpers.php',
 
+    'menu_usuario' => $publicRoot . '/sso/includes/menu_usuario.php',
+    
     // Rutas web
     'login_sso_web' => '/sistemas/sso/auth/login.php',
     'panel_sso_web' => '/sistemas/sso/admin/panel.php',

@@ -97,28 +97,31 @@ async function cargarPuestos() {
                 : '<span class="badge bg-danger">Inactivo</span>';
 
             const btnEditar = `
-                <button
-                    class="btn btn-sm btn-info text-white me-1"
-                    onclick="editarPuesto(${Number(p.idpuesto)})">
-                    Editar
+                <button type="button"
+                        class="btn btn-sm btn-outline-primary me-1"
+                        onclick="editarPuesto(${Number(p.idpuesto)})"
+                        title="Editar puesto">
+                    <i class="fas fa-edit"></i>
                 </button>
             `;
 
             const btnEstado = activo
-                ? `
-                    <button
-                        class="btn btn-sm btn-danger"
-                        onclick="cambiarEstadoPuesto(${Number(p.idpuesto)}, 0)">
-                        Desactivar
-                    </button>
-                `
-                : `
-                    <button
-                        class="btn btn-sm btn-success"
-                        onclick="cambiarEstadoPuesto(${Number(p.idpuesto)}, 1)">
-                        Activar
-                    </button>
-                `;
+            ? `
+                <button type="button"
+                        class="btn btn-sm btn-outline-danger me-1"
+                        onclick="cambiarEstadoPuesto(${Number(p.idpuesto)}, 0)"
+                        title="Desactivar puesto">
+                    <i class="fas fa-user-slash"></i>
+                </button>
+            `
+            : `
+                <button type="button"
+                        class="btn btn-sm btn-outline-success me-1"
+                        onclick="cambiarEstadoPuesto(${Number(p.idpuesto)}, 1)"
+                        title="Activar puesto">
+                    <i class="fas fa-user-check"></i>
+                </button>
+            `;
 
             tablaPuestos.row.add([
 

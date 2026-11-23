@@ -252,7 +252,9 @@ function guardarPermisos() {
 function crearPermisoBase() {
 
     const clave = $("#nueva_clave").val().trim();
-    const endpoint = $("#nuevo_endpoint").val().trim();
+    //const endpoint = $("#nuevo_endpoint").val().trim();
+    const endpointValor = $("#nuevo_endpoint").val().trim();
+    const endpoint = endpointValor === '' ? null : endpointValor;
     const metodo = $("#nuevo_metodo").val();
     const desc = $("#nueva_desc").val().trim();
 
@@ -395,7 +397,9 @@ function actualizarPermisoBase() {
 
     const id = $("#edit_idpermiso").val();
     const clave = $("#edit_clave").val().trim();
-    const endpoint = $("#edit_endpoint").val().trim();
+    //const endpoint = $("#edit_endpoint").val().trim();
+    const endpointValor = $("#edit_endpoint").val().trim();
+    const endpoint = endpointValor === '' ? null : endpointValor;
     const metodo = $("#edit_metodo").val();
     const desc = $("#edit_desc").val().trim();
 

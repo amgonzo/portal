@@ -92,9 +92,12 @@ $empresa  = $_ENV['APP_NAME'] ?? 'Mi Sistema';
 
     <script>
      $.extend(true, $.fn.dataTable.defaults, {
-     language: {
-          url: 'https://cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json'
-     }
+          pageLength: Number(
+               localStorage.getItem('sso_registros_por_pagina')
+          ) || 10,
+          language: {
+               url: 'https://cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json'
+          }
      });
      </script>
 

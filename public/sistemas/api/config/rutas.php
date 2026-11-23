@@ -43,6 +43,8 @@ return [
     'compensacion_horas' => $publicRoot . '/api/fichajes/jornadas/compensacion_horas.php',
 
     'helpers'    => $publicRoot . '/api/utils/helpers.php',
+
+    'menu_usuario' => $publicRoot . '/sso/includes/menu_usuario.php',
     
     // Rutas web
     'login_sso_web' => '/sistemas/sso/auth/login.php',

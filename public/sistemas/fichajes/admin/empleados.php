@@ -4,6 +4,27 @@
 <head>
     <?php include 'header.php'; ?>
     <title>Empleados - <?php echo $empresa; ?></title>
+
+    <style>
+    .campo-integrado-bloqueado .form-control {
+        background-color: #35404c !important;
+        border: 1px dashed #718096 !important;
+        color: #aebdca !important;
+        cursor: not-allowed;
+        opacity: 0.85;
+    }
+
+    .campo-integrado-bloqueado label {
+        color: #aebdca;
+    }
+
+    .aviso-campo-integrado {
+        display: block;
+        color: #8fa8bd;
+        font-size: 11px;
+        margin-top: 5px;
+    }
+    </style>
 </head>
 
 <body>

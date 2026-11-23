@@ -543,6 +543,12 @@ function cerrarSesion() {
                 'app_diccionario'
             );
 
+            localStorage.removeItem('sso_app_activa');
+            localStorage.removeItem('sso_integraciones');
+            localStorage.removeItem('sso_registros_por_pagina');
+            localStorage.removeItem('sso_tema');
+            localStorage.removeItem('usuario_actual');
+
             sessionStorage.clear();
 
             window.location.href = SSO_LOGIN_URL;

@@ -28,6 +28,10 @@ document.addEventListener('DOMContentLoaded', () => {
     document
         .getElementById('btnVerHistorial')
         .addEventListener('click', abrirHistorialDesdeFormulario);
+
+    document
+        .getElementById('btnVerHistorialContractual')
+        .addEventListener('click', abrirHistorialContractualDesdeFormulario);
 });
 
 
@@ -156,6 +160,9 @@ async function cargarEmpleados() {
             API_EMPLEADOS + '?action=listar'
         );
 
+        const puedeVerGrupoFamiliar = tienePermiso('grupo_familiar_ver');
+        const puedeVerContactos = tienePermiso('contactos_ver');
+
         empleadosList = json.data || [];
 
         tablaEmpleados.clear();
@@ -187,6 +194,15 @@ async function cargarEmpleados() {
                 </button>
             `;
 
+            const btnHistorialContractual = `
+                <button type="button"
+                        class="btn btn-sm btn-outline-secondary me-1"
+                        onclick="verHistorialContractual(${Number(e.idempleado)})"
+                        title="Historial contractual">
+                    <i class="fas fa-file-contract"></i>
+                </button>
+            `;
+
             const btnEstado = Number(e.activo) === 1
                 ? `
                     <button type="button"
@@ -204,15 +220,24 @@ async function cargarEmpleados() {
                         <i class="fas fa-user-check"></i>
                     </button>
                 `;
+                
+                const btnGrupoFamiliar = puedeVerGrupoFamiliar ? `
+                    <button type="button"
+                            class="btn btn-sm btn-outline-primary"
+                            onclick="abrirGrupoFamiliar(${Number(e.idempleado)})"
+                            title="Grupo familiar">
+                        <i class="fas fa-users"></i>
+                    </button>
+                ` : '';
 
-            const btnGrupoFamiliar = `
-                <button type="button"
-                        class="btn btn-sm btn-outline-secondary me-1"
-                        onclick="abrirGrupoFamiliar(${Number(e.idempleado)})"
-                        title="Grupo familiar">
-                    <i class="fas fa-users"></i>
-                </button>
-            `;
+                const btnDatosContacto = puedeVerContactos ? `
+                    <button type="button"
+                            class="btn btn-sm btn-outline-info me-1"
+                            onclick="abrirDatosContacto(${Number(e.idempleado)})"
+                            title="Datos de contacto">
+                        <i class="fas fa-address-book"></i>
+                    </button>
+                ` : '';
 
             tablaEmpleados.row.add([
 
@@ -230,7 +255,7 @@ async function cargarEmpleados() {
 
                 estado,
 
-                `${btnEditar}${btnHistorial}${btnGrupoFamiliar}${btnEstado}`
+                `${btnEditar}${btnHistorial}${btnHistorialContractual}${btnGrupoFamiliar}${btnDatosContacto}${btnEstado}`
 
             ]);
         });
@@ -263,7 +288,8 @@ function abrirNuevoEmpleado() {
     document.getElementById('btnGuardarEmpleado').textContent =
         'Guardar ' + aplicarDiccionarioTexto('Empleado');
 
-    document.getElementById('emp_fecha_desde').value =
+    document.getElementById('emp_fecha_desde_contrato').value =
+        document.getElementById('emp_fecha_inicio').value ||
         new Date().toISOString().slice(0, 10);
 
     bootstrap.Modal
@@ -305,6 +331,9 @@ function editarEmpleado(id) {
     document.getElementById('emp_categoria').value =
         e.categoria || '';
 
+    document.getElementById('emp_fecha_desde_contrato').value =
+        e.fecha_desde_contrato || '';
+    
     document.getElementById('emp_observaciones').value =
         e.observaciones || '';
 
@@ -367,6 +396,23 @@ async function guardarEmpleado(event) {
                 body: formData
             }
         );
+
+        if (!id) {
+            const datosEvento = new FormData();
+            datosEvento.append('origen', 'rrhh');
+            datosEvento.append('destino', 'fichajes');
+            datosEvento.append('tipo_evento', 'empleado_creado');
+            datosEvento.append('entidad', 'empleado');
+            datosEvento.append('identidad', String(json.idempleado));
+            datosEvento.append('titulo', 'Nuevo empleado');
+            datosEvento.append('descripcion', 'Se dio de alta un empleado desde RRHH.');
+
+            fetch(API_BASE + '/sso/integraciones/eventos/crear.php', {
+                method: 'POST',
+                headers: obtenerHeadersSSO(),
+                body: datosEvento
+            }).catch(console.error);
+        }
 
         bootstrap.Modal
             .getOrCreateInstance(document.getElementById('ModalEmpleado'))
@@ -498,6 +544,104 @@ async function verHistorialLaboral(id) {
     }
 }
 
+// ============================================================
+// HISTORIAL CONTRACTUAL
+// ============================================================
+
+function abrirHistorialContractualDesdeFormulario() {
+
+    const id = document.getElementById('edit_empleado_id').value;
+
+    if (!id) {
+        toast('Primero guardá el empleado para consultar su historial contractual.', 'warning');
+        return;
+    }
+
+    verHistorialContractual(id);
+}
+
+
+async function verHistorialContractual(id) {
+
+    const empleado = empleadosList.find(
+        e => Number(e.idempleado) === Number(id)
+    );
+
+    if (!empleado) {
+        toast('Empleado no encontrado.', 'error');
+        return;
+    }
+
+    document.getElementById('historialContractualEmpleado').textContent =
+        `${empleado.apellido}, ${empleado.nombre}`;
+
+    const tbody = document.getElementById('tablaHistorialContractual');
+
+    tbody.innerHTML = `
+        <tr>
+            <td colspan="5" class="text-center text-muted">
+                Cargando historial...
+            </td>
+        </tr>
+    `;
+
+    bootstrap.Modal
+        .getOrCreateInstance(
+            document.getElementById('ModalHistorialContractual')
+        )
+        .show();
+
+    try {
+
+        const json = await peticionEmpleados(
+            API_EMPLEADOS +
+            '?action=historial_contractual&idempleado=' +
+            encodeURIComponent(id)
+        );
+
+        const historial = json.data || [];
+
+        if (historial.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="5" class="text-center text-muted">
+                        No hay historial contractual registrado.
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        tbody.innerHTML = '';
+
+        historial.forEach(h => {
+
+            const fila = document.createElement('tr');
+
+            fila.innerHTML = `
+                <td>${escaparHTML(h.tipo_contrato || '-')}</td>
+                <td>${escaparHTML(h.categoria || '-')}</td>
+                <td>${escaparHTML(h.fecha_desde || '-')}</td>
+                <td>${escaparHTML(h.fecha_hasta || 'Vigente')}</td>
+                <td>${escaparHTML(h.observaciones || '-')}</td>
+            `;
+
+            tbody.appendChild(fila);
+        });
+
+    } catch (error) {
+
+        console.error(error);
+
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="5" class="text-center text-danger">
+                    ${escaparHTML(error.message)}
+                </td>
+            </tr>
+        `;
+    }
+}
 
 // ============================================================
 // CAMBIAR ESTADO
@@ -505,33 +649,96 @@ async function verHistorialLaboral(id) {
 
 async function cambiarEstadoEmpleado(id, nuevoEstado) {
 
-    const accion = nuevoEstado === 1
-        ? 'dar de alta'
-        : 'dar de baja';
+    let datosBaja = null;
 
-    const confirmacion = await Swal.fire({
+    if (nuevoEstado === 0) {
 
-        title: '¿Confirmar operación?',
+        const hoy = new Date();
+        const fechaActual = [
+            hoy.getFullYear(),
+            String(hoy.getMonth() + 1).padStart(2, '0'),
+            String(hoy.getDate()).padStart(2, '0')
+        ].join('-');
 
-        text: `¿Querés ${accion} a este ` + aplicarDiccionarioTexto('Empleado')  + ` empleado?`,
+        const resultado = await Swal.fire({
+            title: 'Registrar baja',
+            html: `
+                <div class="text-start">
+                    <label class="form-label">Fecha de baja</label>
+                    <input
+                        type="date"
+                        id="swalFechaBaja"
+                        class="form-control mb-3"
+                        value="${fechaActual}"
+                        required
+                    >
 
-        icon: 'question',
+                    <label class="form-label">Motivo de baja</label>
+                    <textarea
+                        id="swalMotivoBaja"
+                        class="form-control"
+                        rows="3"
+                        maxlength="500"
+                        placeholder="Ingresá el motivo de la baja"
+                        required
+                    ></textarea>
+                </div>
+            `,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Registrar baja',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#d33',
 
-        showCancelButton: true,
+            preConfirm: () => {
 
-        confirmButtonText: 'Confirmar',
+                const fechaBaja =
+                    document.getElementById('swalFechaBaja').value;
 
-        cancelButtonText: 'Cancelar'
-    });
+                const motivoBaja =
+                    document.getElementById('swalMotivoBaja').value.trim();
 
-    if (!confirmacion.isConfirmed) {
-        return;
+                if (!fechaBaja || !motivoBaja) {
+                    Swal.showValidationMessage(
+                        'La fecha y el motivo son obligatorios.'
+                    );
+                    return false;
+                }
+
+                return {
+                    fecha_baja: fechaBaja,
+                    motivo_baja: motivoBaja
+                };
+            }
+        });
+
+        if (!resultado.isConfirmed) return;
+
+        datosBaja = resultado.value;
+
+    } else {
+
+        const confirmacion = await Swal.fire({
+            title: '¿Confirmar alta?',
+            text: '¿Querés reactivar este empleado?',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Dar de alta',
+            cancelButtonText: 'Cancelar'
+        });
+
+        if (!confirmacion.isConfirmed) return;
     }
 
     const formData = new FormData();
 
     formData.append('idempleado', id);
     formData.append('activo', nuevoEstado);
+
+    if (datosBaja) {
+        formData.append('fecha_baja', datosBaja.fecha_baja);
+        formData.append('motivo_baja', datosBaja.motivo_baja);
+    }
 
     try {
 
@@ -553,7 +760,6 @@ async function cambiarEstadoEmpleado(id, nuevoEstado) {
         toast(error.message, 'error');
     }
 }
-
 
 // ============================================================
 // ESCAPAR HTML

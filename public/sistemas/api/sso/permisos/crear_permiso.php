@@ -20,7 +20,9 @@ $userAuth = validarTokenAPI($mysqli);
 
 $idaplicacion = $_POST['idaplicacion'] ?? null; 
 $clave        = $_POST['clave'] ?? '';
-$endpoint     = $_POST['endpoint'] ?? null;
+//$endpoint     = $_POST['endpoint'] ?? null;
+$endpoint = trim($_POST['endpoint'] ?? '');
+$endpoint = ($endpoint === '') ? null : $endpoint;
 $metodo       = $_POST['metodo'] ?? 'ALL';
 $desc         = $_POST['descripcion'] ?? '';
 

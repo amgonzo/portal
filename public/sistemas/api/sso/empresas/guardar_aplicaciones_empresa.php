@@ -262,6 +262,48 @@ try {
     }
 
     /* =====================================================
+    ELIMINAR INTEGRACIONES DE APLICACIONES DESASIGNADAS
+    ===================================================== */
+
+    $sqlEliminarIntegraciones = "
+        DELETE ai
+        FROM aplicaciones_integraciones ai
+
+        LEFT JOIN empresas_aplicaciones eao
+            ON eao.idempresa = ai.idempresa
+            AND eao.idaplicacion = ai.idaplicacion_origen
+            AND eao.activo = 1
+
+        LEFT JOIN empresas_aplicaciones ead
+            ON ead.idempresa = ai.idempresa
+            AND ead.idaplicacion = ai.idaplicacion_destino
+            AND ead.activo = 1
+
+        WHERE ai.idempresa = ?
+        AND (
+            eao.idaplicacion IS NULL
+            OR ead.idaplicacion IS NULL
+        )
+    ";
+
+    $stmtEliminarIntegraciones = $mysqli->prepare($sqlEliminarIntegraciones);
+
+    if (!$stmtEliminarIntegraciones) {
+        throw new Exception(
+            "error_prepare_eliminar_integraciones: " . $mysqli->error
+        );
+    }
+
+    $stmtEliminarIntegraciones->bind_param("i", $idEmpresa);
+
+    if (!$stmtEliminarIntegraciones->execute()) {
+        throw new Exception(
+            "error_eliminar_integraciones: " . $stmtEliminarIntegraciones->error
+        );
+    }
+
+    $stmtEliminarIntegraciones->close();
+    /* =====================================================
        CONFIRMAR
        ===================================================== */
 

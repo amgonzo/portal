@@ -464,18 +464,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     }
 
-
-    // =========================================================
-    // RUTAS SSO
-    // =========================================================
-
-    const urlPanelSso =
-        <?= json_encode($rutas['panel_sso_web']) ?>;
-
-    const urlPerfilSso =
-        <?= json_encode($rutas['perfil_sso_web']) ?>;
-
-
     // =========================================================
     // ELEMENTOS
     // =========================================================
@@ -486,8 +474,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const divSso =
         document.getElementById('divDividerSso');
 
-    const linkPass =
-        document.getElementById('linkPasswordSso');
 
 
     // =========================================================

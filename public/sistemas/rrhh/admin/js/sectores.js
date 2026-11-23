@@ -97,28 +97,31 @@ async function cargarSectores() {
                 : '<span class="badge bg-danger">Inactivo</span>';
 
             const btnEditar = `
-                <button
-                    class="btn btn-sm btn-info text-white me-1"
-                    onclick="editarSector(${Number(s.idsector)})">
-                    Editar
+                <button type="button"
+                        class="btn btn-sm btn-outline-primary me-1"
+                        onclick="editarSector(${Number(s.idsector)})"
+                        title="Editar sector">
+                    <i class="fas fa-edit"></i>
                 </button>
             `;
 
             const btnEstado = activo
-                ? `
-                    <button
-                        class="btn btn-sm btn-danger"
-                        onclick="cambiarEstadoSector(${Number(s.idsector)}, 0)">
-                        Desactivar
-                    </button>
-                `
-                : `
-                    <button
-                        class="btn btn-sm btn-success"
-                        onclick="cambiarEstadoSector(${Number(s.idsector)}, 1)">
-                        Activar
-                    </button>
-                `;
+            ? `
+                <button type="button"
+                        class="btn btn-sm btn-outline-danger me-1"
+                        onclick="cambiarEstadoSector(${Number(s.idsector)}, 0)"
+                        title="Desactivar puesto">
+                    <i class="fas fa-user-slash"></i>
+                </button>
+            `
+            : `
+                <button type="button"
+                        class="btn btn-sm btn-outline-success me-1"
+                        onclick="cambiarEstadoSector(${Number(s.idsector)}, 1)"
+                        title="Activar puesto">
+                    <i class="fas fa-user-check"></i>
+                </button>
+            `;
 
             tablaSectores.row.add([
 

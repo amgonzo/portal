@@ -21,6 +21,21 @@ let mostrarInactivos = false;
 const POLLING_HUELLA_INTERVALO = 1500;
 const POLLING_HUELLA_TIMEOUT = 90000;
 
+function integracionRRHHActiva() {
+    try {
+        const integraciones = JSON.parse(
+            localStorage.getItem('sso_integraciones') || '[]'
+        );
+
+        return integraciones.some(i =>
+            i.origen === 'RRHH' &&
+            i.destino === 'Fichajes' &&
+            Number(i.activo) === 1
+        );
+    } catch {
+        return false;
+    }
+}
 
 // =========================================================
 // INICIO
@@ -38,6 +53,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     initDataTable();
     cargarEmpleados();
+    
+    $('#btnNuevoEmpleado').toggle(!integracionRRHHActiva());
 
     const modalElement =
         document.getElementById('ModalCicloEmpleado');
@@ -254,24 +271,23 @@ async function cargarEmpleados() {
                 </button>
             `;
 
-            const btnEstado =
-                activo
-                    ? `
-                        <button
-                            class="btn btn-sm btn-danger"
-                            onclick="cambiarEstadoEmpleado(${e.idempleado}, 0)"
-                            title="Dar de baja">
-                            <i class="fas fa-user-slash"></i>
-                        </button>
-                    `
-                    : `
-                        <button
-                            class="btn btn-sm btn-success"
-                            onclick="cambiarEstadoEmpleado(${e.idempleado}, 1)"
-                            title="Dar de alta">
-                            <i class="fas fa-user-check"></i>
-                        </button>
-                    `;
+            const btnEstado = integracionRRHHActiva()
+                ? `<button class="btn btn-sm btn-danger"
+                    onclick="quitarEmpleadoRelojes(${e.idempleado})"
+                    title="Quitar de los relojes">
+                    <i class="fas fa-user-minus"></i>
+                </button>`
+                : (activo
+                    ? `<button class="btn btn-sm btn-danger"
+                        onclick="cambiarEstadoEmpleado(${e.idempleado}, 0)"
+                        title="Dar de baja">
+                        <i class="fas fa-user-slash"></i>
+                    </button>`
+                    : `<button class="btn btn-sm btn-success"
+                        onclick="cambiarEstadoEmpleado(${e.idempleado}, 1)"
+                        title="Dar de alta">
+                        <i class="fas fa-user-check"></i>
+                    </button>`);
 
             const btnEnviarLector = `
                 <button
@@ -353,6 +369,10 @@ async function cargarEmpleados() {
 // ---------------------------------------------------------------------
 
 async function abrirNuevoEmpleado() {
+
+    if (integracionRRHHActiva()) return;
+    
+    aplicarEstadoCamposIntegracion();
 
     $('#formEmpleado')[0].reset();
 
@@ -439,6 +459,15 @@ async function editarEmpleado(id) {
             </div>
         `;
     }
+
+    if (integracionRRHHActiva()) {
+        $('#emp_documento, #emp_nombre, #emp_apellido, #emp_fecha_inicio')
+            .prop('disabled', true);
+
+        $('#emp_tarjeta').prop('disabled', false);
+    }
+
+    aplicarEstadoCamposIntegracion();
 
     $('#ModalEmpleado').modal('show');
 
@@ -670,6 +699,11 @@ async function guardarEmpleado() {
 // ---------------------------------------------------------------------
 
 function cambiarEstadoEmpleado(id, nuevoEstado) {
+
+    if (integracionRRHHActiva()) {
+        toast('Las altas y bajas se administran desde RRHH.', 'warning');
+        return;
+    }
 
     const accionTexto =
         nuevoEstado === 1
@@ -3106,6 +3140,109 @@ function alternarEmpleadosInactivos() {
     cargarEmpleados();
 }
 
+function aplicarEstadoCamposIntegracion() {
+
+    const campos = [
+        '#emp_documento',
+        '#emp_nombre',
+        '#emp_apellido',
+        '#emp_fecha_inicio'
+    ];
+
+    const activa = integracionRRHHActiva();
+
+    campos.forEach(selector => {
+
+        const input = document.querySelector(selector);
+        if (!input) return;
+
+        const contenedor = input.closest('.mb-3, .col-md-4');
+        const label = document.querySelector(`label[for="${input.id}"]`);
+
+        input.disabled = activa;
+
+        contenedor?.classList.toggle(
+            'campo-integrado-bloqueado',
+            activa
+        );
+
+        if (label) {
+
+            label.querySelector('.icono-candado')?.remove();
+
+            if (activa) {
+                label.insertAdjacentHTML(
+                    'beforeend',
+                    ' <i class="fas fa-lock icono-candado ms-1"></i>'
+                );
+            }
+        }
+
+        contenedor?.querySelector('.aviso-campo-integrado')?.remove();
+
+        if (activa) {
+            input.insertAdjacentHTML(
+                'afterend',
+                '<small class="aviso-campo-integrado">Gestionado desde RRHH</small>'
+            );
+        }
+    });
+}
+
+async function quitarEmpleadoRelojes(idempleado) {
+
+    const empleado = empleadosList.find(
+        e => Number(e.idempleado) === Number(idempleado)
+    );
+
+    if (!empleado) {
+        toast('Empleado no encontrado.', 'error');
+        return;
+    }
+
+    const confirmacion = await Swal.fire({
+        title: '¿Quitar empleado de los relojes?',
+        html: `Se eliminará a <strong>${escapeHtml(empleado.apellido)}, ${escapeHtml(empleado.nombre)}</strong> de todos sus relojes activos asignados, incluidas sus huellas.`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Sí, quitar de relojes',
+        cancelButtonText: 'Cancelar'
+    });
+
+    if (!confirmacion.isConfirmed) return;
+
+    try {
+        const res = await fetch(
+            API_BASE + '/fichajes/empleados/huellas.php',
+            {
+                method: 'POST',
+                headers: {
+                    ...obtenerHeadersSSO(),
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    accion: 'eliminar_empleado',
+                    idempleado: Number(idempleado)
+                })
+            }
+        );
+
+        const json = await res.json();
+
+        if (!res.ok || json.status !== 'ok') {
+            toast(json.msg || 'No se pudo quitar el empleado de los relojes.', 'error');
+            return;
+        }
+
+        toast(json.msg || 'Eliminación de los relojes solicitada.', 'success');
+
+    } catch (error) {
+        console.error(error);
+        toast('Error al solicitar la eliminación de los relojes.', 'error');
+    }
+}
 // =========================================================
 // ESCAPE HTML
 // =========================================================

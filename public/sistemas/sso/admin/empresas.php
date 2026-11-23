@@ -241,13 +241,54 @@
 
                 <h5 id="aplicaciones_empresa_nombre" class="mb-4"></h5>
 
+                <!-- APLICACIONES ASIGNADAS A LA EMPRESA -->
                 <div id="listaAplicacionesEmpresa">
-
                     <div class="text-center p-4">
                         <i class="fas fa-spinner fa-spin"></i>
                         Cargando aplicaciones...
                     </div>
+                </div>
 
+                <hr class="my-4">
+
+                <!-- INTEGRACIONES DE ESTA EMPRESA -->
+                <h5>Integraciones entre aplicaciones</h5>
+
+                <p class="text-muted small">
+                    Activá las integraciones que esta empresa necesita utilizar.
+                </p>
+
+                <div class="row g-2 mb-3">
+
+                    <div class="col-md-5">
+                        <label class="form-label">Aplicación de origen</label>
+                        <select id="integracionOrigenEmpresa" class="form-select">
+                            <option value="">Seleccionar origen</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-5">
+                        <label class="form-label">Aplicación de destino</label>
+                        <select id="integracionDestinoEmpresa" class="form-select">
+                            <option value="">Seleccionar destino</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button
+                            type="button"
+                            class="btn btn-primary w-100"
+                            onclick="agregarIntegracionEmpresa()"
+                        >
+                            Agregar
+                        </button>
+                    </div>
+
+                </div>
+                <div id="listaIntegracionesEmpresa">
+                    <div class="text-center p-3">
+                        Cargando integraciones...
+                    </div>
                 </div>
 
             </div>
@@ -557,23 +598,11 @@
 
                 </div>
 
-            </div>
+            </div> <!-- modal-body -->
 
-            <div class="modal-footer">
-
-                <button
-                    type="button"
-                    class="btn btn-secondary"
-                    data-bs-dismiss="modal"
-                >
-                    Cerrar
-                </button>
-
-            </div>
-
-        </div>
-
-    </div>
+            </div> <!-- modal-content -->
+        </div> <!-- modal-dialog -->
+    </div> <!-- modal -->
 </div>
 
 <script src="<?php echo versionar('js/empresas.js'); ?>"></script>

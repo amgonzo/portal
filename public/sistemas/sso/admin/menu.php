@@ -60,34 +60,7 @@
                             </div>
                         </li>
 
-                        <!-- USUARIO -->
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" id="dropUser" data-bs-toggle="dropdown" style="color: #337ab7; font-weight: bold;">
-                                <i class="fa fa-user-circle"></i>
-                                <span id="navNombreUsuario">Usuario</span>
-                            </a>
-                            <div class="dropdown-menu dropdown-menu-end shadow-sm">
-                                <a href="perfil.php" class="dropdown-item">
-                                    <i class="fa fa-key me-2"></i> Mi Password
-                                </a>
-
-                                <div class="dropdown-divider"></div>
-
-                                <!-- MODO OSCURO DENTRO DEL MENÚ -->
-                                <div class="dropdown-item d-flex align-items-center justify-content-between" onclick="event.stopPropagation();">
-                                    <span class="small"><i id="iconoTheme" class="bi bi-moon-stars-fill me-2"></i> Modo Oscuro</span>
-                                    <div class="form-check form-switch mb-0 ms-2">
-                                        <input class="form-check-input" type="checkbox" id="checkThemeSwitch" onchange="toggleModoOscuro();" style="cursor: pointer;">
-                                    </div>
-                                </div>
-
-                                <div class="dropdown-divider"></div>
-
-                                <a href="javascript:void(0);" onclick="cerrarSesion();" class="dropdown-item text-danger">
-                                    <i class="fa fa-sign-out me-2"></i> Cerrar Sesión
-                                </a>
-                            </div>
-                        </li>
+                        <?php require $rutas['menu_usuario']; ?>
                     </ul>
                 </div>
             </div>
@@ -192,7 +165,7 @@
                 //console.log("Respuesta de me.php:", response); // <-- Mirá esto en la consola (F12)
 
                 if (response.status === 'ok' && response.usuario) {
-                    const spanUser = document.getElementById('navNombreUsuario');
+                    const spanUser = document.getElementById('nombre-usuario-ui');
                     if (spanUser) spanUser.textContent = response.usuario.nombre || 'Usuario';
 
                     const permisos = response.permisos || [];

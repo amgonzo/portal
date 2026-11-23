@@ -132,6 +132,8 @@ function obtenerEmpleado($mysqli, $idEmpleado)
             e.apellido,
             e.fecha_inicio,
             e.activo,
+            e.fecha_baja,
+            e.motivo_baja,
 
             l.idlegajo,
             l.numero_legajo,
@@ -284,6 +286,93 @@ function guardarHistorial(
     $stmt->close();
 }
 
+function guardarHistorialContractual(
+    $mysqli,
+    $idEmpleado,
+    $tipoContrato,
+    $categoria,
+    $observaciones,
+    $fechaDesde
+) {
+    $stmt = $mysqli->prepare("
+        SELECT
+            idhistorial,
+            tipo_contrato,
+            categoria,
+            observaciones,
+            fecha_desde
+        FROM rrhh_historial_contractual
+        WHERE idempleado = ?
+          AND fecha_hasta IS NULL
+        ORDER BY fecha_desde DESC
+        LIMIT 1
+        FOR UPDATE
+    ");
+
+    $stmt->bind_param('i', $idEmpleado);
+    $stmt->execute();
+
+    $actual = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+
+    if ($actual) {
+
+        if (
+            $actual['tipo_contrato'] === $tipoContrato &&
+            $actual['categoria'] === $categoria &&
+            $actual['observaciones'] === $observaciones
+        ) {
+            return;
+        }
+
+        if ($fechaDesde <= $actual['fecha_desde']) {
+            throw new Exception(
+                'La fecha del cambio contractual debe ser posterior al inicio del contrato vigente.'
+            );
+        }
+
+        $fechaHasta = (new DateTime($fechaDesde))
+            ->modify('-1 day')
+            ->format('Y-m-d');
+
+        $idHistorial = (int)$actual['idhistorial'];
+
+        $stmt = $mysqli->prepare("
+            UPDATE rrhh_historial_contractual
+            SET fecha_hasta = ?
+            WHERE idhistorial = ?
+        ");
+
+        $stmt->bind_param('si', $fechaHasta, $idHistorial);
+        $stmt->execute();
+        $stmt->close();
+    }
+
+    $stmt = $mysqli->prepare("
+        INSERT INTO rrhh_historial_contractual (
+            idempleado,
+            tipo_contrato,
+            categoria,
+            observaciones,
+            fecha_desde
+        )
+        VALUES (?, ?, ?, ?, ?)
+    ");
+
+    $stmt->bind_param(
+        'issss',
+        $idEmpleado,
+        $tipoContrato,
+        $categoria,
+        $observaciones,
+        $fechaDesde
+    );
+
+    $stmt->execute();
+    $stmt->close();
+
+}
+
 // =========================================================
 // EJECUCIÓN PRINCIPAL
 // =========================================================
@@ -390,6 +479,8 @@ try {
                 e.apellido,
                 e.fecha_inicio,
                 e.activo,
+                e.fecha_baja,
+                e.motivo_baja,
 
                 l.idlegajo,
                 l.numero_legajo,
@@ -403,7 +494,9 @@ try {
                 h.fecha_desde,
 
                 s.nombre AS sector,
-                p.nombre AS puesto
+                p.nombre AS puesto,
+
+                hc.fecha_desde AS fecha_desde_contrato
 
             FROM empleados e
 
@@ -420,6 +513,10 @@ try {
             LEFT JOIN core_puestos p
                 ON p.idpuesto = h.idpuesto
 
+            LEFT JOIN rrhh_historial_contractual hc
+                    ON hc.idempleado = e.idempleado
+                AND hc.fecha_hasta IS NULL
+                
             ORDER BY e.apellido, e.nombre
         ";
 
@@ -494,6 +591,41 @@ try {
         responder('ok', 'Historial obtenido.', $historial);
     }
 
+    if ($action === 'historial_contractual') {
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+            responder('error', 'Método no permitido.');
+        }
+
+        $idEmpleado = (int)($_GET['idempleado'] ?? 0);
+
+        if ($idEmpleado <= 0) {
+            responder('error', 'Empleado inválido.');
+        }
+
+        $stmt = $mysqli->prepare("
+            SELECT
+                idhistorial,
+                tipo_contrato,
+                categoria,
+                fecha_desde,
+                fecha_hasta,
+                observaciones
+            FROM rrhh_historial_contractual
+            WHERE idempleado = ?
+            ORDER BY fecha_desde DESC, idhistorial DESC
+        ");
+
+        $stmt->bind_param('i', $idEmpleado);
+        $stmt->execute();
+
+        $historial = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+
+        $stmt->close();
+
+        responder('ok', 'Historial contractual obtenido.', $historial);
+    }
+    
     // =====================================================
     // CREAR EMPLEADO
     // =====================================================
@@ -524,6 +656,17 @@ try {
         $fechaInicio = $fechaInicio !== ''
             ? fechaValida($fechaInicio, 'inicio')
             : null;
+
+        $fechaDesdeContrato = trim($_POST['fecha_desde_contrato'] ?? '');
+
+        if ($fechaDesdeContrato === '') {
+            $fechaDesdeContrato = $fechaInicio ?: date('Y-m-d');
+        }
+
+        $fechaDesdeContrato = fechaValida(
+            $fechaDesdeContrato,
+            'inicio contractual'
+        );
 
         $numeroLegajo = trim($_POST['numero_legajo'] ?? '');
         $numeroLegajo = $numeroLegajo !== ''
@@ -620,6 +763,15 @@ try {
 
         $stmt->close();
 
+        guardarHistorialContractual(
+            $mysqli,
+            $idEmpleado,
+            $tipoContrato,
+            $categoria,
+            $observaciones,
+            $fechaDesdeContrato
+        );
+
         // Guardar asignación laboral.
         guardarHistorial(
             $mysqli,
@@ -698,6 +850,17 @@ try {
         $fechaInicio = $fechaInicio !== ''
             ? fechaValida($fechaInicio, 'inicio')
             : null;
+
+        $fechaDesdeContrato = trim($_POST['fecha_desde_contrato'] ?? '');
+
+        if ($fechaDesdeContrato === '') {
+            $fechaDesdeContrato = date('Y-m-d');
+        }
+
+        $fechaDesdeContrato = fechaValida(
+            $fechaDesdeContrato,
+            'inicio contractual'
+        );
 
         $numeroLegajo = trim($_POST['numero_legajo'] ?? '');
         $numeroLegajo = $numeroLegajo !== ''
@@ -840,6 +1003,15 @@ try {
             $stmt->close();
         }
 
+        guardarHistorialContractual(
+            $mysqli,
+            $idEmpleado,
+            $tipoContrato,
+            $categoria,
+            $observaciones,
+            $fechaDesdeContrato
+        );
+
         // Actualizar historial laboral.
         guardarHistorial(
             $mysqli,
@@ -890,11 +1062,25 @@ try {
         $idEmpleado = (int)($_POST['idempleado'] ?? 0);
         $activo = (int)($_POST['activo'] ?? -1);
 
+        $fechaBaja = trim($_POST['fecha_baja'] ?? '');
+        $motivoBaja = trim($_POST['motivo_baja'] ?? '');
+
         if (
             $idEmpleado <= 0 ||
             !in_array($activo, [0, 1], true)
         ) {
             responder('error', 'Datos de estado inválidos.');
+        }
+
+        if ($activo === 0) {
+            if ($fechaBaja === '' || $motivoBaja === '') {
+                responder('error', 'La fecha y el motivo de baja son obligatorios.');
+            }
+
+            $fechaBaja = fechaValida($fechaBaja, 'baja');
+        } else {
+            $fechaBaja = null;
+            $motivoBaja = null;
         }
 
         $stmt = $mysqli->prepare("
@@ -915,20 +1101,31 @@ try {
             responder('error', 'Empleado no encontrado.');
         }
 
+        $mysqli->begin_transaction();
+        $transaccion = true;
+
         $stmt = $mysqli->prepare("
             UPDATE empleados
-            SET activo = ?
+            SET
+                activo = ?,
+                fecha_baja = ?,
+                motivo_baja = ?
             WHERE idempleado = ?
         ");
 
         $stmt->bind_param(
-            'ii',
+            'issi',
             $activo,
+            $fechaBaja,
+            $motivoBaja,
             $idEmpleado
         );
 
         $stmt->execute();
         $stmt->close();
+
+        $mysqli->commit();
+        $transaccion = false;
 
         @registrarLog(
             $mysqli,
@@ -937,7 +1134,11 @@ try {
             $idEmpleado,
             $idUsuarioLog,
             $anterior,
-            ['activo' => $activo]
+            [
+                'activo' => $activo,
+                'fecha_baja' => $fechaBaja,
+                'motivo_baja' => $motivoBaja
+            ]
         );
 
         responder(
@@ -979,3 +1180,4 @@ try {
             : 'Error al procesar la operación.'
     );
 }
+

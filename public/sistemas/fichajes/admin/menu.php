@@ -408,143 +408,7 @@ $apiUrl = $_ENV['API_URL'] ?? '/sistemas/api';
                         </li>
 
 
-                        <!-- =================================================
-                             USUARIO
-                             ================================================= -->
-
-                        <li class="nav-item dropdown">
-
-                            <a
-                                class="nav-link dropdown-toggle"
-                                href="#"
-                                id="dropUser"
-                                data-bs-toggle="dropdown"
-                                style="color: #337ab7; font-weight: bold;"
-                            >
-
-                                <i class="fa fa-user-circle"></i>
-
-                                <span id="nombre-usuario-ui">
-                                    Usuario
-                                </span>
-
-                            </a>
-
-
-                            <div class="dropdown-menu dropdown-menu-end shadow-sm">
-
-
-                                <!-- VOLVER AL PANEL SSO -->
-
-                                <a
-                                    id="btnVolverSso"
-                                    href="#"
-                                    class="dropdown-item text-primary fw-bold"
-                                    style="display: none;"
-                                >
-
-                                    <i class="fa fa-th-large me-2"></i>
-
-                                    Cambiar de Aplicación
-
-                                </a>
-
-
-                                <div
-                                    id="divDividerSso"
-                                    class="dropdown-divider"
-                                    style="display: none;"
-                                ></div>
-
-                                <!-- MIS PREFERENCIAS -->
-
-                                <a
-                                    id="linkPreferenciasSso"
-                                    href="#"
-                                    class="dropdown-item"
-                                >
-
-                                    <i class="fa fa-key me-2"></i>
-
-                                    Mis Pareferencias (SSO)
-
-                                </a>
-
-
-                                <div class="dropdown-divider"></div>
-
-                                <!-- CAMBIAR PASSWORD -->
-
-                                <a
-                                    id="linkPasswordSso"
-                                    href="#"
-                                    class="dropdown-item"
-                                >
-
-                                    <i class="fa fa-key me-2"></i>
-
-                                    Mi Password (SSO)
-
-                                </a>
-
-
-                                <div class="dropdown-divider"></div>
-
-
-                                <!-- MODO OSCURO -->
-
-                                <div
-                                    class="dropdown-item d-flex align-items-center justify-content-between"
-                                    onclick="event.stopPropagation();"
-                                >
-
-                                    <span>
-
-                                        <i
-                                            id="iconoTheme"
-                                            class="bi bi-moon-stars-fill me-2"
-                                        ></i>
-
-                                        Modo Oscuro
-
-                                    </span>
-
-
-                                    <div class="form-check form-switch m-0 ms-2">
-
-                                        <input
-                                            class="form-check-input"
-                                            type="checkbox"
-                                            id="checkThemeSwitch"
-                                            onchange="toggleModoOscuro();"
-                                            style="cursor: pointer;"
-                                        >
-
-                                    </div>
-
-                                </div>
-
-
-                                <div class="dropdown-divider"></div>
-
-
-                                <!-- CERRAR SESIÓN -->
-
-                                <a
-                                    href="javascript:void(0);"
-                                    onclick="cerrarSesion();"
-                                    class="dropdown-item text-danger"
-                                >
-
-                                    <i class="fa fa-sign-out me-2"></i>
-
-                                    Cerrar Sesión
-
-                                </a>
-
-                            </div>
-
-                        </li>
+                        <?php require $rutas['menu_usuario']; ?>
 
                     </ul>
 
@@ -579,18 +443,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     }
 
-
-    // =========================================================
-    // RUTAS SSO
-    // =========================================================
-
-    const urlPanelSso =
-        <?= json_encode($rutas['panel_sso_web']) ?>;
-
-    const urlPerfilSso =
-        <?= json_encode($rutas['perfil_sso_web']) ?>;
-
-
     // =========================================================
     // ELEMENTOS
     // =========================================================
@@ -600,12 +452,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const divSso =
         document.getElementById('divDividerSso');
-
-    const linkPass =
-        document.getElementById('linkPasswordSso');
-
-    const linkPreferencias = 
-        document.getElementById('linkPreferenciasSso');
 
     // =========================================================
     // BOTÓN CAMBIAR DE APLICACIÓN
@@ -623,31 +469,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             encodeURIComponent(token);
 
     }
-
-
-    // =========================================================
-    // CAMBIAR PASSWORD
-    // =========================================================
-
-    if (linkPass) {
-
-        linkPass.href =
-            urlPerfilSso +
-            '?token=' +
-            encodeURIComponent(token);
-
-    }
-    // =========================================================
-    // MIS PREFERENCIAS
-    // =========================================================
-
-    if (linkPreferencias) {
-        linkPreferencias.href =
-            urlPerfilSso.replace('perfil.php', 'preferencias.php') +
-            '?token=' +
-            encodeURIComponent(token);
-    }
-
 
     // =========================================================
     // OBTENER CONTEXTO SSO
