@@ -979,7 +979,6 @@ if (
 
             WHERE
                 idhorario = ?
-                AND activo = 1
 
             ORDER BY orden ASC
         ");

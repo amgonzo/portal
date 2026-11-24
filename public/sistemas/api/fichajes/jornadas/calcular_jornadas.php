@@ -60,29 +60,35 @@ function fechaValidaCalculo(string $fecha): bool
     return $dt !== false && $dt->format('Y-m-d') === $fecha;
 }
 
-function minutosHora(?string $hora): ?int
+function segundosHora(?string $hora): ?int
 {
     if ($hora === null || $hora === '') {
         return null;
     }
 
-    if (!preg_match('/^([01]\d|2[0-3]):([0-5]\d)(?::[0-5]\d)?$/', $hora)) {
+    if (!preg_match('/^([01]\d|2[0-3]):([0-5]\d)(?::([0-5]\d))?$/', $hora, $partes)) {
         return null;
     }
 
-    $partes = explode(':', $hora);
-
-    return ((int)$partes[0] * 60) + (int)$partes[1];
+    return ((int)$partes[1] * 3600)
+        + ((int)$partes[2] * 60)
+        + (int)($partes[3] ?? 0);
 }
 
-function horaSQL(int $minutos): string
+function segundosAMinutos(int $segundos): int
 {
-    $minutos = max(0, min(1439, $minutos));
+    return intdiv(max(0, $segundos), 60);
+}
+
+function horaSQL(int $segundos): string
+{
+    $segundos = (($segundos % 86400) + 86400) % 86400;
 
     return sprintf(
-        '%02d:%02d:00',
-        intdiv($minutos, 60),
-        $minutos % 60
+        '%02d:%02d:%02d',
+        intdiv($segundos, 3600),
+        intdiv($segundos % 3600, 60),
+        $segundos % 60
     );
 }
 
@@ -340,15 +346,15 @@ function guardarEventosCalendarioEmpleado(
     $eventos = [];
 
     $minutosTrabajados = (int)(
-        $calculo['minutos_trabajados'] ?? 0
+        segundosAMinutos((int)($calculo['minutos_trabajados'] ?? 0))
     );
 
     $minutosAtraso = (int)(
-        $calculo['minutos_atraso'] ?? 0
+        segundosAMinutos((int)($calculo['minutos_atraso'] ?? 0))
     );
 
     $minutosSalidaAnticipada = (int)(
-        $calculo['minutos_salida_anticipada'] ?? 0
+        segundosAMinutos((int)($calculo['minutos_salida_anticipada'] ?? 0))
     );
 
     /*
@@ -630,7 +636,6 @@ function resolverHorarioCalculo(
 
         WHERE
             idhorario = ?
-            AND activo = 1
 
         ORDER BY orden
         ",
@@ -639,16 +644,23 @@ function resolverHorarioCalculo(
     );
 
     $horario['idhorario'] = $idhorario;
-    $horario['tolerancia_minutos'] = (int)$horario['tolerancia_minutos'];
+    $horario['tolerancia_minutos'] = (int)$horario['tolerancia_minutos'] * 60;
     $horario['tramos'] = [];
-    $horario['descansos'] = $descansos;
+    $horario['descansos'] = array_map(
+        static function (array $descanso): array {
+            $descanso['minutos_permitidos'] =
+                (int)$descanso['minutos_permitidos'] * 60;
+            return $descanso;
+        },
+        $descansos
+    );
 
     $offsetDia = 0;
     $ultimoDesde = null;
 
     foreach ($tramos as $tramo) {
-        $desdeOriginal = minutosHora($tramo['hora_desde']);
-        $hastaOriginal = minutosHora($tramo['hora_hasta']);
+        $desdeOriginal = segundosHora($tramo['hora_desde']);
+        $hastaOriginal = segundosHora($tramo['hora_hasta']);
 
         if ($desdeOriginal === null || $hastaOriginal === null) {
             $horario['tramos_invalidos'] = true;
@@ -664,7 +676,7 @@ function resolverHorarioCalculo(
             * pertenece al día siguiente.
             */
             if ($ultimoDesde !== null && $desde < $ultimoDesde) {
-                $offsetDia += 1440;
+                $offsetDia += 86400;
 
                 $desde = $desdeOriginal + $offsetDia;
                 $hasta = $hastaOriginal + $offsetDia;
@@ -674,7 +686,7 @@ function resolverHorarioCalculo(
             * Si este tramo cruza medianoche, extender su final.
             */
             if ($hasta <= $desde) {
-                $hasta += 1440;
+                $hasta += 86400;
             }
         } elseif ($hasta <= $desde) {
             // Los horarios normales no pueden cruzar medianoche.
@@ -689,7 +701,7 @@ function resolverHorarioCalculo(
             'hasta' => $hasta,
             'hora_desde' => $tramo['hora_desde'],
             'hora_hasta' => $tramo['hora_hasta'],
-            'minutos_teoricos' => (int)$tramo['minutos_teoricos']
+            'minutos_teoricos' => (int)$tramo['minutos_teoricos'] * 60
         ];
 
         $ultimoDesde = $desde;
@@ -773,7 +785,7 @@ function obtenerMarcasCalculo(
     $resultado = [];
 
     foreach ($marcas as $marca) {
-        $minutos = minutosHora($marca['hora']);
+        $minutos = segundosHora($marca['hora']);
 
         if ($minutos === null) {
             continue;
@@ -893,7 +905,7 @@ function obtenerMarcasNocturnasCalculo(
     $resultado = [];
 
     foreach ($filas as $fila) {
-        $minutos = minutosHora($fila['hora']);
+        $minutos = segundosHora($fila['hora']);
 
         if ($minutos === null) {
             continue;
@@ -904,7 +916,7 @@ function obtenerMarcasNocturnasCalculo(
         );
 
         if ($esDiaSiguiente) {
-            $minutos += 1440;
+            $minutos += 86400;
         }
 
         // Evitar incorporar marcas ajenas al turno nocturno.
@@ -981,8 +993,8 @@ function obtenerExtrasCalculo(
     $extras = [];
 
     foreach ($filas as $fila) {
-        $desde = minutosHora($fila['hora_desde']);
-        $hasta = minutosHora($fila['hora_hasta']);
+        $desde = segundosHora($fila['hora_desde']);
+        $hasta = segundosHora($fila['hora_hasta']);
 
         if (
             $desde === null ||
@@ -996,7 +1008,7 @@ function obtenerExtrasCalculo(
         }
 
         if ($cruzaMedianoche && $hasta <= $desde) {
-            $hasta += 1440;
+            $hasta += 86400;
         }
 
         $extras[] = [
@@ -1043,8 +1055,8 @@ function obtenerPermisosCalculo(
     $permisos = [];
 
     foreach ($filas as $fila) {
-        $desde = minutosHora($fila['hora_desde']);
-        $hasta = minutosHora($fila['hora_hasta']);
+        $desde = segundosHora($fila['hora_desde']);
+        $hasta = segundosHora($fila['hora_hasta']);
 
         $permisos[] = [
             'idpermiso' => (int)$fila['idpermiso'],
@@ -1099,13 +1111,17 @@ function obtenerConfiguracionCalculo(mysqli $db): array
     return [
         'minutos_minimos_extra' => max(
             0,
-            (int)($fila['minutos_minimos_extra'] ?? 0)
+            (int)($fila['minutos_minimos_extra'] ?? 0) * 60
         ),
         'tipo_extra_fuera_horario' => $tipoExtra,
         'tratamiento_horas_extra' => $tratamiento
     ];
 }
 
+/*
+ * Desde este punto, todos los valores temporales internos están expresados
+ * en segundos. La conversión a minutos se realiza únicamente al persistir.
+ */
 /* =========================================================
    CLASIFICAR PARES DE MARCAS
 ========================================================= */
@@ -1169,20 +1185,79 @@ function calcularIntervalosCalculo(
 
     $descansosHorario = $horario['descansos'] ?? [];
 
-    for ($i = 0; $i < count($marcas) - 1; $i += 2) {
-        $entrada = $marcas[$i];
-        $salida = $marcas[$i + 1];
+    $acumularDescansos = (
+        count($marcas) === 4 &&
+        count($horario['tramos'] ?? []) === 1 &&
+        count($descansosHorario) >= 2
+    );
+
+    $intervalosMarcas = [];
+
+    if ($acumularDescansos) {
+        $intervalosMarcas = [
+            [
+                'entrada' => $marcas[0],
+                'salida' => $marcas[1],
+                'tipo_forzado' => 'trabajo'
+            ],
+            [
+                'entrada' => $marcas[1],
+                'salida' => $marcas[2],
+                'tipo_forzado' => 'descanso'
+            ],
+            [
+                'entrada' => $marcas[2],
+                'salida' => $marcas[3],
+                'tipo_forzado' => 'trabajo'
+            ]
+        ];
+    } else {
+        for ($i = 0; $i < count($marcas) - 1; $i += 2) {
+            $intervalosMarcas[] = [
+                'entrada' => $marcas[$i],
+                'salida' => $marcas[$i + 1],
+                'tipo_forzado' => null
+            ];
+        }
+    }
+
+    foreach ($intervalosMarcas as $intervalo) {
+        $entrada = $intervalo['entrada'];
+        $salida = $intervalo['salida'];
+        $tipoForzado = $intervalo['tipo_forzado'];
 
         $desde = $entrada['minutos'];
         $hasta = $salida['minutos'];
 
         if ($hasta <= $desde) {
-            $requiereRevision = true;
-            $observaciones[] =
-                'Se encontró una salida anterior o igual a su entrada.';
+
+        // Permitir una diferencia menor a un minuto
+        // entre el regreso del descanso y la salida final.
+        if (
+            $acumularDescansos &&
+            $tipoForzado === 'trabajo' &&
+            $intervalo === end($intervalosMarcas) &&
+            strcmp($salida['hora'], $entrada['hora']) > 0
+        ) {
+            $interpretaciones[] = [
+                'marca' => $entrada,
+                'tipo' => 'entrada'
+            ];
+
+            $interpretaciones[] = [
+                'marca' => $salida,
+                'tipo' => 'salida'
+            ];
 
             continue;
         }
+
+        $requiereRevision = true;
+        $observaciones[] =
+            'Se encontró una salida anterior o igual a su entrada.';
+
+        continue;
+    }
 
         $duracion = $hasta - $desde;
 
@@ -1203,8 +1278,8 @@ function calcularIntervalosCalculo(
                     $permiso['hasta']
                 );
 
-                $cercaDesde = abs($desde - $permiso['desde']) <= 120;
-                $cercaHasta = abs($hasta - $permiso['hasta']) <= 120;
+                $cercaDesde = abs($desde - $permiso['desde']) <= 7200;
+                $cercaHasta = abs($hasta - $permiso['hasta']) <= 7200;
 
                 if (
                     $solapamiento > 0 &&
@@ -1221,13 +1296,20 @@ function calcularIntervalosCalculo(
             }
         }
 
-        if ($permisoDetectado !== null) {
-            $tipoIntervalo = 'permiso';
+        if (
+            $tipoIntervalo === 'trabajo' &&
+            $tipoForzado === 'descanso'
+        ) {
+            $tipoIntervalo = 'descanso';
 
-            $asociacionesPermisos[] = [
-                'idpermiso' => $permisoDetectado['idpermiso'],
-                'salida' => $entrada,
-                'regreso' => $salida
+            $huecoDetectado = [
+                'orden' => 1,
+                'minutos_permitidos' => array_sum(
+                    array_map(
+                        static fn($d) => (int)$d['minutos_permitidos'],
+                        $descansosHorario
+                    )
+                )
             ];
         }
 
@@ -1240,8 +1322,8 @@ function calcularIntervalosCalculo(
                     $hueco['hasta']
                 );
 
-                $cercaInicio = abs($desde - $hueco['desde']) <= 120;
-                $cercaFin = abs($hasta - $hueco['hasta']) <= 120;
+                $cercaInicio = abs($desde - $hueco['desde']) <= 7200;
+                $cercaFin = abs($hasta - $hueco['hasta']) <= 7200;
 
                 if (
                     $solapamiento > 0 &&
@@ -1267,12 +1349,14 @@ function calcularIntervalosCalculo(
         if ($tipoIntervalo === 'descanso') {
             $ordenDescanso = (int)$huecoDetectado['orden'];
 
-            $permitidos = 0;
+            $permitidos = $huecoDetectado['minutos_permitidos'] ?? 0;
 
-            foreach ($descansosHorario as $descansoHorario) {
-                if ((int)$descansoHorario['orden'] === $ordenDescanso) {
-                    $permitidos = (int)$descansoHorario['minutos_permitidos'];
-                    break;
+            if (!isset($huecoDetectado['minutos_permitidos'])) {
+                foreach ($descansosHorario as $descansoHorario) {
+                    if ((int)$descansoHorario['orden'] === $ordenDescanso) {
+                        $permitidos = (int)$descansoHorario['minutos_permitidos'];
+                        break;
+                    }
                 }
             }
 
@@ -1621,8 +1705,8 @@ function calcularIntervalosNocturnos(
         */
         if ($permiso['desde'] < $inicioTurno) {
 
-            $permiso['desde'] += 1440;
-            $permiso['hasta'] += 1440;
+            $permiso['desde'] += 86400;
+            $permiso['hasta'] += 86400;
 
         } elseif ($permiso['hasta'] <= $permiso['desde']) {
 
@@ -1630,7 +1714,7 @@ function calcularIntervalosNocturnos(
             * Si comienza antes de medianoche y termina
             * después, solamente se traslada la finalización.
             */
-            $permiso['hasta'] += 1440;
+            $permiso['hasta'] += 86400;
         }
     }
 
@@ -1642,7 +1726,7 @@ function calcularIntervalosNocturnos(
      */
     foreach ($extras as &$extra) {
         if ($extra['hasta'] <= $extra['desde']) {
-            $extra['hasta'] += 1440;
+            $extra['hasta'] += 86400;
         }
     }
     unset($extra);
@@ -1851,12 +1935,12 @@ function guardarJornadaCalculo(
                 'iiiiiiii',
                 [
                     $horario ? (int)$horario['idhorario'] : null,
-                    $calculo['minutos_trabajados'],
-                    $calculo['minutos_descanso'],
-                    $calculo['minutos_descanso_exceso'],
-                    $calculo['minutos_atraso'],
-                    $calculo['minutos_salida_anticipada'],
-                    $calculo['minutos_extra'],
+                    segundosAMinutos($calculo['minutos_trabajados']),
+                    segundosAMinutos($calculo['minutos_descanso']),
+                    segundosAMinutos($calculo['minutos_descanso_exceso']),
+                    segundosAMinutos($calculo['minutos_atraso']),
+                    segundosAMinutos($calculo['minutos_salida_anticipada']),
+                    segundosAMinutos($calculo['minutos_extra']),
                     $idjornada
                 ]
             );
@@ -1907,12 +1991,12 @@ function guardarJornadaCalculo(
                     $idempleado,
                     $fecha,
                     $horario ? (int)$horario['idhorario'] : null,
-                    $calculo['minutos_trabajados'],
-                    $calculo['minutos_descanso'],
-                    $calculo['minutos_descanso_exceso'],
-                    $calculo['minutos_atraso'],
-                    $calculo['minutos_salida_anticipada'],
-                    $calculo['minutos_extra']
+                    segundosAMinutos($calculo['minutos_trabajados']),
+                    segundosAMinutos($calculo['minutos_descanso']),
+                    segundosAMinutos($calculo['minutos_descanso_exceso']),
+                    segundosAMinutos($calculo['minutos_atraso']),
+                    segundosAMinutos($calculo['minutos_salida_anticipada']),
+                    segundosAMinutos($calculo['minutos_extra'])
                 ]
             );
 
@@ -1971,7 +2055,7 @@ function guardarJornadaCalculo(
                 ) {
                     $minutosCompensables = max(
                         0,
-                        (int)($tramo['minutos'] ?? 0)
+                        segundosAMinutos((int)($tramo['minutos'] ?? 0))
                     );
                 }
 
@@ -2011,7 +2095,7 @@ function guardarJornadaCalculo(
             ))->modify(
                 ($minutosDesde >= 0 ? '+' : '') .
                 $minutosDesde .
-                ' minutes'
+                ' seconds'
             )->format('Y-m-d H:i:s');
 
             $fechaHoraSalida = (new DateTime(
@@ -2019,7 +2103,7 @@ function guardarJornadaCalculo(
             ))->modify(
                 ($minutosHasta >= 0 ? '+' : '') .
                 $minutosHasta .
-                ' minutes'
+                ' seconds'
             )->format('Y-m-d H:i:s');
 
             ejecutarSQL(
@@ -2042,11 +2126,11 @@ function guardarJornadaCalculo(
                     $idjornada,
                     $tramo['orden'],
                     $tipoTramo,
-                    horaSQL(($minutosDesde % 1440 + 1440) % 1440),
-                    horaSQL(($minutosHasta % 1440 + 1440) % 1440),
+                    horaSQL(($minutosDesde % 86400 + 86400) % 86400),
+                    horaSQL(($minutosHasta % 86400 + 86400) % 86400),
                     $fechaHoraEntrada,
                     $fechaHoraSalida,
-                    $tramo['minutos']
+                    segundosAMinutos((int)$tramo['minutos'])
                 ]
             );
         }
@@ -2071,14 +2155,14 @@ function guardarJornadaCalculo(
                     $idjornada,
                     $descanso['orden'],
                     horaSQL(
-                        ((int)$descanso['hora_desde'] % 1440 + 1440) % 1440
+                        ((int)$descanso['hora_desde'] % 86400 + 86400) % 86400
                     ),
                     horaSQL(
-                        ((int)$descanso['hora_hasta'] % 1440 + 1440) % 1440
+                        ((int)$descanso['hora_hasta'] % 86400 + 86400) % 86400
                     ),
-                    $descanso['minutos_reales'],
-                    $descanso['minutos_permitidos'],
-                    $descanso['minutos_exceso']
+                    segundosAMinutos((int)$descanso['minutos_reales']),
+                    segundosAMinutos((int)$descanso['minutos_permitidos']),
+                    segundosAMinutos((int)$descanso['minutos_exceso'])
                 ]
             );
         }

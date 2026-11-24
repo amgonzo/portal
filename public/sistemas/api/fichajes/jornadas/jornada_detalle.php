@@ -288,7 +288,6 @@ try {
                     minutos_permitidos
                  FROM horario_descansos
                  WHERE idhorario = ?
-                   AND activo = 1
                  ORDER BY orden",
                 'i',
                 [$idhorario]

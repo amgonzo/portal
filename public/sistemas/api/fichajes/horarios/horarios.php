@@ -309,8 +309,7 @@ if ($metodo === 'GET') {
                     idhorario_descanso,
                     idhorario,
                     orden,
-                    minutos_permitidos,
-                    activo
+                    minutos_permitidos
                 FROM horario_descansos
                 WHERE idhorario = ?
                 ORDER BY orden ASC
@@ -368,10 +367,7 @@ if ($metodo === 'GET') {
                         (int)$fila['orden'],
 
                     'minutos_permitidos' =>
-                        (int)$fila['minutos_permitidos'],
-
-                    'activo' =>
-                        (int)$fila['activo']
+                        (int)$fila['minutos_permitidos']
 
                 ];
 
@@ -720,15 +716,7 @@ if ($metodo === 'POST') {
                     $indice + 1,
 
                 'minutos_permitidos' =>
-                    $minutosPermitidos,
-
-                'activo' =>
-                    (
-                        !empty($descanso['activo'])
-                        ? 1
-                        : 0
-                    )
-
+                    $minutosPermitidos
             ];
 
         }
@@ -984,10 +972,9 @@ if ($metodo === 'POST') {
                     (
                         idhorario,
                         orden,
-                        minutos_permitidos,
-                        activo
+                        minutos_permitidos
                     )
-                    VALUES (?, ?, ?, ?)
+                    VALUES (?, ?, ?)
                 ");
 
 
@@ -1011,11 +998,10 @@ if ($metodo === 'POST') {
 
 
                     $stmtDescanso->bind_param(
-                        'iiii',
+                        'iii',
                         $idHorario,
                         $orden,
-                        $minutos,
-                        $activo
+                        $minutos
                     );
 
 
