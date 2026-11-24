@@ -40,6 +40,9 @@
                                 <a href="diccionario.php" class="dropdown-item item-permiso" data-permiso="diccionario_ver" style="display: none;">
                                     <i class="fas fa-book"></i> Gestión Diccionario
                                 </a>
+                                <a href="integracion_tipos_licencia.php" class="dropdown-item item-permiso" data-permiso="integracion_tipos_licencia_ver" style="display: none;">
+                                    <i class="fas fa-link"></i> Integración Tipos de Licencia
+                                </a>
                                 <a href="permisos.php" class="dropdown-item item-permiso" data-permiso="roles_editar" style="display: none;">
                                     <i class="fas fa-key"></i> Configurar Permisos
                                 </a>

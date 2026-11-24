@@ -409,6 +409,7 @@ $apiUrl = $_ENV['API_URL'] ?? '/sistemas/api';
 
 
                         <?php require $rutas['menu_usuario']; ?>
+                        <?php require $rutas['menu_configurar_sistema']; ?>
 
                     </ul>
 

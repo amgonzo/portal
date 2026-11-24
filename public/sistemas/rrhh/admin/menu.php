@@ -135,14 +135,14 @@ $empresa = $_ENV['APP_NAME'] ?? 'Sistema RRHH';
 
                                 <a href="tipos_licencia.php"
                                    class="dropdown-item menu-item-permiso"
-                                   data-permiso="licencias_gestionar"
+                                   data-permiso="licencias_ver"
                                    style="display:none;">
                                     Tipos de licencia
                                 </a>
 
                                 <a href="reglas_vacaciones.php"
                                    class="dropdown-item menu-item-permiso"
-                                   data-permiso="vacaciones_gestionar"
+                                   data-permiso="vacaciones_ver"
                                    style="display:none;">
                                     Reglas de vacaciones
                                 </a>
